@@ -1,14 +1,16 @@
 // Coordinates top-level navigation, saved voice state, and page rendering for VoiceForge.
 import React from "react";
-import { Camera, Mic2, Settings as SettingsIcon } from "lucide-react";
+import { Camera, Mic2, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
+import VoiceForge from "./components/VoiceForge";
 
 const tabs = [
   { id: "onboarding", label: "Onboarding", icon: Mic2 },
-  { id: "call", label: "Call", icon: Camera },
-  { id: "settings", label: "Settings", icon: SettingsIcon }
+  { id: "call",       label: "Call",        icon: Camera },
+  { id: "compose",    label: "Compose",     icon: MessageSquare },
+  { id: "settings",   label: "Settings",    icon: SettingsIcon },
 ];
 
 export default function App() {
@@ -52,11 +54,16 @@ export default function App() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
-        {activeTab === "call" && <Call />}
-        {activeTab === "settings" && <Settings />}
-      </div>
+      {/* VoiceForge composer is full-bleed (no max-width wrapper) */}
+      {activeTab === "compose" && <VoiceForge />}
+
+      {activeTab !== "compose" && (
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
+          {activeTab === "call"       && <Call />}
+          {activeTab === "settings"   && <Settings />}
+        </div>
+      )}
     </main>
   );
 }
