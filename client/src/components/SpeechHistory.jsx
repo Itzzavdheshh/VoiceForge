@@ -44,29 +44,29 @@ export function SpeechHistory({
     return msgs;
   }, [history, favorites, tab, search]);
 
+  const tabs = ["all", "pinned"];
+
+  const handleTabKeyDown = (event, currentIndex) => {
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    }
+
+    if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    }
+
+    if (nextIndex !== currentIndex) {
+      setTab(tabs[nextIndex]);
+    }
+  };
   const handleClearHistory = () => {
     if (
       window.confirm("Clear all history? Pinned messages will also be removed.")
     ) {
       onClearHistory();
     }
-    const tabs = ["all", "pinned"];
-
-    const handleTabKeyDown = (event, currentIndex) => {
-      let nextIndex = currentIndex;
-
-      if (event.key === "ArrowRight") {
-        nextIndex = (currentIndex + 1) % tabs.length;
-      }
-
-      if (event.key === "ArrowLeft") {
-        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-      }
-
-      if (nextIndex !== currentIndex) {
-        setTab(tabs[nextIndex]);
-      }
-    };
   };
 
   return (
@@ -161,7 +161,6 @@ export function SpeechHistory({
             className="flex-1 overflow-y-auto p-3 focus:outline-none"
             role="tabpanel"
             aria-labelledby={`tab-${tab}`}
-            tabIndex={0}
             aria-label={tab === "pinned" ? "Pinned messages" : "All messages"}
             tabIndex={0}
           >
