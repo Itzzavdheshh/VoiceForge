@@ -14,7 +14,7 @@ export function QuickReplies({ onSelect }) {
   return (
     <section
       aria-labelledby="qr-heading"
-      className="flex-shrink-0 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-black"
+      className="flex-shrink-0 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-background"
     >
       <h3
         id="qr-heading"
