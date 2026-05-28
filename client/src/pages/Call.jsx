@@ -14,9 +14,23 @@ export default function Call() {
   const [isSpeaking, setIsSpeaking] = React.useState(false);
   const canvasRef = React.useRef(null);
   const localVideoRef = React.useRef(null);
-  const activeProfile = getActiveVoiceProfile();
+  const [activeProfile, setActiveProfile] = React.useState(null);
+  const [dbError, setDbError] = React.useState("");
   const { speak, status, error, audioUrl } = useTTS();
   const virtualCamera = useVirtualCamera(canvasRef);
+
+  React.useEffect(() => {
+    async function loadActiveProfile() {
+      try {
+        const profile = await getActiveVoiceProfile();
+        setActiveProfile(profile);
+        setDbError("");
+      } catch (err) {
+        setDbError(err?.message || String(err));
+      }
+    }
+    loadActiveProfile();
+  }, []);
 
   const [isCalibrationOpen, setIsCalibrationOpen] = React.useState(false);
   const [calibration, setCalibration] = React.useState(() => {
@@ -24,13 +38,34 @@ export default function Call() {
     const savedX     = localStorage.getItem("voiceforge:calibrationXOffset");
     const savedY     = localStorage.getItem("voiceforge:calibrationYOffset");
     const savedScale = localStorage.getItem("voiceforge:calibrationScale");
-    const xOffset    = savedX     !== null ? parseInt(savedX, 10)    : 0;
-    const yOffset    = savedY     !== null ? parseInt(savedY, 10)    : 0;
-    const scale      = savedScale !== null ? parseFloat(savedScale)  : 1.0;
+
+    let x = savedX !== null ? parseInt(savedX, 10) : 0;
+    let y = savedY !== null ? parseInt(savedY, 10) : 0;
+    let scale = savedScale !== null ? parseFloat(savedScale) : 1.0;
+
+    // Sanitize and clamp values to default limits
+    if (isNaN(x)) {
+      x = 0;
+    } else {
+      x = Math.max(-400, Math.min(400, x));
+    }
+
+    if (isNaN(y)) {
+      y = 0;
+    } else {
+      y = Math.max(-250, Math.min(150, y));
+    }
+
+    if (isNaN(scale)) {
+      scale = 1.0;
+    } else {
+      scale = Math.max(0.5, Math.min(2.5, scale));
+    }
+
     return {
-      xOffset: isNaN(xOffset) ? 0    : xOffset,
-      yOffset: isNaN(yOffset) ? 0    : yOffset,
-      scale:   isNaN(scale)   ? 1.0  : scale,
+      xOffset: x,
+      yOffset: y,
+      scale
     };
   } catch {
     return { xOffset: 0, yOffset: 0, scale: 1.0 };
@@ -70,8 +105,9 @@ export default function Call() {
         activeStream = stream;
         setWebcamStream(stream);
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setCameraError("");
       } catch (webcamError) {
-        setCameraError(webcamError.message);
+        setCameraError(webcamError?.message || String(webcamError));
       }
     }
     openCamera();
@@ -118,9 +154,15 @@ export default function Call() {
         </div>
       </section>
 
-      {/* ── No profile warning ─────────────────────────────────────────────── */}
-      {!activeProfile && (
-        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink dark:border-coral/30 dark:bg-coral/10 dark:text-neutral-200">
+      {dbError && (
+        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
+          <CircleAlert size={18} aria-hidden="true" />
+          <span>Database Error: {dbError}. Please ensure IndexedDB is enabled and not blocked.</span>
+        </div>
+      )}
+
+      {!activeProfile && !dbError && (
+        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
           <CircleAlert size={18} aria-hidden="true" />
           Create or select a voice profile before speaking.
         </div>

@@ -33,7 +33,7 @@ export default function useTTS() {
       setStatus("ready");
       return { audioBlob, audioUrl: nextAudioUrl };
     } catch (ttsError) {
-      setError(ttsError.message);
+      setError(ttsError?.message || String(ttsError));
       setStatus("error");
       throw ttsError;
     }

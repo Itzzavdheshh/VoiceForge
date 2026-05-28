@@ -1,23 +1,63 @@
 // Lets users save their ElevenLabs API key locally and manage browser-stored voice profiles.
 import React from "react";
-import { ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink, Trash2, CircleAlert } from "lucide-react";
 import {
   deleteVoiceProfile,
   getSavedProfiles,
 } from "../hooks/useVoiceClone.js";
 
+function AudioPlayback({ blob }) {
+  const [audioUrl, setAudioUrl] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    setAudioUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+
+  if (!audioUrl) return null;
+  return (
+    <audio
+      src={audioUrl}
+      controls
+      className="mt-2 h-8 w-full max-w-xs"
+    />
+  );
+}
+
 export default function Settings() {
   const [apiKey, setApiKey] = React.useState(
     localStorage.getItem("voiceforge:elevenlabsApiKey") || "",
   );
-  const [profiles, setProfiles] = React.useState(getSavedProfiles());
+  const [profiles, setProfiles] = React.useState([]);
+  const [dbError, setDbError] = React.useState("");   // ← also missing (see `#2`
+  
+  React.useEffect(() => {
+    async function loadProfiles() {
+      try {
+        const loaded = await getSavedProfiles();
+        setProfiles(loaded);
+        setDbError("");
+      } catch (err) {
+        setDbError(err?.message || String(err));
+      }
+    }
+    loadProfiles();
+  }, []);
 
   function saveApiKey() {
     localStorage.setItem("voiceforge:elevenlabsApiKey", apiKey);
   }
 
-  function removeProfile(voiceId) {
-    setProfiles(deleteVoiceProfile(voiceId));
+  async function removeProfile(voiceId) {
+    try {
+      const next = await deleteVoiceProfile(voiceId);
+      setProfiles(next);
+      setDbError("");
+    } catch (err) {
+      setDbError(err?.message || String(err));
+    }
   }
 
   return (
@@ -32,6 +72,12 @@ export default function Settings() {
           profiles saved in this browser.
         </p>
       </section>
+      {dbError && (
+      <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
+        <CircleAlert size={18} aria-hidden="true" />
+        <span>Database error: {dbError}</span>
+      </div>
+    )}
 
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
@@ -87,6 +133,8 @@ export default function Settings() {
                 <p className="mt-1 break-all text-sm text-ink/60 dark:text-muted">
                   {profile.voice_id}
                 </p>
+                {profile.audioBlob && <AudioPlayback blob={profile.audioBlob} />}
+ 
               </div>
               <button
                 type="button"
