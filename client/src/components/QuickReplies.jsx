@@ -5,9 +5,9 @@ const QUICK_REPLIES = [
   { label: "Thank you", phrase: "Thank you" },
   { label: "Please wait", phrase: "Please wait" },
   { label: "I need help", phrase: "I need help" },
-  { label: " Can you repeat that?", phrase: "Can you repeat that?" },
+  { label: "Can you repeat that?", phrase: "Can you repeat that?" },
   { label: "Yes, I understand", phrase: "Yes, I understand" },
-  { label: "No thank you", phrase: "No, thank you" },
+  { label: "No, thank you", phrase: "No, thank you" },
 ];
 
 export function QuickReplies({ onSelect }) {
