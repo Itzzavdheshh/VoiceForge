@@ -4,12 +4,8 @@ import { getAllProfiles, saveProfile, deleteProfile } from "../utils/db.js";
 
 const ACTIVE_KEY = "voiceforge:activeVoiceId";
 
-export async function getSavedProfiles() {
-  try {
-    return await getAllProfiles();
-  } catch {
-    return [];
-  }
+export function getSavedProfiles() {
+  return getAllProfiles();
 }
 
 export async function saveVoiceProfile(profile, audioBlob = null) {
@@ -36,13 +32,9 @@ export async function deleteVoiceProfile(voiceId) {
 }
 
 export async function getActiveVoiceProfile() {
-  try {
-    const profiles = await getSavedProfiles();
-    const activeVoiceId = localStorage.getItem(ACTIVE_KEY);
-    return profiles.find((profile) => profile.voice_id === activeVoiceId) || profiles[0] || null;
-  } catch {
-    return null;
-  }
+  const profiles = await getSavedProfiles();
+  const activeVoiceId = localStorage.getItem(ACTIVE_KEY);
+  return profiles.find((profile) => profile.voice_id === activeVoiceId) || profiles[0] || null;
 }
 
 export default function useVoiceClone() {
