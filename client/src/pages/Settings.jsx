@@ -134,7 +134,7 @@ export default function Settings() {
                   {profile.voice_id}
                 </p>
                 {profile.audioBlob && <AudioPlayback blob={profile.audioBlob} />}
-  )}
+ 
               </div>
               <button
                 type="button"
