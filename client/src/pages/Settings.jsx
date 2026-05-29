@@ -5,7 +5,7 @@ import {
   deleteVoiceProfile,
   getSavedProfiles,
 } from "../hooks/useVoiceClone.js";
-import { encryptStore, decryptStore } from "../utils/crypto.js";
+
 
 function AudioPlayback({ blob }) {
   const [audioUrl, setAudioUrl] = React.useState(null);
@@ -28,9 +28,6 @@ function AudioPlayback({ blob }) {
 }
 
 export default function Settings() {
-  const [apiKey, setApiKey] = React.useState(
-    decryptStore(localStorage.getItem("voiceforge:elevenlabsApiKey") || ""),
-  );
   const [profiles, setProfiles] = React.useState([]);
   const [dbError, setDbError] = React.useState("");   // ← also missing (see `#2`
   
@@ -46,10 +43,6 @@ export default function Settings() {
     }
     loadProfiles();
   }, []);
-
-  function saveApiKey() {
-    localStorage.setItem("voiceforge:elevenlabsApiKey", encryptStore(apiKey));
-  }
 
   async function removeProfile(voiceId) {
     try {
@@ -79,42 +72,6 @@ export default function Settings() {
         <span>Database error: {dbError}</span>
       </div>
     )}
-
-      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <label className="flex-1 text-sm font-bold" htmlFor="api-key">
-            ElevenLabs API key
-            <input
-              id="api-key"
-              type="password"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-md border border-ink/15 bg-cloud px-3 text-ink outline-none focus:border-moss focus:ring-4 focus:ring-mint dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
-              placeholder="sk_..."
-            />
-          </label>
-          <button
-            type="button"
-            onClick={saveApiKey}
-            className="min-h-11 rounded-md bg-moss px-5 font-bold text-white"
-          >
-            Save key
-          </button>
-          <a
-            href="https://elevenlabs.io/"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-ink/15 px-4 font-bold text-ink hover:border-moss hover:text-moss dark:border-border dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow"
-          >
-            Free tier
-            <ExternalLink size={16} aria-hidden="true" />
-          </a>
-        </div>
-        <p className="mt-3 text-sm text-ink/65 dark:text-muted">
-          The backend reads `.env` first. This local key is available for future
-          client-only experiments.
-        </p>
-      </section>
 
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
         <h2 className="text-xl font-bold">Saved voice profiles</h2>
