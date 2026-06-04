@@ -136,7 +136,7 @@ jobs:
 
             function getProgramReviewerMentions(programLabel) {
               const reviewersByProgram = {
-                gssoc26: ['@sabeenaviklar'],
+                gssoc26: ['@sabeenaviklar', '@1754riya'],
                 nsoc26: [],
                 SSoC26: ['@joyprakashk', '@rushi-k12'],
                 ELUSOC: []
