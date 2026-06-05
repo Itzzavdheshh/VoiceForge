@@ -262,34 +262,36 @@ jobs:
               if (authorCanSelfReview) {
                 successBody =
                   `${marker}\n` +
-                  `> **Intake passed** - maintainer issue\n\n` +
-                  `Hi @${username} - your ${matchedProgram.name} ${issueType} passed validation. No mentor ping was sent because you have write access.\n\n` +
-                  `**Labels applied:** ${appliedLabels}\n\n` +
-                  `**Your next steps**\n` +
-                  `1. Add a \`priority: *\` and \`level: *\` label.\n` +
-                  `2. Apply a decision label: \`go ahead\`, \`duplicate\`, \`not needed\`, or \`out of scope\`.\n` +
-                  `3. Assign only when ready. Contributors should wait for assignment before starting work.\n\n` +
-                  `<sub>🤖 VoiceForge Automation · issue-template-validator</sub>`;
+                  `## ✅ Issue Passed Validation\n\n` +
+                  `> [!NOTE]\n` +
+                  `> **Maintainer issue** — no mentor ping sent since you have write access.\n\n` +
+                  `Hey @${username}! 👋 Your **${matchedProgram.name} ${issueType}** cleared all checks — ${appliedLabels} applied.\n\n` +
+                  `⚠️ Contributors must **not** start until the issue is assigned.\n\n` +
+                  `---\n` +
+                  `<sub>🤖 VoiceForge Automation ·<em>Updates automatically on edits</em></sub>`;
               } else if (reviewerMentions.length > 0) {
                 successBody =
                   `${marker}\n` +
-                  `> **Intake passed** - waiting for mentor review\n\n` +
-                  `Hi @${username} - your ${matchedProgram.name} ${issueType} looks good.\n\n` +
-                  `**Labels applied:** ${appliedLabels}\n\n` +
-                  `**What happens next**\n` +
-                  `1. A mentor reviews scope and priority.\n` +
-                  `2. They apply \`go ahead\` or close with \`duplicate\`, \`not needed\`, or \`out of scope\`.\n` +
-                  `3. The issue gets assigned. Please start work only after approval and assignment.\n\n` +
-                  `${reviewerMentions.join(' ')} - ${matchedProgram.name} issue ready for your review.\n\n` +
-                  `<sub>🤖 VoiceForge Automation · issue-template-validator</sub>`;
+                  `## ✅ Issue Passed Validation\n\n` +
+                  `> [!TIP]\n` +
+                  `> **Waiting for mentor review** — a mentor will triage this before it's opened for contributions.\n\n` +
+                  `Hey @${username}! 🎉 Your **${matchedProgram.name} ${issueType}** looks great — all checks passed! ${appliedLabels} applied.\n\n` +
+                  `A mentor will review scope and priority, then apply required labels.\n` +
+                  `⚠️ **Do not start work until the issue is approved _and_ assigned to you.**\n\n` +
+                  `📣 ${reviewerMentions.join(' ')} — **${matchedProgram.name}** issue ready for your review! 👀\n\n` +
+                  `---\n` +
+                  `<sub>🤖 VoiceForge Automation · <em>Updates automatically on edits</em></sub>`;
               } else {
                 successBody =
                   `${marker}\n` +
-                  `> **Intake passed** - no mentor configured yet\n\n` +
-                  `Hi @${username} - your ${matchedProgram.name} ${issueType} looks good.\n\n` +
-                  `**Labels applied:** ${appliedLabels}\n\n` +
-                  `No mentor is configured for ${matchedProgram.name} yet, so a maintainer will review this directly. Please wait for assignment before starting work.\n\n` +
-                  `<sub>🤖 VoiceForge Automation · issue-template-validator</sub>`;
+                  `## ✅ Issue Passed Validation\n\n` +
+                  `> [!NOTE]\n` +
+                  `> **No mentor configured yet** for ${matchedProgram.name} — a maintainer will review directly.\n\n` +
+                  `Hey @${username}! 👋 Your **${matchedProgram.name} ${issueType}** passed all checks! ${appliedLabels} applied.\n\n` +
+                  `A maintainer will evaluate scope and apply: \`go ahead\` · \`duplicate\` · \`not needed\` · \`out of scope\`.\n` +
+                  `🙋 You'll be notified when it's open to claim. ⚠️ Please wait for an explicit assignment before starting work.\n\n` +
+                  `---\n` +
+                  `<sub>🤖 VoiceForge Automation · issue-template-validator · <em>Updates automatically on edits</em></sub>`;
               }
 
               if (existing) {
@@ -313,28 +315,34 @@ jobs:
             const problemLines = [];
 
             if (templateProblems.includes('multiple-programs')) {
-              problemLines.push('**Multiple programs selected** - keep only one: GSSoC, NSOC, SSOC, or ELUSOC under the Program heading.');
+              problemLines.push('| 📌 | **Multiple programs selected** | Remove extras — keep only **one** of: `GSSoC` · `NSOC` · `SSOC` · `ELUSOC` under the **Program** heading |');
             } else if (templateProblems.includes('no-program')) {
-              problemLines.push('**No program selected** - add one under the Program heading: GSSoC, NSOC, SSOC, or ELUSOC.');
+              problemLines.push('| 📌 | **No program selected** | Add one Program under the **Program** heading: `GSSoC` · `NSOC` · `SSOC` · `ELUSOC` |');
             }
 
             if (templateProblems.includes('no-template')) {
-              problemLines.push('**Template not used** - fill in either the bug report template or the feature request template.');
+              problemLines.push('| 📝 | **Template not used** | Re-open with the **Bug Report** or **Feature Request** template — do not file a blank issue |');
             }
 
             if (qualityProblems.includes('low-quality')) {
-              problemLines.push('**Not enough detail** - replace placeholder text with real context, steps, and expected vs actual behavior.');
+              problemLines.push('| 💬 | **Not enough detail** | Replace placeholder text with real context, clear reproduction steps, and expected vs. actual behavior |');
             }
 
             const problemCount = problemLines.length;
             const commentBody =
               `${marker}\n` +
-              `> **${problemCount} thing${problemCount === 1 ? '' : 's'} need${problemCount === 1 ? 's' : ''} fixing** before this can be reviewed\n\n` +
-              `Hi @${username} - quick update needed on the issue body:\n\n` +
-              problemLines.map(line => `- ${line}`).join('\n') +
+              `## ❌ Action Required Before Review\n\n` +
+              `> [!CAUTION]\n` +
+              `> **${problemCount} item${problemCount === 1 ? '' : 's'} need${problemCount === 1 ? 's' : ''} fixing** before a mentor can be notified.\n\n` +
+              `Hey @${username}! 👋 Thanks for submitting your issue — almost there. Please update the issue body:\n\n` +
+              `| # | Problem | How to Fix |\n` +
+              `|---|---------|------------|\n` +
+              problemLines.join('\n') +
               `\n\n` +
-              `Edit the issue body above. This comment updates automatically after the workflow runs again.\n\n` +
-              `<sub>🤖 VoiceForge Automation · issue-template-validator</sub>`;
+              `**To revalidate:** edit the issue body → save. This comment updates automatically ✅\n` +
+              `> 💡 Need a template? Close this and open a new issue using **Bug Report** or **Feature Request** from the issue picker.\n\n` +
+              `---\n` +
+              `<sub>🤖 VoiceForge Automation · issue-template-validator · <em>Updates automatically on edits</em></sub>`;
 
             if (existing) {
               await github.rest.issues.updateComment({
