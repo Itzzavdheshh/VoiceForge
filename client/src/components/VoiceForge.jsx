@@ -1,4 +1,9 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 import { Copy, Eraser, Mic2 } from "lucide-react";
 import { VoiceQuickSettings } from "./VoiceQuickSettings";
 import { FavoriteMessages } from "./FavoriteMessages";
@@ -12,6 +17,8 @@ const MAX_CHARS = 500;
 export default function VoiceForge() {
   const [inputText, setInputText] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const [announcement, setAnnouncement] = useState("");
   const textareaRef = useRef(null);
 
   const {
@@ -105,10 +112,9 @@ export default function VoiceForge() {
   }, [handleSpeak]);
 
   const charsLeft = MAX_CHARS - inputText.length;
-  const [announcement, setAnnouncement] = useState("");
-  const hasAnnouncedRef = useRef(false);
+
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (charsLeft < 50 && !hasAnnouncedRef.current) {
       hasAnnouncedRef.current = true;
       setAnnouncement(`Warning: only ${charsLeft} characters remaining.`);
