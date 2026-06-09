@@ -8,6 +8,7 @@ import VoiceForge from "./components/VoiceForge";
 import { useTheme } from "./components/ThemeContext.jsx";
 import Footer from './components/Footer.jsx';
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
+import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 
 const tabs = [
   { id: "onboarding", label: "Onboarding", icon: Mic2 },
@@ -131,7 +132,9 @@ export default function App() {
       </main>
 
       <KeyboardShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <Footer />
+      <ScrollToBottomButton activeTab={activeTab} />
+      <Footer onNavigate={selectTab} tabs={tabs} />
+      
     </div>
   );
 }
