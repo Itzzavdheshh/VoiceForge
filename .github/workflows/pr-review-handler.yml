@@ -6,7 +6,7 @@ on:
       - "Mentor Auto Label on Review"
       - "Mentor Merge Eligibility Check"
     types:
-      - completed
+      - requested
 
 permissions:
   contents: read
