@@ -46,8 +46,11 @@ jobs:
               'Anushreebasics',
               'itsdakshjain',
               'snehkris',
+              'Mrigakshi-Rathore',
               'joyprakashk',
-              'rushi-k12'
+              'rushi-k12',
+              'itzzavdheshh',
+              'vedhapprakashni'
             ];
             const ADMINS = ['itzzavdhesh'];
             // ─────────────────────────────────────────────────────────────

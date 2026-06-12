@@ -7,10 +7,12 @@ import VirtualCamera from "../components/VirtualCamera.jsx";
 import useTTS from "../hooks/useTTS.js";
 import useVirtualCamera from "../hooks/useVirtualCamera.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
+import { useToast, ToastContainer } from "../components/useToast.jsx";
 
 export default function Call() {
   const [webcamStream, setWebcamStream] = React.useState(null);
   const [cameraError, setCameraError] = React.useState("");
+  const { toasts, showToast } = useToast();
   const [isSpeaking, setIsSpeaking] = React.useState(false);
   const canvasRef = React.useRef(null);
   const localVideoRef = React.useRef(null);
@@ -126,27 +128,50 @@ React.useEffect(() => {
     localStorage.setItem("voiceforge:calibrationScale", "1.0");
   };
 
-  React.useEffect(() => {
-    let activeStream = null;
-    async function openCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
-        activeStream = stream;
-        setWebcamStream(stream);
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        setCameraError("");
-      } catch (webcamError) {
-        setCameraError(webcamError?.message || String(webcamError));
+ React.useEffect(() => {
+  let activeStream = null;
+  let isMounted = true;
+
+  async function openCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+
+      // Prevent webcam resource leak if component unmounts
+      // before getUserMedia resolves.
+      if (!isMounted) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
+
+      activeStream = stream;
+      setWebcamStream(stream);
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      setCameraError("");
+    } catch (webcamError) {
+      if (!isMounted) return;
+
+      setCameraError(webcamError?.message || String(webcamError));
+      showToast("Camera access failed", "error");
     }
-    openCamera();
-    return () => {
-      activeStream?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
+  }
+
+  openCamera();
+
+  return () => {
+    isMounted = false;
+
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => track.stop());
+    }
+  };
+}, [showToast]);
 
   async function handleSpeak(text) {
     if (!activeProfile?.voice_id) return;
@@ -158,6 +183,7 @@ React.useEffect(() => {
 });
     } catch (err) {
       console.error("TTS streaming error:", err);
+      showToast("Speech generation failed", "error");
     }
   }
 
@@ -223,7 +249,7 @@ React.useEffect(() => {
             <p className="text-sm text-ink/65 mb-4">
               Calibrate the animated fallback mouth position and size overlay to align with your camera.
             </p>
-            <div className="grid gap-6 sm:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 sm:grid-cols-3">
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="calibration-x-slider" className="text-sm font-bold text-ink">
@@ -379,6 +405,7 @@ React.useEffect(() => {
           {error}
         </p>
       )}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }
