@@ -49,7 +49,8 @@ jobs:
               'Mrigakshi-Rathore',
               'joyprakashk',
               'rushi-k12',
-              'itzzavdheshh'
+              'itzzavdheshh',
+              'vedhapprakashni'
             ];
             const ADMINS = ['itzzavdhesh'];
             // ─────────────────────────────────────────────────────────────

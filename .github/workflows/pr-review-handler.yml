@@ -139,7 +139,8 @@ jobs:
               'Mrigakshi-Rathore',
               'joyprakashk',
               'rushi-k12',
-              'itzzavdheshh'
+              'itzzavdheshh',
+              'vedhapprakashni'
             ];
             const mentorLabelMap = {
               'sabeenaviklar':  'mentor:sabeenaviklar',
@@ -149,7 +150,8 @@ jobs:
               'Mrigakshi-Rathore':  'mentor:Mrigakshi-Rathore',
               'joyprakashk':    'mentor:joyprakashk',
               'rushi-k12':      'mentor:rushi-k12',
-              'itzzavdheshh':    'mentor:itzzavdheshh'
+              'itzzavdheshh':    'mentor:itzzavdheshh',
+              'vedhapprakashni': 'mentor:vedhapprakashni'
             };
             const ADMINS = ['itzzavdhesh'];
             const STATUS_CONTEXT = 'voiceforge/mentor-approved';
