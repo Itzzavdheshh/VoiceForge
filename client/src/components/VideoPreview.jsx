@@ -74,6 +74,12 @@ export default React.forwardRef(function VideoPreview({
       if (audioProcessorRef.current) {
         audioProcessorRef.current.dispose();
       }
+      if (faceProcessorRef.current) {
+        faceProcessorRef.current.dispose();
+      }
+      if (ortSessionRef.current) {
+        ortSessionRef.current.release();
+      }
     };
   }, []);
 
@@ -152,12 +158,12 @@ export default React.forwardRef(function VideoPreview({
           const scale = typeof currentCalibration.scale === "number" && !isNaN(currentCalibration.scale)
             ? Math.max(0.5, Math.min(2.5, currentCalibration.scale))
             : 1.0;
-  
+
           const centerX = canvas.width / 2 + xOffset;
           const centerY = canvas.height * 0.63 + yOffset;
           const radiusX = 56 * scale;
           const radiusY = mouthOpen * scale;
-  
+
           context.save();
           context.fillStyle = mouthColor;
           context.beginPath();
@@ -165,29 +171,6 @@ export default React.forwardRef(function VideoPreview({
           context.fill();
           context.restore();
         }
-        const mouthOpen = isSpeaking ? 14 + Math.sin(timestamp / 80) * 8 : 14;
-        const currentCalibration = calibrationRef.current || {};
-        const xOffset = typeof currentCalibration.xOffset === "number" && !isNaN(currentCalibration.xOffset)
-          ? Math.max(-400, Math.min(400, currentCalibration.xOffset))
-          : 0;
-        const yOffset = typeof currentCalibration.yOffset === "number" && !isNaN(currentCalibration.yOffset)
-          ? Math.max(-250, Math.min(150, currentCalibration.yOffset))
-          : 0;
-        const scale = typeof currentCalibration.scale === "number" && !isNaN(currentCalibration.scale)
-          ? Math.max(0.5, Math.min(2.5, currentCalibration.scale))
-          : 1.0;
-
-        const centerX = Math.max(0, Math.min(canvas.width, canvas.width / 2 + xOffset));
-        const centerY = Math.max(0, Math.min(canvas.height, canvas.height * 0.63 + yOffset));
-        const radiusX = Math.max(0.01, 56 * scale);
-        const radiusY = Math.max(0.01, mouthOpen * scale);
-
-        context.save();
-        context.fillStyle = mouthColor;
-        context.beginPath();
-        context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-        context.fill();
-        context.restore();
       }
 
       animationRef.current = requestAnimationFrame(draw);
