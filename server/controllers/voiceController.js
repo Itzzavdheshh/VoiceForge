@@ -36,6 +36,12 @@ const ENCRYPTION_KEY = crypto.scryptSync(STREAM_SECRET, "voiceforge-stream-salt"
 const IV_LENGTH = 12;
 const ALGORITHM = "aes-256-gcm";
 
+function createTimeoutSignal(ms = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
 function encryptToken(payload) {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
@@ -161,11 +167,25 @@ export async function cloneVoice(request, response, next) {
     const safeFileName = sanitizeUploadFileName(audioFile.originalname);
     formData.append("files", new Blob([audioFile.buffer], { type: audioFile.mimetype }), safeFileName);
 
-    const elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/voices/add`, {
-      method: "POST",
-      headers: { "xi-api-key": apiKey },
-      body: formData
-    });
+    const { signal: cloneSignal, clear: clearClone } = createTimeoutSignal();
+      let elevenResponse;
+      try {
+        elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/voices/add`, {
+        method: "POST",
+        headers: { "xi-api-key": apiKey },
+        body: formData,
+        signal: cloneSignal
+      });
+      clearClone();
+    } catch (error) {
+      if (error.name === "AbortError") {
+        response.status(504).json({
+          error: "Voice clone request timed out. Please try again."
+        });
+        return;
+      }
+      throw error;
+    }
 
     if (!elevenResponse.ok) {
       const error = new Error(await readElevenLabsError(elevenResponse));
@@ -329,7 +349,10 @@ export async function streamSpeech(request, response, next) {
       return;
     }
 
-    const elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}/stream`, {
+  const { signal: streamSignal, clear: clearStream } = createTimeoutSignal();
+  let elevenResponse;
+  try {
+    elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -343,6 +366,16 @@ export async function streamSpeech(request, response, next) {
         voice_settings: voice_settings
       })
     });
+    clearStream();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      response.status(504).json({
+        error: "Speech stream timed out. Please try again."
+      });
+      return;
+    }
+    throw error;
+  }
 
     if (!elevenResponse.ok) {
       const errorText = await readElevenLabsError(elevenResponse);
