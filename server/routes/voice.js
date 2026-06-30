@@ -29,12 +29,6 @@ router.post("/speak", speakRateLimit, speak);
 router.get("/speak/stream", streamSpeech);
 router.get("/status", getStatus);
 
-
-router.post("/clone", cloneRateLimit, upload.single("audio"), cloneVoice);
-router.post("/speak", speakRateLimit, speak);
-router.get("/speak/stream", streamSpeech);
-router.get("/status", getStatus);
-
 // Handle multer and upload errors with structured JSON responses.
 router.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
@@ -45,11 +39,6 @@ router.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_COUNT") {
     return res.status(400).json({
       error: "Only one audio file is allowed per request."
-    });
-  }
-  if (err.code === "LIMIT_FIELD_COUNT") {
-    return res.status(400).json({
-      error: "Too many form fields in the request."
     });
   }
   if (err.code === "LIMIT_UNEXPECTED_FILE") {
