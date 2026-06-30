@@ -1,6 +1,6 @@
 // Implements ElevenLabs voice cloning and text-to-speech proxy handlers.
 import crypto from "crypto";
-import { getIsMock } from "../utils/mock.js"; // adjust path to actual location
+import { getIsMock } from "../utils/mock.js";
 
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1";
 
@@ -26,21 +26,83 @@ const ENCRYPTION_KEY = crypto.scryptSync(STREAM_SECRET, "voiceforge-stream-salt"
 const IV_LENGTH = 12;
 const ALGORITHM = "aes-256-gcm";
 
+// Validates the voice_settings object before forwarding to ElevenLabs.
+// Only known fields are allowed; unknown keys are stripped silently.
+// NaN and Infinity are explicitly rejected via Number.isFinite().
+function validateVoiceSettings(settings) {
+  if (settings === undefined || settings === null) return undefined;
+  if (typeof settings !== "object" || Array.isArray(settings)) {
+    const error = new Error("voice_settings must be a plain object.");
+    error.status = 400;
+    throw error;
+  }
+  const validated = {};
+  const { stability, similarity_boost, style, use_speaker_boost } = settings;
+  if (stability !== undefined) {
+    if (
+      typeof stability !== "number" ||
+      !Number.isFinite(stability) ||
+      stability < 0 ||
+      stability > 1
+    ) {
+      const error = new Error("stability must be a finite number between 0 and 1.");
+      error.status = 400;
+      throw error;
+    }
+    validated.stability = stability;
+  }
+  if (similarity_boost !== undefined) {
+    if (
+      typeof similarity_boost !== "number" ||
+      !Number.isFinite(similarity_boost) ||
+      similarity_boost < 0 ||
+      similarity_boost > 1
+    ) {
+      const error = new Error("similarity_boost must be a finite number between 0 and 1.");
+      error.status = 400;
+      throw error;
+    }
+    validated.similarity_boost = similarity_boost;
+  }
+  if (style !== undefined) {
+    if (
+      typeof style !== "number" ||
+      !Number.isFinite(style) ||
+      style < 0 ||
+      style > 1
+    ) {
+      const error = new Error("style must be a finite number between 0 and 1.");
+      error.status = 400;
+      throw error;
+    }
+    validated.style = style;
+  }
+  if (use_speaker_boost !== undefined) {
+    if (typeof use_speaker_boost !== "boolean") {
+      const error = new Error("use_speaker_boost must be a boolean.");
+      error.status = 400;
+      throw error;
+    }
+    validated.use_speaker_boost = use_speaker_boost;
+  }
+  return validated;
+}
+
 function encryptToken(payload) {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
-  
+
   let encrypted = cipher.update(JSON.stringify(payload), "utf8", "base64");
   encrypted += cipher.final("base64");
-  
+
   const authTag = cipher.getAuthTag().toString("base64");
-  
+
   const tokenData = {
     iv: iv.toString("base64"),
     tag: authTag,
     data: encrypted
   };
-  
+
   return Buffer.from(JSON.stringify(tokenData)).toString("base64url");
 }
 
@@ -48,25 +110,25 @@ function decryptToken(token) {
   try {
     const rawJson = Buffer.from(token, "base64url").toString("utf8");
     const { iv, tag, data } = JSON.parse(rawJson);
-    
+
     const decipher = crypto.createDecipheriv(
       ALGORITHM,
       ENCRYPTION_KEY,
       Buffer.from(iv, "base64")
     );
     decipher.setAuthTag(Buffer.from(tag, "base64"));
-    
+
     let decrypted = decipher.update(data, "base64", "utf8");
     decrypted += decipher.final("utf8");
-    
+
     const payload = JSON.parse(decrypted);
-    
+
     if (payload.expiresAt && Date.now() > payload.expiresAt) {
       const error = new Error("Speech stream has expired.");
       error.status = 403;
       throw error;
     }
-    
+
     return payload;
   } catch (error) {
     if (error.status === 403) {
@@ -82,8 +144,6 @@ function getApiKey(request) {
   return request.get("X-ElevenLabs-Api-Key") || process.env.ELEVENLABS_API_KEY;
 }
 
-// Read the key from the request header first (client-side override).
-// Fall back to the server's environment variable (ELEVENLABS_API_KEY) if not provided by the client.
 function requireApiKey(request) {
   const apiKey = request.get("X-ElevenLabs-Api-Key")?.trim() || process.env.ELEVENLABS_API_KEY?.trim();
   if (!apiKey) {
@@ -106,11 +166,6 @@ async function readElevenLabsError(response) {
   }
 }
 
-// Reduces a user-supplied upload filename to a safe value before it is sent
-// onward to ElevenLabs. Removes any directory components, then keeps only
-// alphanumerics, dot, hyphen, and underscore. Everything else, including null
-// bytes and path separators, is replaced with an underscore. Falls back to a
-// default name when the input is missing or sanitizes to an empty string.
 function sanitizeUploadFileName(originalName) {
   const withoutPath = String(originalName || "").split(/[/\\]/).pop();
   const cleaned = withoutPath
@@ -129,7 +184,6 @@ export async function cloneVoice(request, response, next) {
       return;
     }
 
-    // --- mock mode: return a deterministic fixture voice_id ---
     if (getIsMock()) {
       console.warn("[VoiceForge] MOCK_ELEVENLABS: skipping real voice clone, returning fixture.");
       response.json({
@@ -144,10 +198,6 @@ export async function cloneVoice(request, response, next) {
     const formData = new FormData();
     formData.append("name", request.body.name || "VoiceForge Voice");
     formData.append("description", "Voice profile created locally by VoiceForge.");
-    // Sanitize the client-supplied filename before forwarding it to ElevenLabs.
-    // originalname is derived from the Content-Disposition header and is fully
-    // user controlled. Strip directory separators and reduce the name to a safe
-    // character set so it cannot be used for path traversal or header injection.
     const safeFileName = sanitizeUploadFileName(audioFile.originalname);
     formData.append("files", new Blob([audioFile.buffer], { type: audioFile.mimetype }), safeFileName);
 
@@ -176,11 +226,11 @@ export async function cloneVoice(request, response, next) {
 export async function speak(request, response, next) {
   try {
     const {
-  text,
-  voice_id: voiceId,
-  language_code,
-  voice_settings
-} = request.body;
+      text,
+      voice_id: voiceId,
+      language_code,
+      voice_settings
+    } = request.body;
 
     const apiKey = getIsMock() ? null : requireApiKey(request);
 
@@ -193,8 +243,16 @@ export async function speak(request, response, next) {
       return;
     }
 
+    const validatedSettings = validateVoiceSettings(voice_settings);
     const expiresAt = Date.now() + 60000;
-    const token = encryptToken({ text, voiceId, apiKey, language_code, voice_settings, expiresAt });
+    const token = encryptToken({
+      text,
+      voiceId,
+      apiKey,
+      language_code,
+      voice_settings: validatedSettings,
+      expiresAt
+    });
 
     response.json({
       speechId: token,
@@ -214,7 +272,6 @@ export async function streamSpeech(request, response, next) {
     }
     const { text, voiceId, apiKey, language_code, voice_settings } = decryptToken(token);
 
-    // --- mock mode: stream the bundled silent MP3 fixture ---
     if (getIsMock()) {
       console.warn("[VoiceForge] MOCK_ELEVENLABS: streaming mock audio");
       response.setHeader("Content-Type", "audio/mpeg");
@@ -231,11 +288,11 @@ export async function streamSpeech(request, response, next) {
         Accept: "audio/mpeg"
       },
       body: JSON.stringify({
-  text,
-  model_id: "eleven_multilingual_v2",
-  language_code,
-  voice_settings: voice_settings
-})
+        text,
+        model_id: "eleven_multilingual_v2",
+        language_code,
+        voice_settings: voice_settings
+      })
     });
 
     if (!elevenResponse.ok) {
@@ -270,4 +327,3 @@ export function getStatus(request, response) {
     hasServerKey: Boolean(process.env.ELEVENLABS_API_KEY?.trim())
   });
 }
-
