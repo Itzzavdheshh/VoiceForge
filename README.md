@@ -97,6 +97,7 @@ If you have Docker installed and want to avoid installing specific Node.js versi
 3. Open `http://localhost:5173` in Chrome or Edge.
 
 To stop the containers:
+
 ```bash
 docker-compose down
 ```
