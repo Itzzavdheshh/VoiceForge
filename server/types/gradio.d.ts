@@ -19,7 +19,7 @@ declare module "@gradio/client" {
     /** seed - Seed integer (0 = randomised) */
     number,
     /** cfgWeight - CFG weight / Pace factor float (Default: 0.5) */
-    number
+    number,
   ];
 
   export interface PredictResponse {
@@ -38,7 +38,7 @@ declare module "@gradio/client" {
      */
     predict(
       endpoint: "/generate_tts_audio",
-      payload: ChatterboxPredictPayload
+      payload: ChatterboxPredictPayload,
     ): Promise<PredictResponse>;
 
     /** Generic fallback for other endpoints */
