@@ -327,6 +327,7 @@ export default function Onboarding({ onReady }) {
         </div>
       </section>
 
+
       {/* STEP 1: PROFILE MANAGEMENT CONTROLS */}
       {activeStep === 1 && (
         <>
