@@ -41,10 +41,22 @@ function SliderRow({
         max={max}
         step={step}
         value={value}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (["ArrowRight", "ArrowUp"].includes(e.key)) {
+            e.preventDefault();
+            const nextVal = Math.min(Number(value) + Number(step), Number(max));
+            onChange({ target: { value: nextVal } });
+          } else if (["ArrowLeft", "ArrowDown"].includes(e.key)) {
+            e.preventDefault();
+            const nextVal = Math.max(Number(value) - Number(step), Number(min));
+            onChange({ target: { value: nextVal } });
+          }
+        }}
         onChange={onChange}
         aria-label={label}
         aria-describedby={`${id}-desc`}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-blue-500 dark:bg-neutral-700 dark:accent-blue-400"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-neutral-700 dark:accent-blue-400"
       />
       <p
         id={`${id}-desc`}

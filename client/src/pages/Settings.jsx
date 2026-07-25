@@ -455,13 +455,37 @@ export default function Settings() {
               max="1.5"
               step="0.05"
               value={voiceSettings.dspPitch}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (["ArrowRight", "ArrowUp"].includes(e.key)) {
+                  e.preventDefault();
+                  const nextVal = Math.min(
+                    Number(voiceSettings.dspPitch) + 0.05,
+                    1.5,
+                  );
+                  saveVoiceSettings({
+                    ...voiceSettings,
+                    dspPitch: parseFloat(nextVal.toFixed(2)),
+                  });
+                } else if (["ArrowLeft", "ArrowDown"].includes(e.key)) {
+                  e.preventDefault();
+                  const nextVal = Math.max(
+                    Number(voiceSettings.dspPitch) - 0.05,
+                    0.5,
+                  );
+                  saveVoiceSettings({
+                    ...voiceSettings,
+                    dspPitch: parseFloat(nextVal.toFixed(2)),
+                  });
+                }
+              }}
               onChange={(e) =>
                 saveVoiceSettings({
                   ...voiceSettings,
                   dspPitch: parseFloat(e.target.value),
                 })
               }
-              className="w-full mt-2"
+              className="w-full mt-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral rounded-full"
             />
             <p className="text-xs text-ink/50 mt-1">
               Pitch transposition. Lower → deeper voice; higher → higher voice.
@@ -483,13 +507,37 @@ export default function Settings() {
               max="2.0"
               step="0.05"
               value={voiceSettings.dspSpeed}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (["ArrowRight", "ArrowUp"].includes(e.key)) {
+                  e.preventDefault();
+                  const nextVal = Math.min(
+                    Number(voiceSettings.dspSpeed) + 0.05,
+                    2.0,
+                  );
+                  saveVoiceSettings({
+                    ...voiceSettings,
+                    dspSpeed: parseFloat(nextVal.toFixed(2)),
+                  });
+                } else if (["ArrowLeft", "ArrowDown"].includes(e.key)) {
+                  e.preventDefault();
+                  const nextVal = Math.max(
+                    Number(voiceSettings.dspSpeed) - 0.05,
+                    0.5,
+                  );
+                  saveVoiceSettings({
+                    ...voiceSettings,
+                    dspSpeed: parseFloat(nextVal.toFixed(2)),
+                  });
+                }
+              }}
               onChange={(e) =>
                 saveVoiceSettings({
                   ...voiceSettings,
                   dspSpeed: parseFloat(e.target.value),
                 })
               }
-              className="w-full mt-2"
+              className="w-full mt-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral rounded-full"
             />
             <p className="text-xs text-ink/50 mt-1">
               Adjust speech speed. Lower → slower; higher → faster speech.
