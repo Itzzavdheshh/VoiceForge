@@ -198,6 +198,7 @@ async function generateClonedVoice(
     process.env.VOICE_ENGINE_SPACE || "ResembleAI/Chatterbox-Multilingual-TTS";
 
   const { client } = await import("@gradio/client");
+  /** @type {import("@gradio/client").GradioApp} */
   const app = await withTimeout(
     client(spaceIdentifier),
     10000,
