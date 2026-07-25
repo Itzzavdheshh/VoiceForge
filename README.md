@@ -82,6 +82,25 @@ npm run dev
 
 6. Open `http://localhost:5173` in Chrome or Edge.
 
+### Using Docker (Alternative)
+
+If you have Docker installed and want to avoid installing specific Node.js versions, you can spin up the entire application stack using Docker Compose:
+
+1. Copy the environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Start the application:
+   ```bash
+   docker-compose up -d
+   ```
+3. Open `http://localhost:5173` in Chrome or Edge.
+
+To stop the containers:
+```bash
+docker-compose down
+```
+
 ---
 
 ## Environment Variables
