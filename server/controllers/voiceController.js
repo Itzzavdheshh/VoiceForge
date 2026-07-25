@@ -425,19 +425,15 @@ export async function speak(request, response, next) {
     }
     pruneVoiceStore();
     if (!getIsMock() && !voiceStore.has(trimmedVoiceId)) {
-      response
-        .status(404)
-        .json({
-          error: "Voice profile not found. Please re-clone your voice.",
-        });
+      response.status(404).json({
+        error: "Voice profile not found. Please re-clone your voice.",
+      });
       return;
     }
     if (trimmedText.length > 300) {
-      response
-        .status(400)
-        .json({
-          error: "Text too long; maximum 300 characters for Chatterbox TTS.",
-        });
+      response.status(400).json({
+        error: "Text too long; maximum 300 characters for Chatterbox TTS.",
+      });
       return;
     }
     if (!isValidLanguageCode(language_code)) {
@@ -454,11 +450,9 @@ export async function speak(request, response, next) {
       pruneVoiceStore();
       const voiceEntry = voiceStore.get(trimmedVoiceId);
       if (!voiceEntry) {
-        response
-          .status(404)
-          .json({
-            error: "Voice profile not found. Please re-clone your voice.",
-          });
+        response.status(404).json({
+          error: "Voice profile not found. Please re-clone your voice.",
+        });
         return;
       }
       const trimmedOwnerToken =
@@ -502,11 +496,9 @@ export async function speak(request, response, next) {
           voice_settings.stability < 0 ||
           voice_settings.stability > 1
         ) {
-          response
-            .status(400)
-            .json({
-              error: "stability must be a finite number between 0 and 1.",
-            });
+          response.status(400).json({
+            error: "stability must be a finite number between 0 and 1.",
+          });
           return;
         }
         sanitizedSettings.stability = voice_settings.stability;
@@ -532,11 +524,9 @@ export async function speak(request, response, next) {
           voice_settings.temperature < 0.05 ||
           voice_settings.temperature > 5
         ) {
-          response
-            .status(400)
-            .json({
-              error: "temperature must be a finite number between 0.05 and 5.",
-            });
+          response.status(400).json({
+            error: "temperature must be a finite number between 0.05 and 5.",
+          });
           return;
         }
         sanitizedSettings.temperature = voice_settings.temperature;
@@ -641,11 +631,9 @@ export async function streamSpeech(request, response, next) {
     pruneVoiceStore();
     const voiceEntry = voiceStore.get(voiceId);
     if (!voiceEntry) {
-      response
-        .status(404)
-        .json({
-          error: "Voice profile not found. Please re-clone your voice.",
-        });
+      response.status(404).json({
+        error: "Voice profile not found. Please re-clone your voice.",
+      });
       return;
     }
 
@@ -696,12 +684,10 @@ export async function streamSpeech(request, response, next) {
       clearTimeout(timer);
     } catch (error) {
       if (error.name === "AbortError") {
-        response
-          .status(504)
-          .json({
-            error:
-              "Failed to fetch generated audio from Chatterbox due to timeout.",
-          });
+        response.status(504).json({
+          error:
+            "Failed to fetch generated audio from Chatterbox due to timeout.",
+        });
         return;
       }
       throw error;
