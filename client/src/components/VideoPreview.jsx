@@ -272,7 +272,7 @@ export default React.forwardRef(function VideoPreview(
         const dx = (canW - drawW) / 2;
         const dy = (canH - drawH) / 2;
         context.drawImage(avatarImage, dx, dy, drawW, drawH);
-      } else if (video?.readyState >= 2) {
+      } else if (video?.readyState === video?.HAVE_ENOUGH_DATA) {
         if (blurEnabled && segmenterRef.current) {
           if (!isSegmentingRef.current) {
             isSegmentingRef.current = true;
