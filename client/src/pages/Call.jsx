@@ -15,6 +15,7 @@ import { loadLanguage, persistLanguage } from "../utils/languages.js";
 export default function Call() {
   const [webcamStream, setWebcamStream] = React.useState(null);
   const [cameraError, setCameraError] = React.useState("");
+  const [retryCamera, setRetryCamera] = React.useState(0);
   const { toasts, showToast } = useToast();
   const [isSpeaking, setIsSpeaking] = React.useState(false);
   const canvasRef = React.useRef(null);
@@ -176,7 +177,7 @@ export default function Call() {
       activeStream.getTracks().forEach((track) => track.stop());
     }
   };
-}, [showToast, privacyMode]);
+}, [showToast, retryCamera, privacyMode]);
 
   async function handleSpeak(text, voice_settings_override) {
     if (!activeProfile?.voice_id) return;
@@ -462,9 +463,17 @@ export default function Call() {
                 className="aspect-video w-full rounded-md bg-black object-cover"
               />
               {cameraError && (
-                <p className="mt-3 text-sm font-semibold text-coral">
-                  {cameraError}
-                </p>
+                <div className="mt-3 flex flex-col gap-2 items-start">
+                  <p className="text-sm font-semibold text-coral">
+                    {cameraError}
+                  </p>
+                  <button
+                    onClick={() => setRetryCamera(prev => prev + 1)}
+                    className="rounded-md border border-coral/40 bg-coral/10 px-3 py-1.5 text-xs font-bold text-coral hover:bg-coral hover:text-white transition"
+                  >
+                    Retry Camera
+                  </button>
+                </div>
               )}
             </>
           )}
