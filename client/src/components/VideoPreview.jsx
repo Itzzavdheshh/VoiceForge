@@ -4,6 +4,7 @@ import { useTheme } from "./ThemeContext";
 import { useEffect, useRef } from "react";
 import { AudioProcessor } from "../utils/audioProcessor";
 import { FaceProcessor } from "../utils/faceProcessor";
+import { applyAudioOutput } from "../utils/audioOutput";
 
 export default React.forwardRef(function VideoPreview({
   webcamStream,
@@ -147,6 +148,12 @@ export default React.forwardRef(function VideoPreview({
       videoRef.current.srcObject = webcamStream;
     }
   }, [webcamStream]);
+
+  React.useEffect(() => {
+    if (audioRef.current) {
+      applyAudioOutput(audioRef.current);
+    }
+  }, [audioUrl]);
 
   React.useEffect(() => {
     const canvas = ref.current;
