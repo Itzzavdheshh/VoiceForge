@@ -156,6 +156,15 @@ export default React.forwardRef(function VideoPreview({
   }, [audioUrl]);
 
   React.useEffect(() => {
+    function handleOutputChange() {
+      if (audioRef.current) {
+        applyAudioOutput(audioRef.current);
+      }
+    }
+    window.addEventListener("voiceforge:audioOutputChanged", handleOutputChange);
+    return () => window.removeEventListener("voiceforge:audioOutputChanged", handleOutputChange);
+  }, []);
+  React.useEffect(() => {
     const canvas = ref.current;
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return undefined;
