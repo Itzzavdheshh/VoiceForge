@@ -4,6 +4,7 @@ import { useTheme } from "./ThemeContext";
 import { useEffect, useRef } from "react";
 import { AudioProcessor } from "../utils/audioProcessor";
 import { FaceProcessor } from "../utils/faceProcessor";
+import { applyAudioOutput } from "../utils/audioOutput";
 
 export default React.forwardRef(function VideoPreview({
   webcamStream,
@@ -172,6 +173,21 @@ export default React.forwardRef(function VideoPreview({
     }
   }, [webcamStream]);
 
+  React.useEffect(() => {
+    if (audioRef.current) {
+      applyAudioOutput(audioRef.current);
+    }
+  }, [audioUrl]);
+
+  React.useEffect(() => {
+    function handleOutputChange() {
+      if (audioRef.current) {
+        applyAudioOutput(audioRef.current);
+      }
+    }
+    window.addEventListener("voiceforge:audioOutputChanged", handleOutputChange);
+    return () => window.removeEventListener("voiceforge:audioOutputChanged", handleOutputChange);
+  }, []);
   React.useEffect(() => {
     const canvas = ref.current;
     const context = canvas?.getContext("2d");
