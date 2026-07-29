@@ -2,6 +2,7 @@
 import React from "react";
 import { Camera, CircleAlert, Sliders, ChevronDown, RotateCcw, ShieldCheck } from "lucide-react";
 import TextToSpeech from "../components/TextToSpeech.jsx";
+import DeviceSelector from "../components/DeviceSelector.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
 import VirtualCamera from "../components/VirtualCamera.jsx";
 import { LanguageSelector } from "../components/LanguageSelector.jsx";
@@ -24,6 +25,8 @@ export default function Call() {
   const [language, setLanguage] = React.useState(loadLanguage);
   const [privacyMode, setPrivacyMode] = React.useState(false);
   const [avatarImage, setAvatarImage] = React.useState(null);
+  const [videoDevices, setVideoDevices] = React.useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = React.useState(null);
 
   React.useEffect(() => {
     persistLanguage(language);
@@ -126,58 +129,85 @@ export default function Call() {
     localStorage.setItem("voiceforge:calibrationScale", "1.0");
   };
 
- React.useEffect(() => {
-  let activeStream = null;
-  let isMounted = true;
+  React.useEffect(() => {
+    let activeStream = null;
+    let isMounted = true;
 
-  async function openCamera() {
-    if (privacyMode) {
-      setWebcamStream(null);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
+    async function fetchDevices() {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputDevices = devices.filter((device) => device.kind === "videoinput");
+        if (isMounted) {
+          setVideoDevices(videoInputDevices);
+        }
+      } catch (err) {
+        console.error("Failed to enumerate devices", err);
       }
-      return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-
-      // Prevent webcam resource leak if component unmounts
-      // before getUserMedia resolves.
-      if (!isMounted) {
-        stream.getTracks().forEach((track) => track.stop());
+    async function openCamera() {
+      if (privacyMode) {
+        setWebcamStream(null);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
         return;
       }
 
-      activeStream = stream;
-      setWebcamStream(stream);
+      try {
+        const constraints = {
+          video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+          audio: false,
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+        if (!isMounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        activeStream = stream;
+        setWebcamStream(stream);
+
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+
+        setCameraError("");
+        
+        await fetchDevices();
+        
+        if (isMounted && stream.getVideoTracks().length > 0) {
+          const track = stream.getVideoTracks()[0];
+          const settings = track.getSettings();
+          if (settings.deviceId && !selectedDeviceId) {
+             setSelectedDeviceId(settings.deviceId);
+          }
+        }
+      } catch (webcamError) {
+        if (!isMounted) return;
+        setCameraError(webcamError?.message || String(webcamError));
+        showToast("Camera access failed", "error");
       }
-
-      setCameraError("");
-    } catch (webcamError) {
-      if (!isMounted) return;
-
-      setCameraError(webcamError?.message || String(webcamError));
-      showToast("Camera access failed", "error");
     }
-  }
 
-  openCamera();
-
-  return () => {
-    isMounted = false;
-
-    if (activeStream) {
-      activeStream.getTracks().forEach((track) => track.stop());
+    openCamera();
+    
+    if (navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', fetchDevices);
     }
-  };
-}, [showToast, retryCamera, privacyMode]);
+
+    return () => {
+      isMounted = false;
+      if (navigator.mediaDevices?.removeEventListener) {
+        navigator.mediaDevices.removeEventListener('devicechange', fetchDevices);
+      }
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [showToast, retryCamera, privacyMode, selectedDeviceId]);
 
   async function handleSpeak(text, voice_settings_override) {
     if (!activeProfile?.voice_id) return;
@@ -444,15 +474,22 @@ export default function Call() {
             </div>
           ) : (
             <>
-              <div className="mb-4 flex items-center gap-2">
-                <Camera
-                  size={19}
-                  aria-hidden="true"
-                  className="dark:text-neutral-300"
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Camera
+                    size={19}
+                    aria-hidden="true"
+                    className="dark:text-neutral-300"
+                  />
+                  <h2 className="text-lg font-bold dark:text-neutral-100">
+                    Live webcam
+                  </h2>
+                </div>
+                <DeviceSelector 
+                  devices={videoDevices} 
+                  selectedDeviceId={selectedDeviceId} 
+                  onChange={setSelectedDeviceId} 
                 />
-                <h2 className="text-lg font-bold dark:text-neutral-100">
-                  Live webcam
-                </h2>
               </div>
               {/* Video element: bg-black already looks fine in dark mode */}
               <video
