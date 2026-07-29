@@ -141,9 +141,11 @@ export function useSpeechHistory() {
 const addMessage = useCallback((text, lang = "en-US") => {
   const trimmed = text.trim();
 
-  if (!trimmed) return;
+  if (!trimmed) return null;
 
   const timestamp = Date.now();
+  const existing = history.find((m) => m.text === trimmed);
+  const msgId = existing ? existing.id : crypto.randomUUID();
 
   setSessionTranscript((prev) => [
   ...prev,
@@ -169,7 +171,7 @@ const addMessage = useCallback((text, lang = "en-US") => {
     // so re-spoken messages sort correctly after a page reload.
     const updatedEntry = existing
       ? { ...existing, timestamp: Date.now(), tags: Array.isArray(existing.tags) ? existing.tags : [] }
-      : { id: crypto.randomUUID(), text: trimmed, timestamp: Date.now(), tags: [] };
+      : { id: msgId, text: trimmed, timestamp: Date.now(), tags: [] };
 
     // Move duplicate to top instead of recreating
     const updated = [
@@ -179,7 +181,9 @@ const addMessage = useCallback((text, lang = "en-US") => {
 
     return updated.slice(0, MAX_HISTORY);
   });
-}, []);
+
+  return msgId;
+}, [history]);
 
   /**
    * Removes a message by id and also removes it from favorites.
