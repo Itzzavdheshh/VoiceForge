@@ -6,13 +6,17 @@ import {
   persistVoiceSettings,
 } from "../utils/voiceSettings.js";
 import {
+  loadAccessibilitySettings,
+  persistAccessibilitySettings,
+} from "../utils/accessibilitySettings.js";
+import {
   loadLanguage,
   persistLanguage,
   getLanguageByCode,
   LANGUAGE_STORAGE_KEY,
 } from "../utils/languages.js";
 
-import { Trash2, CircleAlert, Download, Upload, Globe } from "lucide-react";
+import { Trash2, CircleAlert, Download, Upload, Globe, Webcam } from "lucide-react";
 import { useToast, ToastContainer } from "../components/useToast.jsx";
 import { LanguageSelector } from "../components/LanguageSelector.jsx";
 import {
@@ -69,6 +73,14 @@ export default function Settings() {
   const [voiceSettings, setVoiceSettings] = React.useState(loadVoiceSettings);
   const [language, setLanguage] = React.useState(loadLanguage);
   const selectedLangObj = getLanguageByCode(language);
+
+  const [accSettings, setAccSettings] = React.useState(loadAccessibilitySettings);
+  
+  function saveAccSettings(newSettings) {
+    setAccSettings(newSettings);
+    persistAccessibilitySettings(newSettings);
+    window.dispatchEvent(new Event("voiceforge:accessibilitySettingsChanged"));
+  }
 
 
   function saveVoiceSettings(newSettings) {
@@ -322,6 +334,59 @@ export default function Settings() {
               className="w-full mt-2"
             />
             <p className="text-xs text-ink/50 mt-1">Higher values exaggerate the style of the reference audio.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Accessibility ─────────────────────────────────────────── */}
+      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
+        <div className="flex items-center gap-2 mb-1">
+          <Webcam size={20} aria-hidden="true" className="text-moss dark:text-glow" />
+          <h2 className="text-xl font-bold">Accessibility</h2>
+        </div>
+        <p className="mt-1 text-sm text-ink/65 mb-5 dark:text-muted">
+          Enable hands-free navigation using your webcam to track head movements.
+        </p>
+
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-bold block" htmlFor="webcam-nav-toggle">
+                Webcam Navigation
+              </label>
+              <p className="text-xs text-ink/50 mt-1 dark:text-muted">
+                Control the cursor with your head. Click by dwelling over an element.
+              </p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                id="webcam-nav-toggle"
+                type="checkbox"
+                className="peer sr-only"
+                checked={accSettings.webcamNavigationEnabled}
+                onChange={(e) => saveAccSettings({ ...accSettings, webcamNavigationEnabled: e.target.checked })}
+              />
+              <div className="peer h-6 w-11 rounded-full bg-ink/20 transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-moss peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-moss dark:bg-ink/60 dark:peer-checked:bg-glow dark:peer-focus:ring-glow"></div>
+            </label>
+          </div>
+
+          <div>
+            <label className="flex justify-between text-sm font-bold" htmlFor="dwell-time">
+              <span>Dwell Time (Click Delay)</span>
+              <span className="text-ink/65">{accSettings.dwellTime / 1000}s</span>
+            </label>
+            <input
+              id="dwell-time"
+              type="range"
+              min="500" max="3000" step="100"
+              value={accSettings.dwellTime}
+              onChange={(e) => saveAccSettings({ ...accSettings, dwellTime: parseInt(e.target.value, 10) })}
+              className="w-full mt-2"
+              disabled={!accSettings.webcamNavigationEnabled}
+            />
+            <p className="text-xs text-ink/50 mt-1 dark:text-muted">
+              How long you must look at a button before it clicks.
+            </p>
           </div>
         </div>
       </section>
