@@ -288,7 +288,7 @@ export default function VoiceForge() {
           sessionTranscript={sessionTranscript}
           onReuse={(text) => { handleReuse(text); setHistoryOpen(false); }}
           onReplay={handleReplay}
-          onToggleFav={toggleFavorite}
+          onToggleFav={handleToggleFavorite}
           onDelete={removeMessage}
           onClearHistory={clearHistory}
           onCopy={handleCopy}
