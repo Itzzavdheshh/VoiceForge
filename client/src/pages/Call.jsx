@@ -1,10 +1,12 @@
 // Renders the main call workspace for webcam preview, typed speech, output video, and virtual camera controls.
 import React from "react";
-import { Camera, CircleAlert, Sliders, ChevronDown, RotateCcw } from "lucide-react";
+import { Camera, CircleAlert, Sliders, ChevronDown, RotateCcw, ShieldCheck } from "lucide-react";
 import TextToSpeech from "../components/TextToSpeech.jsx";
+import DeviceSelector from "../components/DeviceSelector.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
 import VirtualCamera from "../components/VirtualCamera.jsx";
 import { LanguageSelector } from "../components/LanguageSelector.jsx";
+import PrivacyModeToggle from "../components/PrivacyModeToggle.jsx";
 import useTTS from "../hooks/useTTS.js";
 import useVirtualCamera from "../hooks/useVirtualCamera.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
@@ -14,29 +16,17 @@ import { loadLanguage, persistLanguage } from "../utils/languages.js";
 export default function Call() {
   const [webcamStream, setWebcamStream] = React.useState(null);
   const [cameraError, setCameraError] = React.useState("");
+  const [retryCamera, setRetryCamera] = React.useState(0);
   const { toasts, showToast } = useToast();
   const [isSpeaking, setIsSpeaking] = React.useState(false);
   const canvasRef = React.useRef(null);
   const localVideoRef = React.useRef(null);
   const [activeProfile, setActiveProfile] = React.useState(null);
   const [language, setLanguage] = React.useState(loadLanguage);
-  
-  const [activeText, setActiveText] = React.useState("");
-  const [subtitlesEnabled, setSubtitlesEnabled] = React.useState(() => {
-    try {
-      return localStorage.getItem("voiceforge:subtitlesEnabled") !== "false";
-    } catch { return true; }
-  });
-  const [subtitleFontSize, setSubtitleFontSize] = React.useState(() => {
-    try {
-      return localStorage.getItem("voiceforge:subtitleFontSize") || "medium";
-    } catch { return "medium"; }
-  });
-  const [subtitleBgOpacity, setSubtitleBgOpacity] = React.useState(() => {
-    try {
-      return localStorage.getItem("voiceforge:subtitleBgOpacity") || "0.6";
-    } catch { return "0.6"; }
-  });
+  const [privacyMode, setPrivacyMode] = React.useState(false);
+  const [avatarImage, setAvatarImage] = React.useState(null);
+  const [videoDevices, setVideoDevices] = React.useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = React.useState(null);
 
   React.useEffect(() => {
     persistLanguage(language);
@@ -139,70 +129,105 @@ export default function Call() {
     localStorage.setItem("voiceforge:calibrationScale", "1.0");
   };
 
- React.useEffect(() => {
-  let activeStream = null;
-  let isMounted = true;
+  React.useEffect(() => {
+    let activeStream = null;
+    let isMounted = true;
 
-  async function openCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
+    async function fetchDevices() {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputDevices = devices.filter((device) => device.kind === "videoinput");
+        if (isMounted) {
+          setVideoDevices(videoInputDevices);
+        }
+      } catch (err) {
+        console.error("Failed to enumerate devices", err);
+      }
+    }
 
-      // Prevent webcam resource leak if component unmounts
-      // before getUserMedia resolves.
-      if (!isMounted) {
-        stream.getTracks().forEach((track) => track.stop());
+    async function openCamera() {
+      if (privacyMode) {
+        setWebcamStream(null);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
         return;
       }
 
-      activeStream = stream;
-      setWebcamStream(stream);
+      try {
+        const constraints = {
+          video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+          audio: false,
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+        if (!isMounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        activeStream = stream;
+        setWebcamStream(stream);
+
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+
+        setCameraError("");
+        
+        await fetchDevices();
+        
+        if (isMounted && stream.getVideoTracks().length > 0) {
+          const track = stream.getVideoTracks()[0];
+          const settings = track.getSettings();
+          if (settings.deviceId && !selectedDeviceId) {
+             setSelectedDeviceId(settings.deviceId);
+          }
+        }
+      } catch (webcamError) {
+        if (!isMounted) return;
+        setCameraError(webcamError?.message || String(webcamError));
+        showToast("Camera access failed", "error");
       }
+    }
 
-      setCameraError("");
-    } catch (webcamError) {
-      if (!isMounted) return;
+    openCamera();
+    
+    if (navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', fetchDevices);
+    }
 
-      setCameraError(webcamError?.message || String(webcamError));
-      showToast("Camera access failed", "error");
+    return () => {
+      isMounted = false;
+      if (navigator.mediaDevices?.removeEventListener) {
+        navigator.mediaDevices.removeEventListener('devicechange', fetchDevices);
+      }
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [showToast, retryCamera, privacyMode, selectedDeviceId]);
+
+  async function handleSpeak(text, voice_settings_override) {
+    if (!activeProfile?.voice_id) return;
+
+    try {
+      const result = await speak({
+        text,
+        voiceId: activeProfile.voice_id,
+        language_code: language,
+        voice_settings_override,
+      });
+
+      if (result?.fallback) {
+        showToast("Using browser voice fallback", "info");
+      }
+    } catch (err) {
+      console.error("TTS streaming error:", err);
+      showToast("Speech generation failed", "error");
     }
   }
-
-  openCamera();
-
-  return () => {
-    isMounted = false;
-
-    if (activeStream) {
-      activeStream.getTracks().forEach((track) => track.stop());
-    }
-  };
-}, [showToast]);
-
-  async function handleSpeak(text) {
-  if (!activeProfile?.voice_id) return;
-
-  try {
-    setActiveText(text);
-    const result = await speak({
-      text,
-      voiceId: activeProfile.voice_id,
-      language_code: language,
-    });
-
-    if (result?.fallback) {
-      showToast("Using browser voice fallback", "info");
-    }
-  } catch (err) {
-    console.error("TTS streaming error:", err);
-    showToast("Speech generation failed", "error");
-  }
-}
 
   return (
     <div className="space-y-5">
@@ -246,6 +271,12 @@ export default function Call() {
           Create or select a voice profile before speaking.
         </div>
       )}
+
+      <PrivacyModeToggle
+        onModeChange={setPrivacyMode}
+        onAvatarChange={setAvatarImage}
+        showToast={showToast}
+      />
 
       {/* Mouth Calibration Drawer */}
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
@@ -429,28 +460,59 @@ export default function Call() {
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr_0.9fr]">
         {/* Webcam panel */}
         <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
-          <div className="mb-4 flex items-center gap-2">
-            <Camera
-              size={19}
-              aria-hidden="true"
-              className="dark:text-neutral-300"
-            />
-            <h2 className="text-lg font-bold dark:text-neutral-100">
-              Live webcam
-            </h2>
-          </div>
-          {/* Video element: bg-black already looks fine in dark mode */}
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            className="aspect-video w-full rounded-md bg-black object-cover"
-          />
-          {cameraError && (
-            <p className="mt-3 text-sm font-semibold text-coral">
-              {cameraError}
-            </p>
+          {privacyMode ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <div className="mb-4 rounded-full bg-moss/20 p-4 text-moss dark:bg-glow/20 dark:text-glow">
+                <ShieldCheck size={32} aria-hidden="true" />
+              </div>
+              <h2 className="text-lg font-bold dark:text-neutral-100">
+                Privacy Mode Active
+              </h2>
+              <p className="mt-2 text-sm text-ink/65 dark:text-muted">
+                Your camera is disabled.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Camera
+                    size={19}
+                    aria-hidden="true"
+                    className="dark:text-neutral-300"
+                  />
+                  <h2 className="text-lg font-bold dark:text-neutral-100">
+                    Live webcam
+                  </h2>
+                </div>
+                <DeviceSelector 
+                  devices={videoDevices} 
+                  selectedDeviceId={selectedDeviceId} 
+                  onChange={setSelectedDeviceId} 
+                />
+              </div>
+              {/* Video element: bg-black already looks fine in dark mode */}
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="aspect-video w-full rounded-md bg-black object-cover"
+              />
+              {cameraError && (
+                <div className="mt-3 flex flex-col gap-2 items-start">
+                  <p className="text-sm font-semibold text-coral">
+                    {cameraError}
+                  </p>
+                  <button
+                    onClick={() => setRetryCamera(prev => prev + 1)}
+                    className="rounded-md border border-coral/40 bg-coral/10 px-3 py-1.5 text-xs font-bold text-coral hover:bg-coral hover:text-white transition"
+                  >
+                    Retry Camera
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -468,10 +530,7 @@ export default function Call() {
           onSpeakingChange={setIsSpeaking}
           calibration={calibration}
           isCalibrating={isCalibrationOpen}
-          activeText={activeText}
-          subtitlesEnabled={subtitlesEnabled}
-          subtitleFontSize={subtitleFontSize}
-          subtitleBgOpacity={parseFloat(subtitleBgOpacity)}
+          avatarImage={avatarImage}
         />
       </div>
 

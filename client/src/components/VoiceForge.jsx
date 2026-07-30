@@ -10,11 +10,12 @@ import { FavoriteMessages } from "./FavoriteMessages";
 import { QuickReplies } from "./QuickReplies";
 import { SpeechHistory } from "./SpeechHistory";
 import { ToastContainer, useToast } from "./useToast.jsx";
-import { useSpeechHistory } from "../hooks/useSpeechHistory";
+import { useSpeechHistory } from "../hooks/useSpeechHistory.js";
 import { LanguageSelector } from "./LanguageSelector.jsx";
 import { loadLanguage, persistLanguage } from "../utils/languages.js";
 import useTTS from "../hooks/useTTS.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
+import { saveAudioBlob, getAudioBlob } from "../utils/db.js";
 
 const MAX_CHARS = 300;
 
@@ -77,15 +78,6 @@ export default function VoiceForge() {
     }
   }, [showToast]);
 
-  const handleToggleFavorite = useCallback((id) => {
-    const applied = toggleFavorite(id);
-    if (!applied) {
-      showToast("Pin limit reached — unpin a phrase to pin a new one", "error");
-    }
-  }, [toggleFavorite, showToast]);
-
-  const speak = useCallback((text) => {
-    if (!text.trim()) return;
 
   useEffect(() => {
     async function loadActiveProfile() {
@@ -100,7 +92,7 @@ export default function VoiceForge() {
   }, []);
 
   const speak = useCallback(async (text) => {
-    if (!text.trim()) return;
+    if (!text.trim()) return null;
 
     if (useClonedVoice && activeProfile?.voice_id) {
       try {
@@ -113,6 +105,7 @@ export default function VoiceForge() {
         if (result?.fallback) {
           showToast("Using browser voice fallback", "info");
         }
+        return result;
       } catch (err) {
         console.error("TTS speech error:", err);
         showToast("Speech generation failed", "error");
@@ -135,23 +128,52 @@ export default function VoiceForge() {
         showToast("Speech playback failed", "error");
       };
       window.speechSynthesis.speak(utterance);
+      return null;
     }
   }, [ttsSpeak, activeProfile, language, useClonedVoice, showToast]);
 
-  const handleSpeak = useCallback(() => {
+  const handleSpeak = useCallback(async () => {
     const text = inputText.trim();
     if (!text) {
       showToast("Please type a message first", "error");
       textareaRef.current?.focus();
       return;
     }
-    speak(text);
-    addMessage(text, language);
+    const msgId = addMessage(text, language);
+    const result = await speak(text);
+    if (result?.blob && msgId) {
+      saveAudioBlob(msgId, result.blob).catch(err => console.error("Cache save error:", err));
+    }
     showToast("Saved to history", "success");
   }, [inputText, speak, addMessage, showToast, language]);
 
-  const handleReplay = useCallback((text) => {
-    speak(text);
+  const handleReplay = useCallback(async (id, text) => {
+    if (!text && typeof id === "string") {
+      text = id;
+      id = null;
+    }
+    if (id) {
+      try {
+        const cachedBlob = await getAudioBlob(id);
+        if (cachedBlob) {
+           const localUrl = URL.createObjectURL(cachedBlob);
+           const audio = new Audio(localUrl);
+           audio.onplay = () => setIsSpeaking(true);
+           audio.onended = () => setIsSpeaking(false);
+           audio.onpause = () => setIsSpeaking(false);
+           audio.onerror = () => setIsSpeaking(false);
+           audio.play();
+           showToast("Instant replay from cache", "success");
+           return;
+        }
+      } catch (err) {
+        console.error("Failed to load cached audio", err);
+      }
+    }
+    const result = await speak(text);
+    if (result?.blob && id) {
+       saveAudioBlob(id, result.blob).catch(console.error);
+    }
     showToast("Replaying...", "info");
   }, [speak, showToast]);
 
