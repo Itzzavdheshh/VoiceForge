@@ -63,7 +63,7 @@ export default function WebcamNavigation({ enabled }) {
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
         );
         
-        faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(vision, {
+        const landmarker = await FaceLandmarker.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
             delegate: "GPU"
@@ -73,7 +73,12 @@ export default function WebcamNavigation({ enabled }) {
           numFaces: 1
         });
 
-        if (!isMounted || !enabled) return;
+        if (!isMounted || !enabled) {
+          landmarker.close();
+          return;
+        }
+        
+        faceLandmarkerRef.current = landmarker;
 
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
         if (!isMounted || !enabled) {
