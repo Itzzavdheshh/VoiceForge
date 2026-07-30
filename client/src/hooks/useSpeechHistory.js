@@ -195,9 +195,6 @@ export function useSpeechHistory() {
       tags: Array.isArray(item.tags) ? item.tags : [],
     }));
   });
-  const [favorites, setFavorites] = useState(
-    () => new Set(readStorage(FAVS_KEY, []))
-  );
   const [favorites, setFavorites] = useState(() => {
     const loadedHistory = sanitizeHistoryEntries(readStorage(HISTORY_KEY, []));
     const loadedFavoriteIds = readStorage(FAVS_KEY, []);

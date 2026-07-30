@@ -15,7 +15,7 @@ import Contributors from "./pages/Contributors.jsx";
 import About from "./pages/About";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import WebcamNavigation from "./components/WebcamNavigation";
-import { loadAccessibilitySettings } from "./utils/accessibilitySettings";
+import { loadAccessibilitySettings, ACCESSIBILITY_SETTINGS_CHANGED_EVENT } from "./utils/accessibilitySettings";
 
 const tabs = [
   { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
@@ -76,10 +76,10 @@ export default function App() {
     const handleCustomChange = () => {
       setWebcamNavEnabled(loadAccessibilitySettings().webcamNavigationEnabled);
     };
-    window.addEventListener("voiceforge:accessibilitySettingsChanged", handleCustomChange);
+    window.addEventListener(ACCESSIBILITY_SETTINGS_CHANGED_EVENT, handleCustomChange);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("voiceforge:accessibilitySettingsChanged", handleCustomChange);
+      window.removeEventListener(ACCESSIBILITY_SETTINGS_CHANGED_EVENT, handleCustomChange);
     };
   }, []);
 

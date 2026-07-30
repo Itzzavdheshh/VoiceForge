@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
-import { loadAccessibilitySettings } from "../utils/accessibilitySettings";
+import { loadAccessibilitySettings, ACCESSIBILITY_SETTINGS_CHANGED_EVENT, ACCESSIBILITY_SETTINGS_KEY } from "../utils/accessibilitySettings";
 
 export default function WebcamNavigation({ enabled }) {
   const videoRef = useRef(null);
@@ -9,6 +9,7 @@ export default function WebcamNavigation({ enabled }) {
   const requestRef = useRef(null);
   const faceLandmarkerRef = useRef(null);
   const lastVideoTimeRef = useRef(-1);
+  const streamRef = useRef(null);
 
   // Dwell state
   const hoveredElementRef = useRef(null);
@@ -18,8 +19,12 @@ export default function WebcamNavigation({ enabled }) {
   // Setup the video and landmarker when enabled changes
   useEffect(() => {
     if (!enabled) {
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
       if (faceLandmarkerRef.current) {
         faceLandmarkerRef.current.close();
@@ -42,12 +47,14 @@ export default function WebcamNavigation({ enabled }) {
 
     // Event listener for settings changes (optional, but good if changed in another tab)
     const handleStorageChange = (e) => {
-      if (e.key === "voiceforge:accessibilitySettings") {
+      // For storage events or custom events
+      if (!e.key || e.key === ACCESSIBILITY_SETTINGS_KEY) {
         const newSettings = loadAccessibilitySettings();
         dwellTimeRef.current = newSettings.dwellTime || 1500;
       }
     };
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener(ACCESSIBILITY_SETTINGS_CHANGED_EVENT, handleStorageChange);
 
     // Initialize MediaPipe and Webcam
     async function init() {
@@ -66,11 +73,15 @@ export default function WebcamNavigation({ enabled }) {
           numFaces: 1
         });
 
-        if (!isMounted) return;
+        if (!isMounted || !enabled) return;
 
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
-        if (!isMounted) return;
+        if (!isMounted || !enabled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
 
+        streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.addEventListener("loadeddata", predictWebcam);
@@ -85,8 +96,13 @@ export default function WebcamNavigation({ enabled }) {
     return () => {
       isMounted = false;
       window.removeEventListener("storage", handleStorageChange);
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      window.removeEventListener(ACCESSIBILITY_SETTINGS_CHANGED_EVENT, handleStorageChange);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
       if (faceLandmarkerRef.current) {
         faceLandmarkerRef.current.close();
@@ -130,6 +146,8 @@ export default function WebcamNavigation({ enabled }) {
       } else {
         // No face found, hide cursor
         if (cursorRef.current) cursorRef.current.style.display = "none";
+        hoveredElementRef.current = null;
+        updateProgressRing(0);
       }
     }
     
@@ -149,7 +167,6 @@ export default function WebcamNavigation({ enabled }) {
     // Hide cursor temporarily to find the element underneath
     cursorRef.current.style.pointerEvents = "none";
     const el = document.elementFromPoint(x, y);
-    cursorRef.current.style.pointerEvents = "auto"; // restore if needed, usually we keep it none
 
     // Check if element is clickable
     const isClickable = el && (
@@ -178,8 +195,8 @@ export default function WebcamNavigation({ enabled }) {
         if (elapsed >= dwellTimeRef.current) {
           // Trigger click
           targetEl.click();
-          // Reset hover state so we don't continuously click
-          hoveredElementRef.current = null;
+          // Set hoverStartTime to Infinity so it doesn't click again until we hover away
+          hoverStartTimeRef.current = Infinity;
           updateProgressRing(0);
           
           // Provide visual feedback for click (optional)

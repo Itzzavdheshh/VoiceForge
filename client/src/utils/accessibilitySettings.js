@@ -1,4 +1,5 @@
 export const ACCESSIBILITY_SETTINGS_KEY = "voiceforge:accessibilitySettings";
+export const ACCESSIBILITY_SETTINGS_CHANGED_EVENT = "voiceforge:accessibilitySettingsChanged";
 
 export const DEFAULT_ACCESSIBILITY_SETTINGS = {
   webcamNavigationEnabled: false,
@@ -28,7 +29,11 @@ export function loadAccessibilitySettings() {
       if (Number.isNaN(coerced)) {
         result[key] = defaultVal;
       } else {
-        result[key] = coerced;
+        if (key === "dwellTime") {
+          result[key] = Math.min(3000, Math.max(500, coerced));
+        } else {
+          result[key] = coerced;
+        }
       }
     }
   }

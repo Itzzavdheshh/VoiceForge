@@ -9,6 +9,8 @@ import {
 import {
   loadAccessibilitySettings,
   persistAccessibilitySettings,
+  ACCESSIBILITY_SETTINGS_CHANGED_EVENT,
+  ACCESSIBILITY_SETTINGS_KEY
 } from "../utils/accessibilitySettings.js";
 import {
   loadLanguage,
@@ -81,7 +83,7 @@ export default function Settings() {
   function saveAccSettings(newSettings) {
     setAccSettings(newSettings);
     persistAccessibilitySettings(newSettings);
-    window.dispatchEvent(new Event("voiceforge:accessibilitySettingsChanged"));
+    window.dispatchEvent(new Event(ACCESSIBILITY_SETTINGS_CHANGED_EVENT));
   }
 
 
@@ -132,6 +134,7 @@ export default function Settings() {
         favorites: localStorage.getItem("vf_favorites"),
         quick_replies: localStorage.getItem("vf_quick_replies"),
         voiceSettings: localStorage.getItem("voiceforge:voiceSettings"),
+        accessibilitySettings: localStorage.getItem(ACCESSIBILITY_SETTINGS_KEY),
         language: localStorage.getItem(LANGUAGE_STORAGE_KEY),
         calibrationXOffset: localStorage.getItem("voiceforge:calibrationXOffset"),
         calibrationYOffset: localStorage.getItem("voiceforge:calibrationYOffset"),
@@ -247,6 +250,7 @@ export default function Settings() {
         favorites: "vf_favorites",
         quick_replies: "vf_quick_replies",
         voiceSettings: "voiceforge:voiceSettings",
+        accessibilitySettings: ACCESSIBILITY_SETTINGS_KEY,
         language: LANGUAGE_STORAGE_KEY,
         calibrationXOffset: "voiceforge:calibrationXOffset",
         calibrationYOffset: "voiceforge:calibrationYOffset",
@@ -268,6 +272,7 @@ export default function Settings() {
       const loaded = await getSavedProfiles();
       setProfiles(loaded);
       setVoiceSettings(loadVoiceSettings());
+      setAccSettings(loadAccessibilitySettings());
       setLanguage(loadLanguage());
       event.target.value = "";
     } catch (err) {
