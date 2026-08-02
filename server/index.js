@@ -1,8 +1,11 @@
-// Starts the local Express API that proxies VoiceForge requests to ElevenLabs.
+// Starts the local Express API that proxies VoiceForge voice synthesis through Chatterbox Multilingual TTS.
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { rateLimit } from "express-rate-limit";
 import voiceRoutes from "./routes/voice.js";
+import { getIsMock } from "./utils/mock.js";
+import { logger } from "./utils/logger.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,11 +14,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 // Warn clearly when mock mode is active so it is never silently enabled.
-if (process.env.MOCK_ELEVENLABS === "true" && process.env.NODE_ENV !== "production") {
-  console.warn(
-    "\x1b[33m[VoiceForge] MOCK_ELEVENLABS=true — ElevenLabs calls are stubbed." +
+if (getIsMock()) {
+  logger.warn(
+    "Mock mode active — Chatterbox calls are stubbed." +
     " Voice clone returns a fixture voice_id; TTS streams silent audio." +
-    " Remove this flag to use real ElevenLabs responses.\x1b[0m"
+    " Set MOCK_CHATTERBOX=false to use the real Hugging Face engine."
   );
 }
 
@@ -23,6 +26,17 @@ const app = express();
 const port = process.env.PORT || 3001;
 const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
+// Global rate limiter: 100 requests per 15 minutes per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) =>
+    res.status(429).json({ error: "Too Many Requests" })
+});
+
+app.use(globalLimiter);
 // Enable trust proxy so rate limiters can identify real client IPs
 // behind reverse proxies (e.g., load balancers, CDNs).
 // Set to 1 for single-hop proxies; adjust based on your deployment topology.
@@ -38,12 +52,12 @@ app.get("/api/health", (_request, response) => {
 app.use("/api/voice", voiceRoutes);
 
 app.use((error, _request, response, _next) => {
-  console.error(error);
+  logger.error({ err: error }, "Unhandled server error");
   response.status(error.status || 500).json({
     error: error.message || "Unexpected VoiceForge server error."
   });
 });
 
 app.listen(port, () => {
-  console.log(`VoiceForge API listening on http://localhost:${port}`);
+  logger.info(`VoiceForge API listening on http://localhost:${port}`);
 });
