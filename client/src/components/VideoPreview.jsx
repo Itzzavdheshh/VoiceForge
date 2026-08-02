@@ -443,7 +443,7 @@ export default React.forwardRef(function VideoPreview({
               </button>
             )}
           </h2>
-          <p className="mt-1 text-sm text-ink/65 dark:text-muted">
+          <p className="mt-1 text-sm text-ink/65 dark:text-muted" aria-live="polite">
             {modelStatus}
           </p>
         </div>
@@ -470,6 +470,8 @@ export default React.forwardRef(function VideoPreview({
         ref={ref}
         width="960"
         height="540"
+        role="img"
+        aria-label="Lip-synced video output preview"
         className="aspect-video w-full rounded-md bg-black object-cover"
       />
       {audioUrl && (
@@ -480,9 +482,8 @@ export default React.forwardRef(function VideoPreview({
           controls
           src={audioUrl}
           autoPlay
-          onPlay={() => {
-            onSpeakingChange?.(true);
-          }}
+          aria-label="Generated speech audio playback"
+          onPlay={() => onSpeakingChange?.(true)}
           onPause={() => onSpeakingChange?.(false)}
           onEnded={() => onSpeakingChange?.(false)}
           onError={() => onSpeakingChange?.(false)}

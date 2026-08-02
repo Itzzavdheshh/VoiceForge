@@ -259,14 +259,14 @@ export default function Call() {
       </section>
 
       {dbError && (
-        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
+        <div role="alert" className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
           <CircleAlert size={18} aria-hidden="true" />
           <span>Database Error: {dbError}. Please ensure IndexedDB is enabled and not blocked.</span>
         </div>
       )}
 
       {!activeProfile && !dbError && (
-        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
+        <div role="alert" className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
           <CircleAlert size={18} aria-hidden="true" />
           Create or select a voice profile before speaking.
         </div>
@@ -284,10 +284,12 @@ export default function Call() {
           id="toggle-calibration-btn"
           type="button"
           onClick={() => setIsCalibrationOpen(!isCalibrationOpen)}
+          aria-expanded={isCalibrationOpen}
+          aria-controls="calibration-panel"
           className="flex w-full items-center justify-between font-bold text-ink"
         >
           <div className="flex items-center gap-2">
-            <Sliders size={18} className="text-moss" />
+            <Sliders size={18} className="text-moss" aria-hidden="true" />
             <h2 className="text-base font-bold">Mouth Calibration Settings</h2>
           </div>
           <ChevronDown
@@ -298,7 +300,7 @@ export default function Call() {
         </button>
 
         {isCalibrationOpen && (
-          <div className="mt-4 border-t border-ink/10 pt-4">
+          <div id="calibration-panel" className="mt-4 border-t border-ink/10 pt-4">
             <p className="text-sm text-ink/65 mb-4">
               Calibrate the audio-driven mouth position and size overlay to align with your camera.
             </p>
@@ -320,6 +322,10 @@ export default function Call() {
                   step="1"
                   value={calibration.xOffset}
                   onChange={(e) => handleCalibrationChange("xOffset", parseInt(e.target.value, 10))}
+                  aria-label="Horizontal position X offset"
+                  aria-valuemin={-400}
+                  aria-valuemax={400}
+                  aria-valuenow={calibration.xOffset}
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -340,6 +346,10 @@ export default function Call() {
                   step="1"
                   value={calibration.yOffset}
                   onChange={(e) => handleCalibrationChange("yOffset", parseInt(e.target.value, 10))}
+                  aria-label="Vertical position Y offset"
+                  aria-valuemin={-250}
+                  aria-valuemax={150}
+                  aria-valuenow={calibration.yOffset}
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -360,6 +370,10 @@ export default function Call() {
                   step="0.1"
                   value={calibration.scale}
                   onChange={(e) => handleCalibrationChange("scale", parseFloat(e.target.value))}
+                  aria-label="Mouth size scale"
+                  aria-valuemin={0.5}
+                  aria-valuemax={2.5}
+                  aria-valuenow={calibration.scale}
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -369,6 +383,7 @@ export default function Call() {
                 id="reset-calibration-btn"
                 type="button"
                 onClick={handleResetCalibration}
+                aria-label="Reset calibration to default values"
                 className="inline-flex items-center justify-center gap-1.5 rounded-md border border-coral/40 px-3 py-1.5 text-xs font-bold text-coral hover:bg-coral hover:text-white transition"
               >
                 <RotateCcw size={14} aria-hidden="true" />
@@ -497,10 +512,11 @@ export default function Call() {
                 autoPlay
                 muted
                 playsInline
+                aria-label="Live webcam feed"
                 className="aspect-video w-full rounded-md bg-black object-cover"
               />
               {cameraError && (
-                <div className="mt-3 flex flex-col gap-2 items-start">
+                <div className="mt-3 flex flex-col gap-2 items-start" role="alert" aria-live="polite">
                   <p className="text-sm font-semibold text-coral">
                     {cameraError}
                   </p>

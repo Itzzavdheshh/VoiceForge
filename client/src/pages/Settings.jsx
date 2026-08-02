@@ -42,6 +42,7 @@ function AudioPlayback({ blob }) {
     <audio
       src={audioUrl}
       controls
+      aria-label="Generated speech audio playback"
       className="mt-2 h-8 w-full max-w-xs"
     />
   );
@@ -362,6 +363,7 @@ export default function Settings() {
               type="range"
               min="0" max="1" step="0.01"
               value={voiceSettings.stability}
+              aria-label="Stability"
               onChange={(e) => saveVoiceSettings({ ...voiceSettings, stability: parseFloat(e.target.value) })}
               className="w-full mt-2"
             />
@@ -377,6 +379,7 @@ export default function Settings() {
               id="temperature"
               type="range"
               min="0" max="1" step="0.01"
+              aria-label="Temperature"
               value={voiceSettings.temperature}
               onChange={(e) => saveVoiceSettings({ ...voiceSettings, temperature: parseFloat(e.target.value) })}
               className="w-full mt-2"
@@ -394,6 +397,7 @@ export default function Settings() {
               type="range"
               min="0" max="1" step="0.01"
               value={voiceSettings.style}
+              aria-label="Style Exaggeration"
               onChange={(e) => saveVoiceSettings({ ...voiceSettings, style: parseFloat(e.target.value) })}
               className="w-full mt-2"
             />
@@ -578,6 +582,7 @@ export default function Settings() {
               id="import-config-file"
               type="file"
               accept=".json"
+              aria-label="Choose backup file to import"
               onChange={handleImport}
               className="sr-only"
             />
