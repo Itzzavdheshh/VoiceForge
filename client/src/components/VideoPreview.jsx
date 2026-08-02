@@ -486,9 +486,6 @@ export default React.forwardRef(function VideoPreview({
           autoPlay
           aria-label="Generated speech audio playback"
           onPlay={() => onSpeakingChange?.(true)}
-          onPlay={() => {
-            onSpeakingChange?.(true);
-          }}
           onPause={() => onSpeakingChange?.(false)}
           onEnded={() => onSpeakingChange?.(false)}
           onError={() => onSpeakingChange?.(false)}

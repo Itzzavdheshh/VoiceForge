@@ -264,8 +264,6 @@ export function QuickReplies({ onSelect, showToast }) {
         aria-label={`${selectedCategoryTab} quick replies`}
         className="flex flex-wrap items-center gap-2"
       >
-        {filteredReplies.map(({ label, phrase }) => {
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Quick reply phrases">
         {filteredReplies.map(({ id, label, phrase, category }) => {
           const isCurrentlyEditing = editingReplyId === id;
 
