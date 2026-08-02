@@ -88,7 +88,7 @@ const Footer = ({ onNavigate, tabs, onOpenShortcuts }) => {
                   key={tab.id}
                   onClick={() => onNavigate?.(tab.id)}
                   aria-label={`Go to ${tab.label}`}
-                  className="text-left capitalize hover:text-ink dark:hover:text-white transition-colors duration-150 bg-transparent border-none cursor-pointer p-0"
+                  className="text-left capitalize text-ink/70 dark:text-neutral-400 hover:text-ink dark:hover:text-white transition-colors duration-150 bg-transparent border-none cursor-pointer p-0"
                 >
                   {tab.label}
                 </button>
@@ -106,7 +106,7 @@ const Footer = ({ onNavigate, tabs, onOpenShortcuts }) => {
                 href="https://github.com/itzzavdhesh/VoiceForge/blob/main/CONTRIBUTING.md"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-ink dark:hover:text-white transition-colors duration-150"
+                className="text-ink/70 dark:text-neutral-400 hover:text-ink dark:hover:text-white transition-colors duration-150"
               >
                 Contributing Guide
               </a>
@@ -114,14 +114,14 @@ const Footer = ({ onNavigate, tabs, onOpenShortcuts }) => {
                 href="https://github.com/itzzavdhesh/VoiceForge/issues"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-ink dark:hover:text-white transition-colors duration-150"
+                className="text-ink/70 dark:text-neutral-400 hover:text-ink dark:hover:text-white transition-colors duration-150"
               >
                 Report a Bug
               </a>
               {/* /privacy and /terms routes to be implemented in a follow-up */}
               <button
                 onClick={() => onNavigate?.("privacy-policy")}
-                className="text-left hover:text-ink dark:hover:text-white transition-colors duration-150 bg-transparent border-none cursor-pointer p-0"
+                className="text-left text-ink/70 dark:text-neutral-400 hover:text-ink dark:hover:text-white transition-colors duration-150 bg-transparent border-none cursor-pointer p-0"
               >
                 Privacy Policy
               </button>
@@ -132,7 +132,7 @@ const Footer = ({ onNavigate, tabs, onOpenShortcuts }) => {
                 <button
                   type="button"
                   onClick={onOpenShortcuts}
-                  className="text-left hover:text-ink dark:hover:text-white transition-colors duration-150 bg-transparent border-none cursor-pointer p-0"
+                  className="text-left hover:text-ink dark:hover:text-white text-ink/70 dark:text-neutral-400 transition-colors duration-150 bg-transparent border-none cursor-pointer p-0"
                 >
                   Keyboard Shortcuts
                 </button>
