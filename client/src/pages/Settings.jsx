@@ -20,6 +20,7 @@ import {
   deleteVoiceProfile,
   getSavedProfiles,
   clearAllVoiceProfiles,
+  subscribeProfileChanges,
 } from "../hooks/useVoiceClone.js";
 import { saveProfile } from "../utils/db.js";
 import { ProfileCard } from "../components/ProfileCard.jsx";
@@ -65,6 +66,7 @@ export default function Settings() {
       }
     }
     loadProfiles();
+    return subscribeProfileChanges(loadProfiles);
   }, []);
 
 
