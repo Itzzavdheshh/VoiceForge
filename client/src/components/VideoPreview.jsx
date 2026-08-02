@@ -49,7 +49,6 @@ export default React.forwardRef(function VideoPreview({
       console.error("PiP error:", error);
     }
   };
-
   const [blurEnabled, setBlurEnabled] = React.useState(false);
   const segmenterRef = React.useRef(null);
   const isSegmentingRef = React.useRef(false);
@@ -273,7 +272,6 @@ export default React.forwardRef(function VideoPreview({
       context.fillRect(0, 0, canvas.width, canvas.height);
 
       const video = videoRef.current;
-
       // Privacy mode: draw static avatar image with object-fit cover
       if (avatarImage && avatarImage.complete && avatarImage.naturalWidth) {
         const imgW = avatarImage.naturalWidth;
