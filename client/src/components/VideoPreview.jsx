@@ -15,6 +15,7 @@ export default React.forwardRef(function VideoPreview({
   isCalibrating = false,
   avatarImage = null,
   subtitlesEnabled = false,
+  subtitleText = "",
   subtitleFontSize = "medium",
   subtitleBgOpacity = "0.6",
 }, ref) {
@@ -24,6 +25,7 @@ export default React.forwardRef(function VideoPreview({
   const audioProcessorRef = useRef(null);
   const faceProcessorRef = useRef(null);
   const subtitlesEnabledRef = React.useRef(subtitlesEnabled);
+  const subtitleTextRef = React.useRef(subtitleText);
   const subtitleFontSizeRef = React.useRef(subtitleFontSize);
   const subtitleBgOpacityRef = React.useRef(Number(subtitleBgOpacity));
   const ortSessionRef = useRef(null);
@@ -63,6 +65,10 @@ export default React.forwardRef(function VideoPreview({
   React.useEffect(() => {
     subtitlesEnabledRef.current = subtitlesEnabled;
   }, [subtitlesEnabled]);
+
+  React.useEffect(() => {
+    subtitleTextRef.current = subtitleText;
+  }, [subtitleText]);
 
   React.useEffect(() => {
     subtitleFontSizeRef.current = subtitleFontSize;
@@ -410,7 +416,7 @@ export default React.forwardRef(function VideoPreview({
       if (isSpeaking && subtitlesEnabledRef.current) {
         drawSubtitles(
           context,
-          activeTextRef.current,
+          subtitleTextRef.current,
           subtitleFontSizeRef.current,
           subtitleBgOpacityRef.current
         );
