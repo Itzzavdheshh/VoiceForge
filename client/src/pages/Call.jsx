@@ -27,6 +27,15 @@ export default function Call() {
   const [avatarImage, setAvatarImage] = React.useState(null);
   const [videoDevices, setVideoDevices] = React.useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = React.useState(null);
+  const [subtitlesEnabled, setSubtitlesEnabled] = React.useState(() => {
+    return localStorage.getItem("voiceforge:subtitlesEnabled") === "true";
+  });
+  const [subtitleFontSize, setSubtitleFontSize] = React.useState(() => {
+    return localStorage.getItem("voiceforge:subtitleFontSize") || "medium";
+  });
+  const [subtitleBgOpacity, setSubtitleBgOpacity] = React.useState(() => {
+    return localStorage.getItem("voiceforge:subtitleBgOpacity") ?? "0.6";
+  });
 
   React.useEffect(() => {
     persistLanguage(language);
@@ -547,6 +556,9 @@ export default function Call() {
           calibration={calibration}
           isCalibrating={isCalibrationOpen}
           avatarImage={avatarImage}
+          subtitlesEnabled={subtitlesEnabled}
+          subtitleFontSize={subtitleFontSize}
+          subtitleBgOpacity={subtitleBgOpacity}
         />
       </div>
 

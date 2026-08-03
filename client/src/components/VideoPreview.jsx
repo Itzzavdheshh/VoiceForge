@@ -14,12 +14,18 @@ export default React.forwardRef(function VideoPreview({
   calibration = { xOffset: 0, yOffset: 0, scale: 1.0 },
   isCalibrating = false,
   avatarImage = null,
+  subtitlesEnabled = false,
+  subtitleFontSize = "medium",
+  subtitleBgOpacity = "0.6",
 }, ref) {
   const videoRef = React.useRef(null);
   const animationRef = React.useRef(null);
   const audioRef = useRef(null);   
   const audioProcessorRef = useRef(null);
   const faceProcessorRef = useRef(null);
+  const subtitlesEnabledRef = React.useRef(subtitlesEnabled);
+  const subtitleFontSizeRef = React.useRef(subtitleFontSize);
+  const subtitleBgOpacityRef = React.useRef(Number(subtitleBgOpacity));
   const ortSessionRef = useRef(null);
   const waveRef = useRef(null);
   const [modelStatus, setModelStatus] = React.useState(
@@ -53,6 +59,18 @@ export default React.forwardRef(function VideoPreview({
   const segmenterRef = React.useRef(null);
   const isSegmentingRef = React.useRef(false);
   const maskCanvasRef = React.useRef(null);
+
+  React.useEffect(() => {
+    subtitlesEnabledRef.current = subtitlesEnabled;
+  }, [subtitlesEnabled]);
+
+  React.useEffect(() => {
+    subtitleFontSizeRef.current = subtitleFontSize;
+  }, [subtitleFontSize]);
+
+  React.useEffect(() => {
+    subtitleBgOpacityRef.current = Number(subtitleBgOpacity);
+  }, [subtitleBgOpacity]);
 
   React.useEffect(() => {
     async function initSegmenter() {
