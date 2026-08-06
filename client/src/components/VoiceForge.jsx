@@ -13,10 +13,7 @@ import { SpeechHistory } from "./SpeechHistory";
 import { ToastContainer, useToast } from "./useToast.jsx";
 import { useSpeechHistory } from "../hooks/useSpeechHistory.js";
 import { LanguageSelector } from "./LanguageSelector.jsx";
-import { loadLanguage, persistLanguage } from "../utils/languages.js";
-import useTTS from "../hooks/useTTS.js";
-import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
-import { saveAudioBlob, getAudioBlob } from "../utils/db.js";
+import { loadLanguage, persistLanguage, subscribeLanguageChange } from "../utils/languages.js";
 
 const MAX_CHARS = 500;
 const COMPOSE_DRAFT_KEY = "voiceforge:draft_speech";
@@ -49,6 +46,12 @@ export default function VoiceForge() {
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [language, setLanguage] = useState(loadLanguage);
+
+  useEffect(() => {
+    return subscribeLanguageChange((newLang) => {
+      setLanguage(newLang);
+    });
+  }, []);
   const [historyOpen, setHistoryOpen] = useState(false);
   const drawerRef = useRef(null);
   const historyToggleRef = useRef(null);

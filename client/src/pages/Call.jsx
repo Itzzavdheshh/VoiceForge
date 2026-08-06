@@ -12,8 +12,7 @@ import useTTS from "../hooks/useTTS.js";
 import useVirtualCamera from "../hooks/useVirtualCamera.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
 import { useToast, ToastContainer } from "../components/useToast.jsx";
-import { loadLanguage, persistLanguage } from "../utils/languages.js";
-import { getStoredValue, setStoredValue } from "../utils/storage.js";
+import { loadLanguage, persistLanguage, subscribeLanguageChange } from "../utils/languages.js";
 
 export default function Call() {
   const [webcamStream, setWebcamStream] = React.useState(null);
@@ -39,6 +38,12 @@ export default function Call() {
   const [subtitleBgOpacity, setSubtitleBgOpacity] = React.useState(() => {
     return getStoredValue("voiceforge:subtitleBgOpacity", "0.6");
   });
+
+  React.useEffect(() => {
+    return subscribeLanguageChange((newLang) => {
+      setLanguage(newLang);
+    });
+  }, []);
 
   React.useEffect(() => {
     persistLanguage(language);
