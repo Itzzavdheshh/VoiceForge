@@ -18,10 +18,35 @@ import useTTS from "../hooks/useTTS.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
 import { saveAudioBlob, getAudioBlob } from "../utils/db.js";
 
-const MAX_CHARS = 300;
+const MAX_CHARS = 500;
+const COMPOSE_DRAFT_KEY = "voiceforge:draft_speech";
 
 export default function VoiceForge() {
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        return localStorage.getItem(COMPOSE_DRAFT_KEY) || "";
+      }
+    } catch {
+      // Storage unavailable
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        if (inputText) {
+          localStorage.setItem(COMPOSE_DRAFT_KEY, inputText);
+        } else {
+          localStorage.removeItem(COMPOSE_DRAFT_KEY);
+        }
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }, [inputText]);
+
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [language, setLanguage] = useState(loadLanguage);
   const [historyOpen, setHistoryOpen] = useState(false);
