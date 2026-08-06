@@ -3,10 +3,8 @@ import { ChevronLeft, ChevronRight, Inbox, Pin, Search, Trash2, Download, Archiv
 import { MessageCard } from "./MessageCard";
 import useDebounce from "../hooks/useDebounce";
 
-export function escapeCSVCell(value) {
-  if (value === null || value === undefined) return '""';
-  const str = String(value);
-  return `"${str.replace(/"/g, '""')}"`;
+export function escapeRegExp(string = "") {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function SpeechHistory({history,
@@ -116,10 +114,11 @@ export function SpeechHistory({history,
     }
 
     if (debouncedSearch.trim()) {
-      const query = debouncedSearch.toLowerCase();
-      messages = messages.filter((message) => 
+      const sanitized = escapeRegExp(debouncedSearch.trim()).toLowerCase();
+      const query = debouncedSearch.toLowerCase().trim();
+      messages = messages.filter((message) =>
         message.text.toLowerCase().includes(query) ||
-        (message.tags && message.tags.some(t => t.toLowerCase().includes(query)))
+        message.text.toLowerCase().includes(sanitized)
       );
     }
 
