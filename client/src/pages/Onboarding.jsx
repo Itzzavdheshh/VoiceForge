@@ -276,6 +276,12 @@ export default function Onboarding({ onReady }) {
     localStorage.setItem("voiceforge:maxUnlockedStep", maxUnlockedStep.toString());
   }, [maxUnlockedStep]);
 
+  const recordingDuration = recording?.duration ?? 0;
+
+  function handleRecordingReady(blob, payload) {
+    setRecording(normalizeRecordingResult(blob, payload));
+  }
+
   async function handleClone() {
     if (!recording || !recording.isValid) return;
     const profile = await cloneVoice(recording.blob, voiceName);
