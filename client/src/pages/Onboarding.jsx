@@ -3,7 +3,10 @@ import React from "react";
 import { CheckCircle2, Loader2, CircleAlert, ArrowRight, RotateCcw } from "lucide-react";
 import VoiceRecorder from "../components/VoiceRecorder.jsx";
 import useVoiceClone from "../hooks/useVoiceClone.js";
+import { COLOR_TAGS, AVATAR_ICONS } from "../components/ProfileCard.jsx";
+import { PeakLevelMeter } from "../components/PeakLevelMeter.jsx";
 import { useToast, ToastContainer } from "../components/useToast.jsx";
+import { COLOR_TAGS, AVATAR_ICONS } from "../components/ProfileCard.jsx";
 
 import {
   DEFAULT_VOICE_SETTINGS,
@@ -147,6 +150,11 @@ function Step2VoiceSettings({ onBack, onContinue }) {
         />
       </div>
 
+      {/* Audio Peak Level VU Meter & Clipping Warning */}
+      <div className="mt-5 pt-3 border-t border-ink/10 dark:border-border">
+        <PeakLevelMeter isActive={true} />
+      </div>
+
       {/* ── Info note ── */}
       <p className="mt-4 text-xs text-ink/50 dark:text-muted">
         These values are also adjustable in the{" "}
@@ -197,11 +205,27 @@ const MAX_NAME_LENGTH = 100;
 export default function Onboarding({ onReady }) {
   const [recording, setRecording] = React.useState(null); // stores { blob, duration, isValid }
   const [voiceName, setVoiceName] = React.useState("VoiceForge Voice");
+  const [selectedColor, setSelectedColor] = React.useState("emerald");
+  const [selectedIcon, setSelectedIcon] = React.useState("user");
   const [successProfile, setSuccessProfile] = React.useState(null);
   const { cloneVoice, status, error: apiError } = useVoiceClone();
   const { toasts, showToast } = useToast();
   const isCloning = status === "cloning";
-  const [serverStatus, setServerStatus] = React.useState({ isMock: false, space: "" });
+
+  const handleRecordingReady = React.useCallback((blob, metadata) => {
+    if (!blob) {
+      setRecording(null);
+      return;
+    }
+    const duration = typeof metadata === "object" ? metadata.duration : metadata;
+    const isValid = typeof metadata === "object" ? metadata.isValid : (duration >= 10);
+    setRecording({ blob, duration, isValid });
+  }, []);
+  const [serverStatus, setServerStatus] = React.useState({
+    isMock: false,
+    space: "",
+    hasServerKey: false,
+  });
 
   React.useEffect(() => {
     fetch("/api/voice/status")
@@ -283,9 +307,31 @@ export default function Onboarding({ onReady }) {
   }
 
   async function handleClone() {
-    if (!recording || !recording.isValid) return;
-    const profile = await cloneVoice(recording.blob, voiceName);
-    setSuccessProfile(profile);
+    // 1. Strict validation guards: recording and a valid name are required.
+    if (!hasKey || !recording) return;
+    if (recordingDuration < 10) return;
+    if (nameError) return; // block on empty / whitespace / over-limit name
+
+    try {
+      // 2. Perform real API call without overlapping mock declarations
+      const profile = await cloneVoice(recording, voiceName.trim(), selectedColor, selectedIcon);
+      if (profile) {
+        setSuccessProfile(profile);
+        setMaxUnlockedStep(2);
+        showToast("Voice cloned successfully", "success");
+        setActiveStep(2); // Move user to Step 2 instantly upon real success
+      }
+    } catch (err) {
+      console.error("Voice cloning process failed:", err);
+      showToast("Voice cloning failed. Please try again.", "error");
+      // No artificial mock bypasses here. Real failure is preserved in apiError and shown below.
+    }
+  }
+
+  function handleManualStepNavigation(targetStep) {
+    if (targetStep <= maxUnlockedStep) {
+      setActiveStep(targetStep);
+    }
   }
 
   return (
@@ -326,6 +372,24 @@ export default function Onboarding({ onReady }) {
                   key={label}
                   className={`h-2 rounded-full transition-all duration-300 ${isBarFilled ? "bg-coral" : "bg-ink/15 dark:bg-white/25"}`}
                   title={label}
+                />
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2" aria-label="Onboarding progress">
+            {[1, 2, 3].map((s) => {
+              const isActive = s === activeStep;
+              return (
+                <div
+                  key={s}
+                  role="progressbar"
+                  aria-valuenow={s}
+                  aria-valuemin={1}
+                  aria-valuemax={3}
+                  aria-label={`Step ${s} of 3`}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                    isActive ? "w-10 bg-moss dark:bg-glow" : "w-2.5 bg-neutral-200 dark:bg-neutral-800"
+                  }`}
                 />
               );
             })}
@@ -374,18 +438,61 @@ export default function Onboarding({ onReady }) {
               <button
                 type="button"
                 onClick={handleClone}
-                disabled={isCloning || !hasKey || !recording || recordingDuration < 10 || Boolean(nameError)}
+                disabled={isCloning || !hasKey || !recording || !recording.isValid || Boolean(nameError)}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isCloning && <Loader2 className="animate-spin" size={18} />}
-                Clone voice
+                {status === "cloning" ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+                    Processing Voice...
+                  </>
+                ) : (
+                  "Clone voice"
+                )}
               </button>
+            </div>
+
+            {/* Color Tag & Avatar Icon Selectors */}
+            <div className="mt-4 pt-3 border-t border-ink/10 dark:border-border grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
+              <div>
+                <span className="font-bold text-ink/80 dark:text-neutral-200">Color Tag Accent:</span>
+                <div className="flex items-center gap-2 mt-2">
+                  {Object.entries(COLOR_TAGS).map(([key, item]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedColor(key)}
+                      title={item.label}
+                      aria-label={`Select ${item.label} color tag`}
+                      className={`h-6 w-6 rounded-full ${item.badge} transition-transform ${selectedColor === key ? "ring-2 ring-moss ring-offset-2 scale-110" : "opacity-75 hover:opacity-100"}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="font-bold text-ink/80 dark:text-neutral-200">Avatar Icon:</span>
+                <div className="flex items-center gap-2 mt-2">
+                  {Object.entries(AVATAR_ICONS).map(([key, Icon]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedIcon(key)}
+                      title={key}
+                      aria-label={`Select ${key} avatar icon`}
+                      className={`flex h-7 w-7 items-center justify-center rounded-md border text-ink/80 transition-all dark:text-neutral-200 ${selectedIcon === key ? "border-moss bg-mint/30 text-moss font-bold scale-105 dark:border-glow dark:text-glow" : "border-ink/15 bg-cloud hover:bg-neutral-200 dark:border-border dark:bg-black"}`}
+                    >
+                      <Icon size={14} aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Name validation feedback + character counter */}
             <div
               id="voice-name-feedback"
-              className="mt-1.5 flex items-center justify-between gap-2 text-xs"
+              className="mt-2 flex items-center justify-between gap-2 text-xs"
             >
               {nameError ? (
                 <p className="flex items-center gap-1 font-semibold text-coral" role="alert">
@@ -412,7 +519,7 @@ export default function Onboarding({ onReady }) {
             {/* Render actual API errors transparently instead of swallowing failures */}
             {apiError && (
               <p className="mt-3 text-sm font-semibold text-coral flex items-center gap-1.5" role="alert">
-                <CircleAlert size={16} />
+                <CircleAlert size={16} aria-hidden="true" />
                 {apiError}
               </p>
             )}
@@ -420,7 +527,7 @@ export default function Onboarding({ onReady }) {
             {(successProfile || maxUnlockedStep >= 2) && (
               <div className="mt-4 flex flex-col gap-3 rounded-md bg-mint p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-glow/15">
                 <p className="inline-flex items-center gap-2 font-bold text-ink dark:text-neutral-50">
-                  <CheckCircle2 size={20} className="text-moss dark:text-glow" />
+                  <CheckCircle2 size={20} className="text-moss dark:text-glow" aria-hidden="true" />
                   Voice profile setup verified!
                 </p>
                 <button
@@ -429,7 +536,7 @@ export default function Onboarding({ onReady }) {
                   className="inline-flex items-center gap-2 rounded-md bg-black px-4 py-2 font-bold text-white dark:bg-glow dark:text-black"
                 >
                   Continue to Step 2
-                  <ArrowRight size={16} />
+                  <ArrowRight size={18} aria-hidden="true" />
                 </button>
               </div>
             )}
