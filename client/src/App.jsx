@@ -4,17 +4,16 @@ import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu,
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
-import OnboardingTour from "./components/OnboardingTour.jsx";
-import VoiceForge from "./components/VoiceForge";
+import Analytics from "./pages/Analytics.jsx";
+import VoiceForge from "./components/VoiceForge.jsx";
 import { useTheme } from "./components/ThemeContext.jsx";
 import Footer from './components/Footer.jsx';
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
 import Contributors from "./pages/Contributors.jsx";
-import About from "./pages/About";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import VoiceProfiles from "./pages/VoiceProfiles.jsx";
+import About from "./pages/About.jsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 
 const tabs = [
   { id: "onboarding",   label: "Onboarding",   icon: Mic2 },

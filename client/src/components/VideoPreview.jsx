@@ -39,6 +39,11 @@ export default React.forwardRef(function VideoPreview({
   const isCalibratingRef = React.useRef(isCalibrating);
   const activeTextRef = React.useRef(activeText);
 
+  const subtitlesEnabledRef = React.useRef(subtitlesEnabled);
+  const subtitleFontSizeRef = React.useRef(subtitleFontSize);
+  const subtitleBgOpacityRef = React.useRef(subtitleBgOpacity);
+  const activeTextRef = React.useRef(activeText);
+
   const pipVideoRef = React.useRef(null);
   const isPiPSupported = typeof document !== "undefined" && document.pictureInPictureEnabled;
 
@@ -67,22 +72,6 @@ export default React.forwardRef(function VideoPreview({
   React.useEffect(() => { subtitleFontSizeRef.current = subtitleFontSize; }, [subtitleFontSize]);
   React.useEffect(() => { subtitleBgOpacityRef.current = subtitleBgOpacity; }, [subtitleBgOpacity]);
   React.useEffect(() => { activeTextRef.current = activeText; }, [activeText]);
-
-  React.useEffect(() => {
-    subtitlesEnabledRef.current = subtitlesEnabled;
-  }, [subtitlesEnabled]);
-
-  React.useEffect(() => {
-    subtitleTextRef.current = activeText;
-  }, [activeText]);
-
-  React.useEffect(() => {
-    subtitleFontSizeRef.current = subtitleFontSize;
-  }, [subtitleFontSize]);
-
-  React.useEffect(() => {
-    subtitleBgOpacityRef.current = Number(subtitleBgOpacity);
-  }, [subtitleBgOpacity]);
 
   React.useEffect(() => {
     async function initSegmenter() {

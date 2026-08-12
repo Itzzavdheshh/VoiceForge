@@ -61,6 +61,29 @@ export default function Call() {
   });
   const [activeText, setActiveText] = React.useState("");
 
+  const [subtitlesEnabled, setSubtitlesEnabled] = React.useState(() => {
+    try {
+      return localStorage.getItem("voiceforge:subtitlesEnabled") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [subtitleFontSize, setSubtitleFontSize] = React.useState(() => {
+    try {
+      return localStorage.getItem("voiceforge:subtitleFontSize") || "medium";
+    } catch {
+      return "medium";
+    }
+  });
+  const [subtitleBgOpacity, setSubtitleBgOpacity] = React.useState(() => {
+    try {
+      return localStorage.getItem("voiceforge:subtitleBgOpacity") || "0.6";
+    } catch {
+      return "0.6";
+    }
+  });
+  const [activeText, setActiveText] = React.useState("");
+
   React.useEffect(() => {
     persistLanguage(language);
   }, [language]);
