@@ -239,6 +239,15 @@ export default function VoiceForge() {
       });
   }, [inputText, showToast]);
 
+  const handleClearHistory = useCallback(() => {
+    const isConfirmed = window.confirm("Are you sure you want to clear your entire speech history?");
+    if (isConfirmed) {
+      clearHistory();
+      showToast("History cleared successfully", "success");
+    }
+  }, [clearHistory, showToast]);
+
+
   const handleQuickReply = useCallback((phrase) => {
     speak(phrase);
     addMessage(phrase, language);
@@ -341,6 +350,19 @@ export default function VoiceForge() {
   }
 
   return (
+feat-clear-history-195
+    <div className="flex h-screen overflow-hidden bg-white font-sans antialiased dark:bg-black">
+      <SpeechHistory
+        history={history}
+        favorites={favorites}
+        onReuse={handleReuse}
+        onReplay={handleReplay}
+        onToggleFav={toggleFavorite}
+        onDelete={removeMessage}
+        onClearHistory={handleClearHistory}
+        onCopy={handleCopy}
+      />
+=======
     <div className="relative flex h-[calc(100vh-57px)] overflow-hidden bg-white font-sans antialiased dark:bg-black sm:h-[calc(100vh-65px)]">
       {/* Mobile history drawer overlay */}
       {historyOpen && (
@@ -383,6 +405,7 @@ export default function VoiceForge() {
           showToast={showToast}
         />
       </div>
+ main
 
       <main
         data-tour="compose-workspace"
