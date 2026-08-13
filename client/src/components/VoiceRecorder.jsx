@@ -510,7 +510,9 @@ if (isInteractive) return;
         <button
           type="button"
           onClick={isRecording ? stopRecording : startRecording}
-          disabled={disabled || isInitializing || isExtracting}
+          disabled={disabled}
+          title={isRecording ? "Stop recording your voice" : "Start recording your voice"}
+          aria-label={isRecording ? "Stop recording your voice" : "Start recording your voice"}
           className={`inline-flex items-center justify-center gap-2 rounded-md px-5 py-3 font-bold text-white transition ${
             isRecording
               ? "bg-coral hover:bg-coral/90"
