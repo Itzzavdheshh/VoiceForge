@@ -247,7 +247,6 @@ async function generateClonedVoice(
   if (!audioUrl) {
     throw new Error("Chatterbox returned no audio URL.");
   }
-  return audioUrl;
 }
 
 function clampNumber(value, min, max, fallback) {
