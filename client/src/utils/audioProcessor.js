@@ -131,7 +131,8 @@ export class AudioProcessor {
 
   /**
    * Returns the most recently extracted mel-spectrogram.
-   * Format expected by Wav2Lip ONNX is usually [batch_size, 1, 80, 16] (example).
+   * Format expected by Wav2Lip ONNX is usually [1, 1, 80, 16] 
+   * which flattens to a Float32Array of length 1280.
    * @returns {Float32Array|null}
    */
   getLatestFeatures() {
