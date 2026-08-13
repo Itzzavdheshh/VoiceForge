@@ -638,12 +638,21 @@ export async function streamSpeech(request, response, next) {
       reader.cancel().catch((err) => logger.error({ err, speechId }, "Error cancelling Chatterbox reader"));
     });
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      response.write(value);
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        response.write(value);
+      }
+      response.end();
+    } catch (streamError) {
+      console.error("Stream reading error:", streamError);
+      if (!response.headersSent) {
+        next(streamError);
+      } else {
+        response.end();
+      }
     }
-    response.end();
   } catch (error) {
     next(error);
   }
