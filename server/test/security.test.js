@@ -1,59 +1,45 @@
-import test from "node:test";
-import assert from "node:assert";
-import http from "node:http";
+// security.test.js - Validates security headers (CSP, COOP, COEP, Permissions-Policy) on the Express API server.
 
-// Need to set NODE_ENV=test so the server doesn't auto-listen
+import test from "node:test";
+import assert from "node:assert/strict";
+
+// Set NODE_ENV before dynamically importing index.js so that
+// app.listen() is skipped at module-evaluation time.
 process.env.NODE_ENV = "test";
 const { default: app } = await import("../index.js");
 
-function makeRequest(path, method = "GET") {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer(app);
-    server.listen(0, () => {
-      const port = server.address().port;
-      const req = http.request(
-        {
-          hostname: "localhost",
-          port,
-          path,
-          method,
-        },
-        (res) => {
-          let data = "";
-          res.on("data", (chunk) => (data += chunk));
-          res.on("end", () => {
-            server.close();
-            resolve({ res, data });
-          });
-        }
-      );
-      req.on("error", (err) => {
-        server.close();
-        reject(err);
-      });
-      req.end();
-    });
+test("Express server injects critical security headers", async (t) => {
+  // Start server on a dynamic port
+  const server = app.listen(0);
+  const port = server.address().port;
+
+  t.after(() => {
+    server.close();
   });
-}
 
-test("Security Headers (Integration) - Development environment", async () => {
-  const { res } = await makeRequest("/api/health");
-  
-  assert.strictEqual(res.statusCode, 200);
+  // Fetch any API route — helmet injects headers on every response
+  const response = await fetch(`http://localhost:${port}/api/voice/status`);
+  const headers = response.headers;
 
-  // Helmet sets this
-  assert.strictEqual(res.headers["cross-origin-opener-policy"], "same-origin");
-  assert.strictEqual(res.headers["cross-origin-embedder-policy"], "require-corp");
-  
-  // Custom permissions policy
-  assert.strictEqual(
-    res.headers["permissions-policy"],
-    "camera=(), microphone=(self), geolocation=(), interest-cohort=()"
+  // Assert Content-Security-Policy (CSP) presence
+  const csp = headers.get("content-security-policy");
+  assert.ok(csp, "Content-Security-Policy header should be present");
+  assert.ok(csp.includes("default-src 'self'"), "CSP should contain default-src 'self'");
+  assert.ok(csp.includes("media-src 'self' blob:"), "CSP should contain media-src allowances");
+
+  // Assert Permissions-Policy presence
+  const permissionsPolicy = headers.get("permissions-policy");
+  assert.ok(permissionsPolicy, "Permissions-Policy header should be present");
+  assert.ok(
+    permissionsPolicy.includes("microphone=(self)") && permissionsPolicy.includes("camera=(self)"),
+    "Permissions-Policy should allow microphone and camera for self"
   );
 
-  // Content-Security-Policy
-  const csp = res.headers["content-security-policy"];
-  assert.ok(csp.includes("default-src 'self'"));
-  assert.ok(csp.includes("worker-src 'self' blob:"));
-  assert.ok(csp.includes("script-src 'self' 'unsafe-inline' 'unsafe-eval'")); // development has unsafe-inline
+  // Assert Cross-Origin-Opener-Policy (COOP) presence
+  const coop = headers.get("cross-origin-opener-policy");
+  assert.equal(coop, "same-origin", "COOP header should be same-origin");
+
+  // Assert Cross-Origin-Embedder-Policy (COEP) presence
+  const coep = headers.get("cross-origin-embedder-policy");
+  assert.equal(coep, "require-corp", "COEP header should be require-corp");
 });

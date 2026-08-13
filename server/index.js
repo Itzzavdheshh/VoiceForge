@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import dbRoutes from "./routes/dbRoutes.js";
 import { getDatabase } from "./utils/db.js";
 import { getIsMock } from "./utils/mock.js";
+import helmet from "helmet";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -64,6 +65,34 @@ app.use((_req, res, next) => {
     "Permissions-Policy",
     "camera=(), microphone=(self), geolocation=(), interest-cohort=()"
   );
+  next();
+});
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        clientUrl,
+        "https://huggingface.co",
+        "https://*.hf.space",
+        "ws://localhost:*",
+        "ws://127.0.0.1:*"
+      ],
+      mediaSrc: ["'self'", "blob:"],
+      workerSrc: ["'self'", "blob:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+    }
+  },
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginEmbedderPolicy: { policy: "require-corp" }
+}));
+
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "microphone=(self), camera=(self)");
   next();
 });
 
