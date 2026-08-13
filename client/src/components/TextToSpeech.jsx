@@ -6,16 +6,16 @@ const MAX_CHARS = 300;
 
 export default function TextToSpeech({ onSpeak, disabled = false, status = "idle" }) {
   const [text, setText] = React.useState("");
+  const [announcement, setAnnouncement] = React.useState("");
+  const lastSpokenTextRef = React.useRef("");
+  
   const trimmedText = text.trim();
   const characterCount = text.length;
-  const wordCount = trimmedText ? trimmedText.split(/\s+/).length : 0;
-  const estimatedDuration = wordCount ? ((wordCount / 150) * 60).toFixed(1) : "0.0";
-  let durationCategory = estimatedDuration > 30 ? "Long" : estimatedDuration > 15 ? "Medium" : "Short";
+  const charsLeft = MAX_CHARS - characterCount;
 
-const characterCount = text.length;
-const charsLeft = MAX_CHARS - characterCount;
-
-  const wordCount = trimmedText ? trimmedText.split(/\s+/).length : 0;
+  const wordCount = trimmedText
+    ? trimmedText.split(/\s+/).length
+    : 0;
 
   const estimatedDuration = wordCount
     ? ((wordCount / 150) * 60).toFixed(1)
@@ -31,6 +31,14 @@ const charsLeft = MAX_CHARS - characterCount;
     durationCategory = "Long";
   }
 
+  // Handle screen reader announcements for speech lifecycle
+  React.useEffect(() => {
+    if (status === "speaking" && lastSpokenTextRef.current) {
+      setAnnouncement(`Speech playback started: ${lastSpokenTextRef.current}`);
+    } else if (status === "idle" && announcement) {
+      setAnnouncement("Finished speaking.");
+    }
+  }, [status]);
 
   function getCounterColor() {
     if (charsLeft < 0) return "text-red-500 font-bold";
@@ -51,10 +59,11 @@ const charsLeft = MAX_CHARS - characterCount;
   }, [onSpeak, disabled, status, isSubmitting]);
   
   async function submit() {
-  if (!trimmedText || disabled || characterCount > MAX_CHARS) return;
-  await onSpeak(trimmedText);
-  setText("");
-}
+    if (!trimmedText || disabled || characterCount > MAX_CHARS) return;
+    lastSpokenTextRef.current = trimmedText;
+    await onSpeak(trimmedText);
+    setText("");
+  }
 
   function handleKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -118,15 +127,15 @@ const charsLeft = MAX_CHARS - characterCount;
         </p>
       )}
 
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
+
       <button
         type="button"
         onClick={submit}
-        disabled={
-          disabled ||
-          !trimmedText ||
-          status === "speaking" ||
-          characterCount > MAX_CHARS
-        }
+        disabled={disabled || !trimmedText || status === "speaking" || characterCount > MAX_CHARS}
+        aria-busy={status === "speaking"}
         className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isBusy ? (

@@ -72,19 +72,6 @@ export default function Settings() {
 
 
 
-  function handlePresetChange(presetKey) {
-    if (presetKey === "custom") return;
-    const preset = VOICE_PRESETS[presetKey];
-    if (preset) {
-      saveVoiceSettings({
-        ...voiceSettings,
-        stability: preset.stability,
-        temperature: preset.temperature,
-        style: preset.style,
-      });
-    }
-  }
-
   function saveVoiceSettings(newSettings) {
     setVoiceSettings(newSettings);
     persistVoiceSettings(newSettings);
