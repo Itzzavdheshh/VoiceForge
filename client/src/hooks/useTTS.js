@@ -242,6 +242,11 @@ export default function useTTS() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
+        if (payload.status === "waking_up") {
+          const err = new Error("Waking up AI Engine... this may take a minute.");
+          err.isColdStart = true;
+          throw err;
+        }
         throw new Error(payload.error || "Speech generation failed.");
       }
 
