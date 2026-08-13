@@ -13,11 +13,10 @@ import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
 import Contributors from "./pages/Contributors.jsx";
-import About from "./pages/About";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import { isAuthenticated, logout } from "./utils/auth.js";
-import AuthView from "./components/AuthView.jsx";
-import { clearStorage } from "./utils/db.js";
+import About from "./pages/About.jsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
+import Library from "./pages/Library.jsx";
+import Healthcare from "./pages/Healthcare.jsx";
 
 const tabs = [
   { id: "onboarding", label: "Onboarding", icon: Mic2 },
@@ -314,18 +313,21 @@ export default function App() {
           <>
             {activeTab === "compose" && <VoiceForge />}
 
-            {activeTab !== "compose" && (
-              <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
-                {activeTab === "call"       && <Call />}
-                {activeTab === "settings"   && <Settings />}
-                {activeTab === "analytics"  && <Analytics />}
-                {activeTab === "contributors" && <Contributors />}
-                {activeTab === "about" && <About onNavigate={selectTab} />}
-                {activeTab === "privacy-policy" && (
-                  <PrivacyPolicy onBackHome={() => selectTab("onboarding")} />
-                )}
-              </div>
+        {activeTab !== "compose" && (
+          <div id={`tabpanel-${activeTab}`} role="tabpanel" aria-label={`${activeTab} panel`} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
+            {activeTab === "call"       && <Call />}
+            {activeTab === "settings"   && <Settings />}
+            {activeTab === "analytics"  && <Analytics />}
+            {activeTab === "voice-profiles" && <VoiceProfiles />}
+            {activeTab === "contributors" && <Contributors />}
+            {activeTab === "about" && <About onNavigate={selectTab} />}
+            {activeTab === "analytics" && <Analytics />}
+            {activeTab === "library" && <Library />}
+            {activeTab === "healthcare" && <Healthcare />}
+            {activeTab === "privacy-policy" && (<PrivacyPolicy
+              onBackHome={() => selectTab("onboarding")}
+             />
             )}
           </>
         )}

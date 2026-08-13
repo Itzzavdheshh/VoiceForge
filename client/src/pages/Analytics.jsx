@@ -86,13 +86,9 @@ export default function Analytics() {
     return [x, y];
   };
 
-  const chartTitle = dateRange === "today" 
-    ? "Messages (Today by Hour)" 
-    : dateRange === "7days" 
-    ? "Messages (Last 7 Days)" 
-    : dateRange === "30days" 
-    ? "Messages (Last 30 Days)" 
-    : "Messages (Last 6 Months)";
+    window.addEventListener("vf-transcript-saved", calculateStats);
+    return () => window.removeEventListener("vf-transcript-saved", calculateStats);
+  }, []);
 
   return (
     <div className="space-y-6">

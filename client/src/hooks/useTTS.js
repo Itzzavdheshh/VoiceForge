@@ -1,15 +1,10 @@
+// Sends typed text to the local backend and returns playable cloned speech audio.
 import React from "react";
+import { getApiKey } from "../utils/apiKeyStorage.js";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
 import { getSavedProfiles, saveVoiceProfile } from "./useVoiceClone.js";
 import { authFetch } from "../utils/auth.js";
 
-/**
- * React hook that manages Text-to-Speech (TTS) generation state.
- * Interfaces with the local VoiceForge backend for Chatterbox synthesis,
- * and falls back to browser SpeechSynthesis if the server is offline or fails.
- *
- * @returns {object} The TTS state and the speak action function.
- */
 export default function useTTS() {
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
@@ -138,27 +133,21 @@ export default function useTTS() {
     setStatus("speaking");
 
     try {
-      const voiceSettings = voice_settings_override || loadVoiceSettings();
-
-      // Fix (Broken Voice Synthesis): the server now requires owner_token to
-      // authorize use of voice_id (403 otherwise). Use the explicitly
-      // passed token if given, else resolve it from the saved profile.
-      let activeVoiceId = voiceId;
-      let resolvedOwnerToken = ownerToken || (await findProfileByVoiceId(voiceId))?.ownerToken || null;
+      const voiceSettings = loadVoiceSettings();
+      const { pitch, ...validVoiceSettings } = voiceSettings;
 
       let response = await authFetch("/api/voice/speak", {
         method: "POST",
-        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
+          "X-ElevenLabs-Api-Key": apiKey,
         },
         body: JSON.stringify({
-          text,
-          voice_id: activeVoiceId,
-          owner_token: resolvedOwnerToken,
-          language_code,
-          voice_settings: voiceSettings,
-        }),
+  text,
+  voice_id: voiceId,
+  language_code,
+  voice_settings: validVoiceSettings
+})
       });
 
       if (controller.signal.aborted) {
@@ -304,13 +293,7 @@ export default function useTTS() {
 
       const payload = await response.json();
       const nextAudioUrl = payload.audioUrl;
-
-      if (controller.signal.aborted) {
-        return;
-      }
-
-      setEngine("chatterbox");
-      updateAudioUrl(nextAudioUrl);
+      setAudioUrl(nextAudioUrl);
       setStatus("ready");
 
       // Initialize the worker
