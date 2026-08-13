@@ -393,6 +393,7 @@ export default function Onboarding({ onReady }) {
           );
         })}
       </div>
+      </div>
 
       {/* STEP 1: PROFILE MANAGEMENT CONTROLS */}
       {activeStep === 1 && (
