@@ -1,32 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Play, Pause, Share2, Trash2, Briefcase, Heart, BookOpen, Sparkles, User, Palette } from "lucide-react";
-import { saveVoiceProfile } from "../hooks/useVoiceClone.js";
+import { Play, Pause, Share2, Trash2 } from "lucide-react";
 
-export const COLOR_TAGS = {
-  emerald: { label: "Emerald", badge: "bg-emerald-600 text-white", border: "border-emerald-500" },
-  cobalt: { label: "Cobalt", badge: "bg-blue-600 text-white", border: "border-blue-600" },
-  rose: { label: "Rose", badge: "bg-rose-600 text-white", border: "border-rose-500" },
-  gold: { label: "Gold", badge: "bg-amber-600 text-white", border: "border-amber-500" },
-  purple: { label: "Purple", badge: "bg-purple-600 text-white", border: "border-purple-500" },
-};
-
-export const AVATAR_ICONS = {
-  user: User,
-  briefcase: Briefcase,
-  heart: Heart,
-  book: BookOpen,
-  sparkles: Sparkles,
-};
-
-export function ProfileCard({ profile, onDelete, onShare, onUpdate }) {
+export function ProfileCard({ profile, onDelete, onShare }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
-  const [isCustomizing, setIsCustomizing] = useState(false);
   const audioRef = React.useRef(null);
-
-  const activeColorKey = COLOR_TAGS[profile.colorTag] ? profile.colorTag : "emerald";
-  const activeColor = COLOR_TAGS[activeColorKey];
-  const IconComponent = AVATAR_ICONS[profile.avatarIcon] || User;
 
   useEffect(() => {
     if (profile.audioBlob) {
@@ -53,41 +31,26 @@ export function ProfileCard({ profile, onDelete, onShare, onUpdate }) {
     }
   };
 
-  const formattedDate = profile.createdAt
+  const formattedDate = profile.createdAt 
     ? new Date(profile.createdAt).toLocaleDateString()
     : "Unknown date";
 
   return (
-    <div className={`flex flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-soft transition-all hover:shadow-soft-md dark:border-border dark:bg-surface dark:shadow-soft-dk`}>
+    <div className="flex flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-soft transition-all hover:shadow-soft-md dark:border-border dark:bg-surface dark:shadow-soft-dk">
       <div className="flex items-start justify-between bg-ink/5 p-4 dark:bg-black/20">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-lg text-ink dark:text-neutral-100">
-              {profile.name}
-            </h3>
-            <span className={`inline-block h-2 w-2 rounded-full ${activeColor.badge}`} title={`Tag: ${activeColor.label}`} />
-          </div>
+          <h3 className="font-bold text-lg text-ink dark:text-neutral-100">
+            {profile.name}
+          </h3>
           <p className="text-xs text-ink/60 dark:text-muted mt-1">
             Created on {formattedDate}
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsCustomizing((prev) => !prev)}
-            title="Customize Tag & Icon"
-            aria-label="Customize profile avatar icon and color tag"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-ink/10 bg-white text-ink/60 transition hover:bg-neutral-100 hover:text-ink dark:border-border dark:bg-surface dark:text-neutral-300 dark:hover:bg-neutral-900"
-          >
-            <Palette size={14} aria-hidden="true" />
-          </button>
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${activeColor.badge} font-bold shadow-sm`}>
-            <IconComponent size={20} aria-hidden="true" />
-          </div>
+        <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-full bg-moss/20 text-moss dark:bg-glow/20 dark:text-glow font-bold uppercase text-sm">
+          {profile.name.substring(0, 2)}
         </div>
       </div>
-
+      
       <div className="flex flex-1 flex-col p-4">
         <p className="mb-4 text-xs font-mono text-ink/50 dark:text-muted truncate">
           ID: {profile.voice_id}

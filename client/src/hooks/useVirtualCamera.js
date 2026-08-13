@@ -5,7 +5,6 @@ export default function useVirtualCamera(canvasRef) {
   const [status, setStatus] = React.useState("Idle");
   const [stream, setStream] = React.useState(null);
   const originalTrackRef = React.useRef(null);
-  const animFrameRef = React.useRef(null);
 
   function browserSupportsInsertableStreams() {
     return (
@@ -36,6 +35,7 @@ export default function useVirtualCamera(canvasRef) {
 
       const transformer = new TransformStream({
         async transform(videoFrame, controller) {
+          // Pass the frame through. Future Wav2Lip manipulations can happen here.
           controller.enqueue(videoFrame);
         },
       });
@@ -55,17 +55,8 @@ export default function useVirtualCamera(canvasRef) {
   }
 
   function stop() {
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
-    if (originalTrackRef.current) {
-      originalTrackRef.current.stop();
-      originalTrackRef.current = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
+    originalTrackRef.current?.stop();
+    stream?.getTracks().forEach((track) => track.stop());
     setStream(null);
     setIsLive(false);
     setStatus("Stopped");
@@ -73,17 +64,8 @@ export default function useVirtualCamera(canvasRef) {
 
   React.useEffect(() => {
     return () => {
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
-      if (originalTrackRef.current) {
-        originalTrackRef.current.stop();
-        originalTrackRef.current = null;
-      }
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      originalTrackRef.current?.stop();
+      stream?.getTracks().forEach((track) => track.stop());
     };
   }, [stream]);
 

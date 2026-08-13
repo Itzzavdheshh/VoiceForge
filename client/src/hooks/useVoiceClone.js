@@ -16,67 +16,6 @@ export function getSavedProfiles() {
   return getAllProfiles();
 }
 
-export async function syncVoices() {
-  try {
-    const res = await fetch("/api/voices");
-    if (!res.ok) return;
-    const remoteVoices = await res.json();
-
-    const localProfiles = await getAllProfiles();
-    const localIds = new Set(localProfiles.map(p => p.voice_id));
-
-    for (const remote of remoteVoices) {
-      if (!localIds.has(remote.voice_id)) {
-        const detailRes = await fetch(`/api/voices/${remote.voice_id}`);
-        if (detailRes.ok) {
-          const detail = await detailRes.json();
-          let audioBlob = null;
-          if (detail.audio_base64) {
-            const binary = atob(detail.audio_base64);
-            const array = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-              array[i] = binary.charCodeAt(i);
-            }
-            audioBlob = new Blob([array], { type: "audio/webm" });
-          }
-          const profile = {
-            id: detail.voice_id,
-            voice_id: detail.voice_id,
-            name: detail.name,
-            ownerToken: detail.owner_token,
-            createdAt: detail.created_at,
-            audioBlob
-          };
-          await saveProfile(profile);
-        }
-      }
-    }
-
-    const remoteIds = new Set(remoteVoices.map(r => r.voice_id));
-    for (const local of localProfiles) {
-      if (!remoteIds.has(local.voice_id)) {
-        const formData = new FormData();
-        formData.append("voice_id", local.voice_id);
-        formData.append("name", local.name);
-        if (local.ownerToken) {
-          formData.append("owner_token", local.ownerToken);
-        }
-        if (local.audioBlob) {
-          formData.append("audio", local.audioBlob, "voiceforge-reference.webm");
-        }
-        await fetch("/api/voices", {
-          method: "POST",
-          body: formData
-        });
-      }
-    }
-
-    window.dispatchEvent(new CustomEvent("voiceforge:profileChanged"));
-  } catch (error) {
-    console.error("Failed to sync voices:", error);
-  }
-}
-
 export async function saveVoiceProfile(profile, audioBlob = null) {
   const profiles = await getSavedProfiles();
   const nextProfile = {
@@ -90,7 +29,7 @@ export async function saveVoiceProfile(profile, audioBlob = null) {
     // memory during the clone flow.
     ownerToken: profile.ownerToken || profile.owner_token || null,
     createdAt: new Date().toISOString(),
-    audioBlob, // Store the binary reference audio Blob
+    audioBlob // Store the binary reference audio Blob
   };
   await saveProfile(nextProfile);
 
@@ -159,31 +98,9 @@ export async function getActiveVoiceProfile() {
   );
 }
 
-export function subscribeProfileChanges(callback) {
-  if (typeof window === "undefined") return () => {};
-
-  function handleStorage(e) {
-    if (e.key === ACTIVE_KEY || !e.key) {
-      callback();
-    }
-  }
-
-  window.addEventListener("voiceforge:profileChanged", callback);
-  window.addEventListener("storage", handleStorage);
-
-  return () => {
-    window.removeEventListener("voiceforge:profileChanged", callback);
-    window.removeEventListener("storage", handleStorage);
-  };
-}
-
 export default function useVoiceClone() {
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
-
-  React.useEffect(() => {
-    syncVoices();
-  }, []);
 
   async function cloneVoice(audioBlob, name = "VoiceForge profile") {
     setStatus("cloning");
@@ -235,14 +152,11 @@ export default function useVoiceClone() {
       // Fix (Broken Voice Synthesis): forward the owner_token returned by
       // the server into saveVoiceProfile so it lands in the stored profile
       // (see ownerToken field above) instead of being silently dropped.
-      const profile = await saveVoiceProfile(
-        {
-          voice_id: payload.voice_id,
-          owner_token: payload.owner_token,
-          name: payload.name || name,
-        },
-        audioBlob,
-      );
+      const profile = await saveVoiceProfile({
+        voice_id: payload.voice_id,
+        owner_token: payload.owner_token,
+        name: payload.name || name
+      }, audioBlob);
 
       setStatus("success");
       return profile;

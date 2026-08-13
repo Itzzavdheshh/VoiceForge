@@ -8,18 +8,18 @@ VoiceForge is a browser-based assistive video tool that lets a user type during 
 
 ## 📑 Table of Contents
 
-* [Why This Exists](#why-this-exists)
-* [Tech Stack](#tech-stack)
-* [Browser Compatibility](#browser-compatibility)
-* [Prerequisites](#prerequisites)
-* [Setup](#setup)
-* [Environment Variables](#environment-variables)
-* [Using VoiceForge In A Call](#using-voiceforge-in-a-call)
-* [OBS Virtual Camera Setup](#obs-virtual-camera-setup)
-* [API](#api)
-* [Roadmap](#roadmap)
-* [License](#license)
-* [About](#about)
+- [Why This Exists](#why-this-exists)
+- [Tech Stack](#tech-stack)
+- [Browser Compatibility](#browser-compatibility)
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+- [Environment Variables](#environment-variables)
+- [Using VoiceForge In A Call](#using-voiceforge-in-a-call)
+- [OBS Virtual Camera Setup](#obs-virtual-camera-setup)
+- [API](#api)
+- [Roadmap](#roadmap)
+- [License](#license)
+- [About](#about)
 
 ---
 
@@ -81,26 +81,6 @@ npm run dev
 ```
 
 6. Open `http://localhost:5173` in Chrome or Edge.
-
-### Using Docker (Alternative)
-
-If you have Docker installed and want to avoid installing specific Node.js versions, you can spin up the entire application stack using Docker Compose:
-
-1. Copy the environment file:
-   ```bash
-   cp .env.example .env
-   ```
-2. Start the application:
-   ```bash
-   docker-compose up -d
-   ```
-3. Open `http://localhost:5173` in Chrome or Edge.
-
-To stop the containers:
-
-```bash
-docker-compose down
-```
 
 ---
 
@@ -228,6 +208,3 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-
-
-<!-- GSSoC Contribution: Resolves #760 -->

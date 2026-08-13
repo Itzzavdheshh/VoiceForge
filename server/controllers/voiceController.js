@@ -1,12 +1,8 @@
 // Implements Chatterbox Multilingual TTS voice cloning and speech proxy handlers.
 // Uses the Hugging Face Gradio client to call ResembleAI/Chatterbox-Multilingual-TTS.
 import crypto from "crypto";
-import { env } from "../config/env.js";
 import { getIsMock } from "../utils/mock.js";
-import {
-  isValidLanguageCode,
-  toChatterboxLanguageCode,
-} from "../utils/languages.js";
+import { isValidLanguageCode, toChatterboxLanguageCode } from "../utils/languages.js";
 
 // ---------------------------------------------------------------------------
 // In-memory voice store: maps voice_id to { name, audioBuffer, mimeType, expiresAt }
@@ -19,27 +15,23 @@ function parseBoundedNumber(rawValue, fallback, min) {
   return Number.isFinite(numeric) ? Math.max(min, numeric) : fallback;
 }
 
-const MAX_STORED_VOICES = parseBoundedNumber(
-  process.env.VOICE_STORE_MAX,
-  20,
-  1,
-);
+const MAX_STORED_VOICES = parseBoundedNumber(process.env.VOICE_STORE_MAX, 20, 1);
 const VOICE_STORE_TTL_MS = parseBoundedNumber(
   process.env.VOICE_STORE_TTL_MS,
   2 * 60 * 60 * 1000,
-  60_000,
+  60_000
 );
 
 const PENDING_STREAMS_MAX = parseBoundedNumber(
   process.env.PENDING_STREAMS_MAX,
   1000,
-  1,
+  1
 );
 
 const PENDING_STREAM_TTL_MS = parseBoundedNumber(
   process.env.PENDING_STREAM_TTL_MS,
   60_000,
-  1,
+  1
 );
 
 // Fix: bound the size of reference-audio uploads so a single (or repeated)
@@ -55,7 +47,7 @@ const PENDING_STREAM_TTL_MS = parseBoundedNumber(
 const MAX_VOICE_UPLOAD_BYTES = parseBoundedNumber(
   process.env.MAX_VOICE_UPLOAD_BYTES,
   12 * 1024 * 1024, // 12 MB - matches the multer limit on the clone route
-  1,
+  1
 );
 const ALLOWED_AUDIO_MIME_PREFIX = "audio/";
 
@@ -68,16 +60,14 @@ const MOCK_AUDIO_MP3 = Buffer.from(
   "base64",
 );
 
-const STREAM_SECRET =
-  process.env.STREAM_SECRET ??
-  (() => {
-    console.warn(
-      "[VoiceForge] STREAM_SECRET not set - using ephemeral key. " +
-        "All speech tokens will be invalidated on server restart. " +
-        "Set STREAM_SECRET in .env for stability.",
-    );
-    return crypto.randomBytes(32).toString("hex");
-  })();
+const STREAM_SECRET = process.env.STREAM_SECRET ?? (() => {
+  console.warn(
+    "[VoiceForge] STREAM_SECRET not set - using ephemeral key. " +
+    "All speech tokens will be invalidated on server restart. " +
+    "Set STREAM_SECRET in .env for stability."
+  );
+  return crypto.randomBytes(32).toString("hex");
+})();
 
 const ENCRYPTION_KEY = crypto.scryptSync(
   STREAM_SECRET,
@@ -247,64 +237,20 @@ async function generateClonedVoice(
 
   const result = await withTimeout(
     app.predict("/generate_tts_audio", [
-      targetText, // Text string to synthesize (max 300 chars)
-      languageCode, // Language code string (e.g. "en", "hi")
-      referenceBlob, // Reference audio Blob
-      exaggeration, // Exaggeration intensity float (Default: 0.5)
-      temperature, // Generation temperature float (Default: 0.8)
-      seed, // Seed integer (0 = randomised)
-      cfgWeight, // CFG weight / Pace factor float (Default: 0.5)
+      targetText,       // Text string to synthesize (max 300 chars)
+      languageCode,     // Language code string (e.g. "en", "hi")
+      referenceBlob,    // Reference audio Blob
+      exaggeration,     // Exaggeration intensity float (Default: 0.5)
+      temperature,      // Generation temperature float (Default: 0.8)
+      seed,             // Seed integer (0 = randomised)
+      cfgWeight         // CFG weight / Pace factor float (Default: 0.5)
     ]),
     30000,
     "Chatterbox predict",
-    abortSignal,
+    abortSignal
   );
 
-  const job = app.submit("/generate_tts_audio", inputs);
-
-  let timeoutId;
-  const promise = new Promise((resolve, reject) => {
-    job.on("data", (event) => resolve(event));
-    job.on("error", (err) => reject(err));
-  });
-
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => {
-      try {
-        job.cancel();
-      } catch (e) {
-        console.error("[VoiceForge] Error cancelling job on timeout:", e);
-      }
-      reject(new Error("Chatterbox predict timed out after 30000ms"));
-    }, 30000);
-  });
-
-  const abortPromise = new Promise((_, reject) => {
-    if (abortSignal) {
-      if (abortSignal.aborted) {
-        try {
-          job.cancel();
-        } catch (e) {}
-        reject(new Error("Request aborted by client"));
-      } else {
-        abortSignal.addEventListener("abort", () => {
-          try {
-            job.cancel();
-          } catch (e) {}
-          reject(new Error("Request aborted by client"));
-        });
-      }
-    }
-  });
-
-  let result;
-  try {
-    result = await Promise.race([promise, timeoutPromise, abortPromise]);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  const audioUrl = result?.data?.[0]?.url;
+  const audioUrl = result.data[0].url;
   if (!audioUrl) {
     throw new Error("Chatterbox returned no audio URL.");
   }
@@ -316,6 +262,25 @@ function clampNumber(value, min, max, fallback) {
     return fallback;
   }
   return Math.min(max, Math.max(min, numeric));
+}
+
+/**
+ * Evicts expired voice entries and enforces the maximum limit on cached voices in memory.
+ *
+ * @param {number} [now] The current timestamp in milliseconds.
+ */
+function pruneVoiceStore(now = Date.now()) {
+  for (const [voiceId, entry] of voiceStore) {
+    if (entry.expiresAt <= now) {
+      voiceStore.delete(voiceId);
+    }
+  }
+
+  while (voiceStore.size >= MAX_STORED_VOICES) {
+    const oldestVoiceId = voiceStore.keys().next().value;
+    if (!oldestVoiceId) break;
+    voiceStore.delete(oldestVoiceId);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -353,17 +318,15 @@ export async function cloneVoice(request, response, next) {
         .json({ error: "Reference audio must be an audio file." });
       return;
     }
-    if (audioFile.buffer.length > getMaxVoiceUploadBytes()) {
+    if (audioFile.buffer.length > MAX_VOICE_UPLOAD_BYTES) {
       response.status(413).json({
-        error: `Reference audio exceeds maximum allowed size of ${MAX_VOICE_UPLOAD_BYTES} bytes.`,
+        error: `Reference audio exceeds maximum allowed size of ${MAX_VOICE_UPLOAD_BYTES} bytes.`
       });
       return;
     }
 
     if (getIsMock()) {
-      console.warn(
-        "[VoiceForge] MOCK_CHATTERBOX: skipping real voice clone, returning fixture.",
-      );
+      console.warn("[VoiceForge] MOCK_CHATTERBOX: skipping real voice clone, returning fixture.");
       response.json({
         voice_id: request.body.voice_id || "mock-voice-id-00000000",
         name: request.body.name || "VoiceForge Voice (mock)",
@@ -391,7 +354,7 @@ export async function cloneVoice(request, response, next) {
       audioBuffer: audioFile.buffer,
       mimeType: audioFile.mimetype,
       ownerTokenHash,
-      expiresAt: Date.now() + VOICE_STORE_TTL_MS,
+      expiresAt: Date.now() + VOICE_STORE_TTL_MS
     });
 
     response.json({
@@ -443,7 +406,7 @@ export async function speak(request, response, next) {
       voice_settings,
     } = request.body;
 
-    if (pendingStreams.size >= getPendingStreamsMax()) {
+    if (pendingStreams.size >= PENDING_STREAMS_MAX) {
       response.status(503).json({
         error:
           "Too many pending speech requests. Please retry after retrieving or cancelling existing audio streams.",
@@ -591,7 +554,7 @@ export async function speak(request, response, next) {
 
     const timeout = setTimeout(() => {
       deletePendingStream(speechId);
-    }, getPendingStreamTtlMs());
+    }, PENDING_STREAM_TTL_MS);
     // Do not keep the event loop alive solely for this cleanup timer.
     timeout.unref?.();
 
@@ -603,9 +566,7 @@ export async function speak(request, response, next) {
     });
 
     if (getIsMock()) {
-      console.warn(
-        `[VoiceForge] MOCK_CHATTERBOX: speak enqueued mock stream for speechId=${speechId}`,
-      );
+      console.warn(`[VoiceForge] MOCK_CHATTERBOX: speak enqueued mock stream for speechId=${speechId}`);
     }
 
     const expiresAt = Date.now() + 60000;
@@ -670,7 +631,7 @@ export async function streamSpeech(request, response, next) {
     }
 
     if (getIsMock()) {
-      logger.warn({ speechId }, "MOCK_CHATTERBOX: streaming mock audio");
+      console.warn("[VoiceForge] MOCK_CHATTERBOX: streaming mock audio");
       deletePendingStream(speechId);
       response.setHeader("Content-Type", "audio/mpeg");
       response.setHeader("Content-Length", String(MOCK_AUDIO_MP3.length));
@@ -693,7 +654,7 @@ export async function streamSpeech(request, response, next) {
     // Set up abortion for client disconnect
     const generateController = new AbortController();
     const onClose = () => {
-      logger.info({ speechId }, "Request aborted by client");
+      console.log("[VoiceForge] Request aborted by client");
       if (speechId) deletePendingStream(speechId);
       generateController.abort();
     };
@@ -712,7 +673,7 @@ export async function streamSpeech(request, response, next) {
       );
     } catch (error) {
       if (error.message === "Request aborted by client") {
-        logger.info({ speechId }, "Inference canceled. Cleanup completed.");
+        console.log("[VoiceForge] Inference canceled. Cleanup completed.");
         return; // Stop processing, request is already closed
       }
       if (error.message.includes("timed out")) {
@@ -757,11 +718,7 @@ export async function streamSpeech(request, response, next) {
     const reader = upstream.body.getReader();
 
     request.on("close", () => {
-      reader
-        .cancel()
-        .catch((err) =>
-          console.error("Error cancelling Chatterbox reader:", err),
-        );
+      reader.cancel().catch((err) => console.error("Error cancelling Chatterbox reader:", err));
     });
 
     try {

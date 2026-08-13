@@ -94,19 +94,6 @@ export async function getProfile(voiceId) {
   return profiles.find(p => p.voice_id === voiceId) || null;
 }
 
-let writeQueue = Promise.resolve();
-
-    request.onerror = (event) => {
-      reject(
-        new Error(
-          "Failed to retrieve profile: " +
-            (event.target.error?.message || "Unknown error"),
-        ),
-      );
-    };
-  });
-}
-
 export async function saveProfile(profile) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -119,12 +106,7 @@ export async function saveProfile(profile) {
     };
 
     request.onerror = (event) => {
-      reject(
-        new Error(
-          "Failed to save profile: " +
-            (event.target.error?.message || "Unknown error"),
-        ),
-      );
+      reject(new Error("Failed to save profile: " + (event.target.error?.message || "Unknown error")));
     };
   });
 }
@@ -141,12 +123,7 @@ export async function deleteProfile(voiceId) {
     };
 
     request.onerror = (event) => {
-      reject(
-        new Error(
-          "Failed to delete profile: " +
-            (event.target.error?.message || "Unknown error"),
-        ),
-      );
+      reject(new Error("Failed to delete profile: " + (event.target.error?.message || "Unknown error")));
     };
   });
 }
@@ -163,12 +140,7 @@ export async function clearStorage() {
     };
 
     request.onerror = (event) => {
-      reject(
-        new Error(
-          "Failed to clear storage: " +
-            (event.target.error?.message || "Unknown error"),
-        ),
-      );
+      reject(new Error("Failed to clear storage: " + (event.target.error?.message || "Unknown error")));
     };
   });
 }

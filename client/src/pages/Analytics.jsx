@@ -1,28 +1,15 @@
-import React, { useMemo } from "react";
-import { useSpeechHistory } from "../hooks/useSpeechHistory";
-import { Download, BarChart2, MessageSquare, Clock, Globe } from "lucide-react";
+import React, { useMemo } from 'react';
+import { useSpeechHistory } from '../hooks/useSpeechHistory';
+import { Download, BarChart2, MessageSquare, Clock, Globe } from 'lucide-react';
 
 export default function Analytics() {
-  const [stats, setStats] = useState({
-    totalCharacters: 0,
-    totalWords: 0,
-    totalAudioSize: 0,
-    estimatedCost: 0,
-    totalSpeechClips: 0,
-    voiceRankings: [],
-    languagesUsed: {}
-  });
+  const { analyticsHistory, sessionTranscript } = useSpeechHistory();
 
   // Metrics Calculations
   const metrics = useMemo(() => {
-    const totalWords = analyticsHistory.reduce(
-      (acc, msg) => acc + msg.text.split(/\s+/).length,
-      0,
-    );
-    const avgMessageLength = analyticsHistory.length
-      ? Math.round(totalWords / analyticsHistory.length)
-      : 0;
-
+    const totalWords = analyticsHistory.reduce((acc, msg) => acc + msg.text.split(/\s+/).length, 0);
+    const avgMessageLength = analyticsHistory.length ? Math.round(totalWords / analyticsHistory.length) : 0;
+    
     // Session Duration
     let sessionDuration = "0m";
     if (sessionTranscript.length >= 2) {
@@ -34,23 +21,13 @@ export default function Analytics() {
       sessionDuration = "< 1m";
     }
 
-        transcripts.forEach(t => {
-          chars += t.text?.length || 0;
-          words += (t.text || "").split(/\s+/).filter(Boolean).length;
-          cost += (t.text?.length || 0) * 0.00015; // Estimating ElevenLabs costs
-          
-          if (t.voice_id) {
-            voiceCounts[t.voice_id] = (voiceCounts[t.voice_id] || 0) + 1;
-          }
-          if (t.language_code) {
-            langCounts[t.language_code] = (langCounts[t.language_code] || 0) + 1;
-          }
-        });
+    return { totalWords, avgMessageLength, sessionDuration };
+  }, [analyticsHistory, sessionTranscript]);
 
   // Most Used Phrases
   const mostUsedPhrases = useMemo(() => {
     const counts = {};
-    analyticsHistory.forEach((msg) => {
+    analyticsHistory.forEach(msg => {
       const text = msg.text.toLowerCase().trim();
       counts[text] = (counts[text] || 0) + 1;
     });
@@ -62,7 +39,7 @@ export default function Analytics() {
   // Language Distribution
   const languageData = useMemo(() => {
     const counts = {};
-    analyticsHistory.forEach((msg) => {
+    analyticsHistory.forEach(msg => {
       const lang = msg.language || "Unknown";
       counts[lang] = (counts[lang] || 0) + 1;
     });
@@ -97,70 +74,78 @@ export default function Analytics() {
       d.setHours(0, 0, 0, 0);
       return {
         date: d,
-        label: d.toLocaleDateString(undefined, { weekday: "short" }),
-        count: 0,
+        label: d.toLocaleDateString(undefined, { weekday: 'short' }),
+        count: 0
       };
     });
 
-    analyticsHistory.forEach((msg) => {
+    analyticsHistory.forEach(msg => {
       const msgDate = new Date(msg.timestamp);
       msgDate.setHours(0, 0, 0, 0);
-
-      const dayData = data.find((d) => d.date.getTime() === msgDate.getTime());
+      
+      const dayData = data.find(d => d.date.getTime() === msgDate.getTime());
       if (dayData) {
         dayData.count++;
       }
     });
 
-    const maxCount = Math.max(...data.map((d) => d.count), 1); // Avoid div by 0
+    const maxCount = Math.max(...data.map(d => d.count), 1); // Avoid div by 0
 
     return { data, maxCount };
-  }, [filteredHistory, dateRange]);
+  }, [analyticsHistory]);
 
   const exportCSV = () => {
     if (!analyticsHistory.length) return;
-
+    
     const headers = ["ID", "Timestamp", "Language", "Text"];
-    const rows = analyticsHistory.map((msg) => [
+    const rows = analyticsHistory.map(msg => [
       msg.id,
       new Date(msg.timestamp).toISOString(),
       msg.language || "Unknown",
       `"${msg.text.replace(/"/g, '""')}"`,
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((e) => e.join(",")),
-    ].join("\n");
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `voiceforge_analytics_${dateRange}.csv`);
+    link.setAttribute("download", "voiceforge_analytics.csv");
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // Helper for pie chart SVG path
   const getCoordinatesForPercent = (percent) => {
     const x = Math.cos(2 * Math.PI * percent);
     const y = Math.sin(2 * Math.PI * percent);
     return [x, y];
   };
 
-    window.addEventListener("vf-transcript-saved", calculateStats);
-    return () => window.removeEventListener("vf-transcript-saved", calculateStats);
-  }, []);
-
   return (
-    <div className="space-y-6">
-      <header className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface">
-        <h2 className="text-2xl font-bold dark:text-neutral-100">Voice Analytics Dashboard</h2>
-        <p className="mt-1 text-sm text-ink/65 dark:text-muted">
-          Real-time metrics, costs, and statistics gathered from your local communication history.
-        </p>
-      </header>
+    <div className="flex flex-col gap-6 p-2 sm:p-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-ink dark:text-neutral-50 flex items-center gap-2">
+            <BarChart2 className="text-moss dark:text-glow" />
+            Speech Analytics
+          </h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            Insights based on your last {analyticsHistory.length} messages.
+          </p>
+        </div>
+        <button
+          onClick={exportCSV}
+          disabled={analyticsHistory.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-moss text-white rounded-lg hover:bg-emerald-600 transition disabled:opacity-50 disabled:cursor-not-allowed dark:bg-glow dark:text-black dark:hover:bg-emerald-400 font-medium"
+        >
+          <Download size={18} />
+          Export CSV
+        </button>
+      </div>
 
       {/* Analytics summary grid */}
       <div className="grid gap-5 sm:grid-cols-3">
@@ -211,38 +196,29 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Usage Bar Chart */}
         <div className="bg-white dark:bg-surface border border-neutral-200 dark:border-border rounded-xl p-5 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold text-ink dark:text-neutral-100 mb-6">
-            Messages (Last 7 Days)
-          </h3>
-
+          <h3 className="text-lg font-semibold text-ink dark:text-neutral-100 mb-6">Messages (Last 7 Days)</h3>
+          
           <div className="flex-1 flex items-end gap-2 sm:gap-4 justify-between h-48 mt-auto pb-2">
             {usageData.data.map((item, i) => {
               const heightPct = (item.count / usageData.maxCount) * 100;
               return (
-                <div
-                  key={i}
-                  className="flex flex-col items-center gap-2 flex-1 group"
-                >
+                <div key={i} className="flex flex-col items-center gap-2 flex-1 group">
                   <div className="relative w-full flex justify-center h-full items-end">
-                    <div
+                    <div 
                       className="w-full max-w-[40px] bg-moss/20 dark:bg-glow/20 rounded-t-sm group-hover:bg-moss/40 dark:group-hover:bg-glow/40 transition-colors relative"
                       style={{ height: `${Math.max(heightPct, 2)}%` }} // min height 2%
                     >
-                      <div
+                      <div 
                         className="absolute bottom-0 w-full bg-moss dark:bg-glow rounded-t-sm transition-all"
                         style={{ height: `${heightPct}%` }}
                       ></div>
                     </div>
-                    <div className="h-2 w-full bg-cloud dark:bg-black rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-moss to-mint dark:from-glow dark:to-mint rounded-full"
-                        style={{ width: `${widthPercent}%` }}
-                      />
+                    {/* Tooltip */}
+                    <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-ink text-white dark:bg-white dark:text-black text-xs py-1 px-2 rounded pointer-events-none transition-opacity whitespace-nowrap z-10">
+                      {item.count} messages
                     </div>
                   </div>
-                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                    {item.label}
-                  </span>
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400">{item.label}</span>
                 </div>
               );
             })}
@@ -318,10 +294,8 @@ export default function Analytics() {
 
       {/* Vocabulary Diversity Word Cloud */}
       <div className="bg-white dark:bg-surface border border-neutral-200 dark:border-border rounded-xl p-5 shadow-sm">
-        <h3 className="text-lg font-semibold text-ink dark:text-neutral-100 mb-6">
-          Language Distribution
-        </h3>
-
+        <h3 className="text-lg font-semibold text-ink dark:text-neutral-100 mb-6">Language Distribution</h3>
+        
         {languageData.length > 0 && analyticsHistory.length > 0 ? (
           <div className="flex flex-col sm:flex-row items-center justify-center gap-8 lg:gap-16">
             {/* Pie Chart SVG */}

@@ -18,25 +18,23 @@ import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
 import VoiceForge from "./components/VoiceForge";
 import Analytics from "./pages/Analytics.jsx";
-import VoiceForge from "./components/VoiceForge.jsx";
+import VoiceForge from "./components/VoiceForge";
 import { useTheme } from "./components/ThemeContext.jsx";
 import Footer from "./components/Footer.jsx";
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
-import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import Contributors from "./pages/Contributors.jsx";
-import About from "./pages/About.jsx";
-import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
-import Library from "./pages/Library.jsx";
-import Healthcare from "./pages/Healthcare.jsx";
+import About from "./pages/About";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const tabs = [
-  { id: "onboarding", label: "Onboarding", icon: Mic2 },
-  { id: "call", label: "Call", icon: Camera },
-  { id: "compose", label: "Compose", icon: MessageSquare },
-  { id: "analytics", label: "Analytics", icon: BarChart2 },
-  { id: "settings", label: "Settings", icon: SettingsIcon },
-  { id: "contributors", label: "Contributors", icon: Users },
+  { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
+  { id: "call",         label: "Call",          icon: Camera },
+  { id: "compose",      label: "Compose",       icon: MessageSquare },
+  { id: "analytics",    label: "Analytics",     icon: BarChart2 },
+  { id: "settings",     label: "Settings",      icon: SettingsIcon },
+  { id: "contributors", label: "Contributors",  icon: Users },
   { id: "about", label: "About", icon: Info },
 ];
 
@@ -63,18 +61,7 @@ function saveActiveTab(tab) {
 export default function App() {
   const [activeTab, setActiveTab] = useState(getSavedTab);
   const { theme, toggleTheme } = useTheme();
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated);
-
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      setIsLoggedIn(false);
-    };
-    window.addEventListener("voiceforge:unauthorized", handleUnauthorized);
-    return () => {
-      window.removeEventListener("voiceforge:unauthorized", handleUnauthorized);
-    };
-  }, []);
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
 
   const handleLogout = async () => {
     try {
@@ -115,40 +102,14 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [shortcutsOpen]);
 
+
+
   function selectTab(tab) {
     if (!tabIds.has(tab)) return;
 
     saveActiveTab(tab);
     setActiveTab(tab);
     scrollToTop();
-  }
-
-  // Arrow key navigation for desktop nav tabs (WAI-ARIA Tabs pattern)
-  function handleNavKeyDown(event) {
-    const tabArray = tabs.map((t) => t.id);
-    const currentIndex = tabArray.indexOf(activeTab);
-    let nextIndex = -1;
-
-    if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % tabArray.length;
-    } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + tabArray.length) % tabArray.length;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = tabArray.length - 1;
-    }
-
-    if (nextIndex >= 0) {
-      event.preventDefault();
-      selectTab(tabArray[nextIndex]);
-      // Focus the newly selected tab button
-      const navEl = desktopNavRef.current;
-      if (navEl) {
-        const buttons = navEl.querySelectorAll('[role="tab"]');
-        buttons[nextIndex]?.focus();
-      }
-    }
   }
 
   // Support navigation to non-tab routes such as the privacy policy.
@@ -203,42 +164,27 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-cloud text-ink dark:bg-night dark:text-neutral-100">
+      
       {/* Global Header */}
-      <header className="sticky top-0 z-50 border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
+      <header className="sticky top-0 z-40 border-b border-ink/10 bg-white/70 backdrop-blur-md dark:border-border dark:bg-surface/70">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           {/* Logo + Title */}
-          <div
-            className="flex items-center gap-3 min-w-0 cursor-pointer"
-            onClick={() => selectTab("onboarding")}
-            role="button"
-            tabIndex={0}
-            aria-label="Go to home"
-            onKeyDown={(e) =>
-              (e.key === "Enter" || e.key === " ") && selectTab("onboarding")
-            }
-          >
-            <img
-              src="/models/logo5.png"
-              alt="VoiceForge Logo"
-              className="h-10 w-10 flex-shrink-0 object-contain sm:h-12 sm:w-12"
-            />
+            <div
+              className="flex items-center gap-3 min-w-0 cursor-pointer"
+              onClick={() => selectTab("onboarding")}
+              role="button"
+              tabIndex={0}
+              aria-label="Go to home"
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectTab("onboarding")}
+            >
+              <img
+                src="/models/logo5.png"
+                alt="VoiceForge Logo"
+                className="h-10 w-10 flex-shrink-0 object-contain sm:h-12 sm:w-12"
+              />
             <div className="min-w-0">
               <p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow sm:block">
                 Open source assistive video
-    <div className="min-h-screen bg-cloud text-ink dark:bg-night dark:text-neutral-100">
-      <OnboardingTour activeTab={activeTab} onSelectTab={selectTab} />
-      <header className="border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-center gap-4">
-            <img
-              src="/models/logo5.png"
-              alt="VoiceForge Logo"
-              className="h-14 w-14 object-contain"
-            />
-
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow">
-               Open source assistive video
               </p>
               <h1 className="text-xl font-bold tracking-normal text-ink dark:text-neutral-50 sm:text-2xl lg:text-3xl">
                 VoiceForge
@@ -265,36 +211,27 @@ export default function App() {
 
           {/* Desktop nav + theme toggle */}
           <div className="hidden items-center gap-2 sm:flex">
-            {isLoggedIn && (
-              <nav className="flex gap-2" aria-label="VoiceForge pages">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const selected = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => selectTab(tab.id)}
-                      className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:focus-visible:ring-glow ${
-                        selected
-                          ? "border-ink bg-black text-white dark:border-glow dark:bg-glow dark:text-black"
-                          : "border-ink/15 bg-white text-ink hover:border-moss hover:text-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow"
-                      }`}
-                    >
-                      <Icon aria-hidden="true" size={17} />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="inline-flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-500/30 dark:bg-red-500/20 dark:text-red-400"
-                >
-                  Log Out
-                </button>
-              </nav>
-            )}
+            <nav className="flex gap-2" aria-label="VoiceForge pages">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const selected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => selectTab(tab.id)}
+                    className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:focus-visible:ring-glow ${
+                      selected
+                        ? "border-ink bg-black text-white dark:border-glow dark:bg-glow dark:text-black"
+                        : "border-ink/15 bg-white text-ink hover:border-moss hover:text-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow"
+                    }`}
+                  >
+                    <Icon aria-hidden="true" size={17} />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
             <button
               type="button"
               onClick={toggleTheme}
@@ -319,20 +256,14 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-grow">
-        {!isLoggedIn ? (
-          <AuthView onAuthSuccess={() => setIsLoggedIn(true)} />
-        ) : (
-          <>
-            {activeTab === "compose" && <VoiceForge />}
+        {activeTab === "compose" && <VoiceForge />}
 
         {activeTab !== "compose" && (
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            {activeTab === "onboarding" && (
-              <Onboarding onReady={() => selectTab("call")} />
-            )}
-            {activeTab === "call" && <Call />}
-            {activeTab === "settings" && <Settings />}
-            {activeTab === "analytics" && <Analytics />}
+            {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
+            {activeTab === "call"       && <Call />}
+            {activeTab === "settings"   && <Settings />}
+            {activeTab === "analytics"  && <Analytics />}
             {activeTab === "contributors" && <Contributors />}
             {activeTab === "about" && <About onNavigate={selectTab} />}
             {activeTab === "privacy-policy" && (
@@ -388,11 +319,7 @@ export default function App() {
       />
       <ScrollToBottomButton activeTab={activeTab} />
       <ScrollToTopButton activeTab={activeTab} />
-      <Footer
-        onNavigate={navigateTo}
-        tabs={tabs}
-        onOpenShortcuts={() => setShortcutsOpen(true)}
-      />
+      <Footer onNavigate={navigateTo} tabs={tabs} onOpenShortcuts={() => setShortcutsOpen(true)} />
     </div>
   );
 }

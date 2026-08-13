@@ -37,12 +37,6 @@ export default function useTTS() {
         utterance.lang = languageCode;
       }
 
-      const voiceSettings = loadVoiceSettings();
-      if (voiceSettings.pitchShift !== undefined) {
-        // Map semitone transposition [-12, +12] to SpeechSynthesisUtterance pitch range [0.5, 2.0]
-        utterance.pitch = Math.min(2, Math.max(0.5, 1 + (voiceSettings.pitchShift / 12)));
-      }
-
       utterance.onend = resolve;
       utterance.onerror = reject;
 
@@ -77,13 +71,7 @@ export default function useTTS() {
    *   it is looked up from the locally saved profile matching voiceId.
    * @returns {Promise<{audioUrl: string, engine: string}|{fallback: boolean, engine: string}|{aborted: boolean}>} Result of speech synthesis.
    */
-  async function speak({
-    text,
-    voiceId,
-    language_code,
-    ownerToken,
-    voice_settings_override,
-  }) {
+  async function speak({ text, voiceId, language_code, ownerToken }) {
     // Cancel any in-flight request before starting a new one.
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -109,7 +97,6 @@ export default function useTTS() {
 
     try {
       const voiceSettings = loadVoiceSettings();
-      const { pitch, ...validVoiceSettings } = voiceSettings;
 
       // Fix (Broken Voice Synthesis): the server now requires owner_token to
       // authorize use of voice_id (403 otherwise). Use the explicitly
@@ -156,7 +143,6 @@ export default function useTTS() {
 
           const cloneResponse = await authFetch("/api/voice/clone", {
             method: "POST",
-            signal: controller.signal,
             body: formData,
             signal: controller.signal,
           });
@@ -169,7 +155,6 @@ export default function useTTS() {
             // 3. Retry the speak request
             response = await authFetch("/api/voice/speak", {
               method: "POST",
-              signal: controller.signal,
               headers: {
                 "Content-Type": "application/json",
               },
@@ -214,7 +199,6 @@ export default function useTTS() {
 
             const cloneResponse = await authFetch("/api/voice/clone", {
               method: "POST",
-              signal: controller.signal,
               body: formData,
               signal: controller.signal,
             });
@@ -252,7 +236,6 @@ export default function useTTS() {
               // Retry the speak request after silent re-cloning succeeds
               response = await authFetch("/api/voice/speak", {
                 method: "POST",
-                signal: controller.signal,
                 headers: {
                   "Content-Type": "application/json",
                 },
@@ -286,6 +269,8 @@ export default function useTTS() {
 
       const payload = await response.json();
       const nextAudioUrl = payload.audioUrl;
+
+      setEngine("chatterbox");
       setAudioUrl(nextAudioUrl);
       setStatus("ready");
 
@@ -413,12 +398,11 @@ export default function useTTS() {
       setStatus("ready");
       return {
         audioUrl: nextAudioUrl,
-        blob: null,
         engine: "chatterbox",
       };
     } catch (ttsError) {
       // A cancelled request is not an error — a newer speak() call took over.
-      if (ttsError?.name === "AbortError" || controller.signal.aborted) {
+      if (ttsError?.name === "AbortError") {
         return;
       }
 
@@ -429,22 +413,15 @@ export default function useTTS() {
           return { aborted: true };
         }
 
-        if (controller.signal.aborted) {
-          return;
-        }
-
         setEngine("browser");
-        updateAudioUrl("");
+        setAudioUrl("");
         setStatus("ready");
 
         return {
           fallback: true,
           engine: "browser",
         };
-      } catch (fallbackError) {
-        if (fallbackError?.name === "AbortError" || controller.signal.aborted) {
-          return;
-        }
+      } catch {
         setError(ttsError?.message || String(ttsError));
         setStatus("error");
         throw ttsError;

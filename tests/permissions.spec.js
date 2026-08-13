@@ -11,10 +11,7 @@ test.describe("Hardware Permissions", () => {
     await page.goto("/");
 
     // Navigate to the Call tab using the specific nav bar button
-    await page
-      .getByLabel("VoiceForge pages")
-      .getByRole("button", { name: "Call" })
-      .click();
+    await page.getByLabel('VoiceForge pages').getByRole('button', { name: 'Call' }).click();
 
     // Verify we are on the Call page by looking for specific heading
     const heading = page.getByRole("heading", { name: /Call control room/i });
@@ -58,10 +55,7 @@ test.describe("Hardware Permissions", () => {
     await expect(page.getByText(/Microphone access denied/i)).toBeVisible();
 
     // Navigate to the Call tab (camera)
-    await page
-      .getByLabel("VoiceForge pages")
-      .getByRole("button", { name: "Call" })
-      .click();
+    await page.getByLabel('VoiceForge pages').getByRole('button', { name: 'Call' }).click();
 
     // Verify we reached the Call page
     const heading = page.getByRole("heading", { name: /Call control room/i });

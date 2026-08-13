@@ -128,11 +128,7 @@ export function MessageCard({
           role="group"
           aria-label="Message actions"
         >
-          <ActionButton
-            onClick={() => onReplay(text)}
-            aria-label="Replay this message"
-            title="Replay"
-          >
+          <ActionButton onClick={() => onReplay(text)} aria-label="Replay this message" title="Replay">
             <Play size={14} aria-hidden="true" fill="currentColor" />
           </ActionButton>
           <ActionButton

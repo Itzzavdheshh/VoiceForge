@@ -5,20 +5,12 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { authFetch } from "../utils/auth.js";
 
 const HISTORY_KEY = "vf_history";
 const FAVS_KEY = "vf_favorites";
 const TRANSCRIPT_KEY = "vf_transcript";
 const MAX_HISTORY = 25;
 const MAX_ANALYTICS = 2000;
-
-function generateUUID() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-}
 
 /**
  * Safely reads a JSON value from localStorage.
@@ -84,16 +76,18 @@ function readSessionStorage(key, fallback) {
 
 export function useSpeechHistory() {
   // ── State ────────────────────────────────────────────────────────────────
-  const [history, setHistory] = useState(() => readStorage(HISTORY_KEY, []));
+  const [history, setHistory] = useState(() => {
+    const raw = readStorage(HISTORY_KEY, []);
+    return raw.map((item) => ({
+      ...item,
+      tags: Array.isArray(item.tags) ? item.tags : [],
+    }));
+  });
   const [favorites, setFavorites] = useState(
-    () => new Set(readStorage(FAVS_KEY, [])),
+    () => new Set(readStorage(FAVS_KEY, []))
   );
-  const [sessionTranscript, setSessionTranscript] = useState(() =>
-    readSessionStorage(TRANSCRIPT_KEY, []),
-  );
-  const [analyticsHistory, setAnalyticsHistory] = useState(() =>
-    readStorage(ANALYTICS_KEY, []),
-  );
+  const [sessionTranscript, setSessionTranscript] = useState(() => readSessionStorage(TRANSCRIPT_KEY, []));
+  const [analyticsHistory, setAnalyticsHistory] = useState(() => readStorage(ANALYTICS_KEY, []));
 
   // ── Persistence ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -128,106 +122,53 @@ export function useSpeechHistory() {
     }
   }, [analyticsHistory]);
 
-  useEffect(() => {
-    async function syncSpeechHistory() {
-      try {
-        const res = await fetch("/api/speech-history");
-        if (res.ok) {
-          const remoteHistory = await res.json();
-          setHistory((prev) => {
-            const mergedMap = new Map();
-            prev.forEach(item => mergedMap.set(item.id, item));
-            remoteHistory.forEach(remote => {
-              const localMatch = prev.find(p => p.id === remote.id || p.text === remote.text);
-              const mergedItem = {
-                id: remote.id,
-                text: remote.text,
-                timestamp: remote.timestamp,
-                language: remote.language_code || "en-US",
-                tags: localMatch ? (localMatch.tags || []) : []
-              };
-              if (remote.is_favorite) {
-                setFavorites(prevFavs => {
-                  const next = new Set(prevFavs);
-                  next.add(remote.id);
-                  return next;
-                });
-              }
-              mergedMap.set(remote.id, mergedItem);
-            });
-
-            const sorted = Array.from(mergedMap.values()).sort((a, b) => b.timestamp - a.timestamp);
-            return sorted.slice(0, MAX_HISTORY);
-          });
-        }
-      } catch (err) {
-        console.error("Failed to sync speech history:", err);
-      }
-    }
-    syncSpeechHistory();
-  }, []);
-
   // ── Actions ──────────────────────────────────────────────────────────────
 
   /**
-   * Adds a message to speech history.
-   *
-   * Behavior:
-   * - trims whitespace
-   * - prevents empty messages
-   * - preserves existing IDs for duplicates
-   * - moves duplicate entries to top
-   * - enforces MAX_HISTORY limit
-   *
+ * Adds a message to speech history.
+ *
+ * Behavior:
+ * - trims whitespace
+ * - prevents empty messages
+ * - preserves existing IDs for duplicates
+ * - moves duplicate entries to top
+ * - enforces MAX_HISTORY limit
+ *
    * @param {string} text - Message text to store
    * @param {string} lang - Language code
    */
   const addMessage = useCallback((text, lang = "en-US") => {
     const trimmed = text.trim();
 
-    if (!trimmed) return;
+  if (!trimmed) return;
 
-    const timestamp = Date.now();
+  const timestamp = Date.now();
 
-    setSessionTranscript((prev) => [
-      ...prev,
-      {
-        text: trimmed,
-        timestamp,
-        status: "success",
-        language: lang,
-      },
-    ]);
+  setSessionTranscript((prev) => [
+  ...prev,
+  {
+    text: trimmed,
+    timestamp,
+    status: "success",
+    language: lang,
+  },
+]);
 
-    setAnalyticsHistory((prev) => {
-      const newEntry = {
-        id: crypto.randomUUID(),
-        text: trimmed,
-        timestamp,
-        language: lang,
-      };
-      const updated = [newEntry, ...prev];
-      return updated.slice(0, MAX_ANALYTICS);
-    });
+  setAnalyticsHistory((prev) => {
+    const newEntry = { id: crypto.randomUUID(), text: trimmed, timestamp, language: lang };
+    const updated = [newEntry, ...prev];
+    return updated.slice(0, MAX_ANALYTICS);
+  });
 
     setHistory((prev) => {
       // Check existing message
       const existing = prev.find((m) => m.text === trimmed);
 
-      // Preserve existing ID if duplicate found, but update timestamp
-      // so re-spoken messages sort correctly after a page reload.
-      const updatedEntry = existing
-        ? {
-            ...existing,
-            timestamp: Date.now(),
-            tags: Array.isArray(existing.tags) ? existing.tags : [],
-          }
-        : {
-            id: crypto.randomUUID(),
-            text: trimmed,
-            timestamp: Date.now(),
-            tags: [],
-          };
+    // Preserve existing ID if duplicate found, but update timestamp
+    // so re-spoken messages sort correctly after a page reload.
+    const updatedEntry = existing
+      ? { ...existing, timestamp: Date.now(), tags: Array.isArray(existing.tags) ? existing.tags : [] }
+      : { id: crypto.randomUUID(), text: trimmed, timestamp: Date.now(), tags: [] };
 
       // Move duplicate to top instead of recreating
       const updated = [
@@ -235,9 +176,9 @@ export function useSpeechHistory() {
         ...prev.filter((m) => m.id !== updatedEntry.id),
       ];
 
-      return updated.slice(0, MAX_HISTORY);
-    });
-  }, []);
+    return updated.slice(0, MAX_HISTORY);
+  });
+}, []);
 
   /**
    * Removes a message by id and also removes it from favorites.
@@ -257,27 +198,10 @@ export function useSpeechHistory() {
   const toggleFavorite = useCallback((id) => {
     setFavorites((prev) => {
       const next = new Set(prev);
-      const isFav = next.has(id);
-      isFav ? next.delete(id) : next.add(id);
-
-      const msg = history.find(m => m.id === id);
-      if (msg) {
-        fetch("/api/speech-history", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: msg.id,
-            text: msg.text,
-            language_code: msg.language || "en-US",
-            timestamp: msg.timestamp,
-            is_favorite: !isFav ? 1 : 0
-          })
-        }).catch(err => console.error("Failed to toggle favorite:", err));
-      }
-
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  }, [history]);
+  }, []);
 
   /**
    * Wipes all history and favorites.
@@ -331,16 +255,31 @@ export function useSpeechHistory() {
         }
       });
 
-      setHistory(finalHistory);
-      setFavorites(cleanedFavorites);
-    },
-    [history, favorites],
-  );
+    const mergedList = Array.from(mergedMap.values());
+    mergedList.sort((a, b) => b.timestamp - a.timestamp);
+    const finalHistory = mergedList.slice(0, MAX_HISTORY);
+
+    const nextFavorites = new Set(favorites);
+    favIdsToAdd.forEach(id => nextFavorites.add(id));
+
+    // Clean up favorites: only keep favorites whose IDs are in the finalHistory
+    const finalHistoryIds = new Set(finalHistory.map(m => m.id));
+    const cleanedFavorites = new Set();
+    nextFavorites.forEach(id => {
+      if (finalHistoryIds.has(id)) {
+        cleanedFavorites.add(id);
+      }
+    });
+
+    setHistory(finalHistory);
+    setFavorites(cleanedFavorites);
+  }, [history, favorites]);
 
   return {
     history,
     favorites,
     sessionTranscript,
+    analyticsHistory,
     addMessage,
     removeMessage,
     toggleFavorite,
