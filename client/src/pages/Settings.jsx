@@ -296,6 +296,17 @@ export default function Settings() {
     }
   }
 
+  React.useEffect(() => {
+    function handleStorage(event) {
+      const VOICE_SETTINGS_KEY = "voiceforge:voiceSettings";
+      if (event.key === VOICE_SETTINGS_KEY) {
+        setVoiceSettings(loadVoiceSettings());
+      }
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const handleExport = async () => {
     try {
       const storageData = {
