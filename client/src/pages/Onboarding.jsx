@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, Loader2, CircleAlert, ArrowRight, RotateCcw } from "lucide-react";
+import { CheckCircle2, Loader2, CircleAlert, ArrowRight, RotateCcw, Upload } from "lucide-react";
 import VoiceRecorder from "../components/VoiceRecorder.jsx";
 import useVoiceClone from "../hooks/useVoiceClone.js";
 import { COLOR_TAGS, AVATAR_ICONS } from "../components/ProfileCard.jsx";
@@ -448,6 +448,27 @@ export default function OnboardingTour({ activeTab, onSelectTab }) {
             onRecordingReady={handleRecordingReady}
             disabled={isCloning}
           />
+
+          <div className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold text-ink dark:text-neutral-100">Import Voice Profile Backup</h3>
+              <p className="text-xs text-ink/65 dark:text-muted mt-0.5">Restore a previously saved voice clone profile (.vfp file) instantly.</p>
+            </div>
+            <label
+              htmlFor="onboarding-import-vfp"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-bold text-white transition hover:bg-moss/90 dark:bg-glow dark:text-black shrink-0"
+            >
+              <Upload size={14} />
+              Import .vfp File
+              <input
+                id="onboarding-import-vfp"
+                type="file"
+                accept=".vfp"
+                onChange={handleImportVFP}
+                className="sr-only"
+              />
+            </label>
+          </div>
 
           <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
             <label
