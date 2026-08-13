@@ -6,9 +6,14 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [focusIndex, setFocusIndex] = useState(-1);
+  const [panelStyle, setPanelStyle] = useState(null);
 
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
   const searchRef = useRef(null);
+  const generatedId = useId();
+  const panelId = id ?? generatedId;
   const listRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -105,11 +110,13 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
       <button
         ref={triggerRef}
         id={id}
+        ref={triggerRef}
         type="button"
         onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label="Select output language"
+        aria-controls={isOpen ? `${panelId}-panel` : undefined}
         className={[
           "group inline-flex items-center gap-2 rounded-lg border font-medium transition-all duration-200",
           "focus:outline-none focus:ring-2 focus:ring-moss/40 dark:focus:ring-glow/40",
@@ -127,16 +134,15 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
 
       {isOpen && (
         <div
+          ref={panelRef}
+          id={`${panelId}-panel`}
           role="dialog"
           aria-label="Language selection"
           className={[
-            "absolute z-50 mt-2 flex flex-col overflow-hidden rounded-xl border shadow-lg",
+            "flex flex-col overflow-hidden rounded-xl border shadow-lg animate-fade-in-up",
             "border-neutral-200/80 bg-white dark:border-border dark:bg-surface",
-            "animate-fade-in-up",
-            "max-w-[calc(100vw-2rem)]",
-            compact ? "left-0 w-72" : "left-0 right-0 min-w-0 sm:min-w-[320px] sm:w-96", 
           ].join(" ")}
-          style={{ maxHeight: "420px" }}
+          style={panelStyle}
         >
           {/* Search bar */}
           <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2.5 dark:border-border">
