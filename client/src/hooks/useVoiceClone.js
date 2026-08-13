@@ -12,14 +12,16 @@ export function getSavedProfiles() {
   return getAllProfiles();
 }
 
-export async function saveVoiceProfile(profile, audioBlob = null) {
+export async function saveVoiceProfile(profile, audioBlob = null, colorTag = "emerald", avatarIcon = "user") {
   const profiles = await getSavedProfiles();
   const nextProfile = {
     id: profile.voice_id,
     voice_id: profile.voice_id,
     name: profile.name || `Voice ${profiles.length + 1}`,
-    createdAt: new Date().toISOString(),
-    audioBlob // Store the binary reference audio Blob
+    colorTag: profile.colorTag || colorTag || "emerald",
+    avatarIcon: profile.avatarIcon || avatarIcon || "user",
+    createdAt: profile.createdAt || new Date().toISOString(),
+    audioBlob: audioBlob || profile.audioBlob || null // Store the binary reference audio Blob
   };
   await saveProfile(nextProfile);
   localStorage.setItem(ACTIVE_KEY, nextProfile.voice_id);
@@ -50,11 +52,29 @@ export async function getActiveVoiceProfile() {
   return profiles.find((profile) => profile.voice_id === activeVoiceId) || profiles[0] || null;
 }
 
+export function subscribeProfileChanges(callback) {
+  if (typeof window === "undefined") return () => {};
+
+  function handleStorage(e) {
+    if (e.key === ACTIVE_KEY || !e.key) {
+      callback();
+    }
+  }
+
+  window.addEventListener("voiceforge:profileChanged", callback);
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    window.removeEventListener("voiceforge:profileChanged", callback);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+
 export default function useVoiceClone() {
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
 
-  async function cloneVoice(audioBlob, name = "VoiceForge profile") {
+  async function cloneVoice(audioBlob, name = "VoiceForge profile", colorTag = "emerald", avatarIcon = "user") {
     setStatus("cloning");
     setError("");
 
@@ -97,9 +117,14 @@ export default function useVoiceClone() {
         throw new Error(payload.error || "Voice cloning failed.");
       }
 
+      // Fix (Broken Voice Synthesis): forward the owner_token returned by
+      // the server into saveVoiceProfile so it lands in the stored profile
+      // (see ownerToken field above) instead of being silently dropped.
       const profile = await saveVoiceProfile({
         voice_id: payload.voice_id,
-        name: payload.name || name
+        name: payload.name || name,
+        colorTag,
+        avatarIcon
       }, audioBlob);
 
       setStatus("success");

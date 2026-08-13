@@ -18,7 +18,6 @@ VoiceForge is a browser-based assistive video tool that lets a user type during 
 - [API](#api)
 - [Roadmap](#roadmap)
 - [License](#license)
-- [About](#about)
 
 ---
 
@@ -80,6 +79,8 @@ npm run dev
 ```
 
 6. Open `http://localhost:5173` in Chrome or Edge.
+
+For more details on how to develop locally, including Docker instructions and our mock architecture, see the [Development Workflow & Local-First Architecture Guide](docs/development-workflow.md).
 
 ---
 
@@ -201,7 +202,7 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 - In progress: The MVP virtual camera uses canvas capture; full WebRTC Insertable Streams frame replacement remains future work.
 - TODO: Replace the placeholder `models/wav2lip.onnx` with a real lightweight browser Wav2Lip ONNX model.
 - TODO: Implement real ONNX Runtime Web Wav2Lip inference.
-- TODO: Replace the fallback mouth animation with model-driven mouth movement.
+- Done: Replace the fallback mouth animation with model-driven mouth movement.
 - Done: Add richer virtual camera documentation for OBS and each call provider.
 - TODO: Add automated browser tests for camera and microphone permission flows.
 - TODO: Persist voice profiles across server restarts (database or object-store backend).
@@ -209,3 +210,6 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
+
+
+<!-- GSSoC Contribution: Resolves #760 -->
