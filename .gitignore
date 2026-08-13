@@ -8,8 +8,4 @@ npm-debug.log*
 # Playwright
 playwright-report/
 test-results/
-
-# SQLite database (auto-generated at runtime, not committed)
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
+server/data/
