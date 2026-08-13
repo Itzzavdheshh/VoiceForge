@@ -178,9 +178,9 @@ export default function useVoiceClone() {
     setError("");
 
     try {
-      // Fix (Issue 2): validate client-side before any network request so the
-      // user gets instant, clear feedback instead of waiting for the full
-      // upload to complete before Multer rejects it on the server.
+      // Validate client-side before any network request so the user gets
+      // instant, clear feedback instead of waiting for the full upload to
+      // complete before Multer rejects it on the server.
       if (!audioBlob) {
         throw new Error("No audio recording found. Please record your voice first.");
       }
@@ -207,7 +207,9 @@ export default function useVoiceClone() {
 
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
-        throw new Error("Could not connect to the VoiceForge server. Please ensure your local backend is running on port 3001.");
+        throw new Error(
+          "Unable to connect to the VoiceForge backend. Please ensure the local server is running and try again."
+        );
       }
 
       const payload = await response.json();
@@ -232,6 +234,13 @@ export default function useVoiceClone() {
       setError(cloneError?.message || String(cloneError));
       setStatus("error");
       throw cloneError;
+    } finally {
+      // Guard: if an unexpected exception prevented setStatus("success") or
+      // setStatus("error") from running (e.g. a synchronous React render
+      // error), ensure we never leave the UI stuck in the "cloning" state.
+      // React state updates are batched, so reading `status` here is stale —
+      // we use a functional update that only resets when still "cloning".
+      setStatus((current) => (current === "cloning" ? "error" : current));
     }
   }
 

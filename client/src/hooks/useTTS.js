@@ -203,6 +203,8 @@ export default function useTTS() {
       }
 
       if (!response.ok) {
+        // Safely parse the error body — it may not be JSON if the server is
+        // misbehaving, so fall back gracefully.
         const payload = await response.json().catch(() => ({}));
         // If voice profile is missing on the backend (404), trigger auto-reclone from IndexedDB
         if (response.status === 404 && (payload.error || "").includes("Voice profile not found")) {
