@@ -588,8 +588,7 @@ const addMessage = useCallback((text, lang = "en-US") => {
     removeMessage,
     toggleFavorite,
     clearHistory,
+    archiveOldHistory,
     importBackup,
-    addTag,
-    removeTag,
   };
 }

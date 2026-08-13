@@ -12,10 +12,10 @@ import { SpeechHistory } from "./SpeechHistory.jsx";
 import { ToastContainer, useToast } from "./useToast.jsx";
 import { useSpeechHistory } from "../hooks/useSpeechHistory.js";
 import { LanguageSelector } from "./LanguageSelector.jsx";
-import { loadLanguage, persistLanguage } from "../utils/languages.js";
+import { loadLanguage, persistLanguage, subscribeLanguageChange } from "../utils/languages.js";
 import useTTS from "../hooks/useTTS.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
-import { useUnsavedChanges } from "../hooks/useUnsavedChanges.js";
+import { saveAudioBlob, getAudioBlob } from "../utils/db.js";
 
 const MAX_CHARS = 300;
 const DRAFT_KEY = "voiceforge_composer_draft_text";
@@ -64,9 +64,8 @@ export default function VoiceForge() {
     removeMessage,
     toggleFavorite,
     clearHistory,
+    archiveOldHistory,
     importBackup,
-    addTag,
-    removeTag,
   } = useSpeechHistory();
 
   const { toasts, showToast } = useToast();
@@ -268,15 +267,10 @@ export default function VoiceForge() {
 
     if (isTyping) return;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (!event.repeat && event.ctrlKey && event.key === "Delete") {
 =======
-    if (event.ctrlKey && event.key === "Delete") {
->>>>>>> 4745223 (feat: add keyboard shortcuts for voice recording controls)
-=======
     if (!event.repeat && event.ctrlKey && event.key === "Delete") {
->>>>>>> a0285fb (fix: prevent repeated keyboard shortcut actions)
+ a0285fb (fix: prevent repeated keyboard shortcut actions)
       event.preventDefault();
 
       if (
@@ -435,7 +429,7 @@ feat-clear-history-195
           storageStats={storageStats}
           onReuse={(text) => { handleReuse(text); setHistoryOpen(false); }}
           onReplay={handleReplay}
-          onToggleFav={handleToggleFavorite}
+          onToggleFav={toggleFavorite}
           onDelete={removeMessage}
           onClearHistory={clearHistory}
           onArchive={archiveOldHistory}

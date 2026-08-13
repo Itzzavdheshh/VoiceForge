@@ -1,17 +1,5 @@
-import React, { useMemo, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Inbox,
-  Pin,
-  Search,
-  Trash2,
-  Download,
-  X,
-  ArrowUpDown,
-  Filter,
-  RotateCcw,
-} from "lucide-react";
+import React, { useMemo, useState, useRef } from "react";
+import { ChevronLeft, ChevronRight, Inbox, Pin, Search, Trash2, Download, X, ArrowUpDown, Filter, RotateCcw, HardDrive, Archive } from "lucide-react";
 import { MessageCard } from "./MessageCard";
 import useDebounce from "../hooks/useDebounce";
 
@@ -44,49 +32,61 @@ export function SpeechHistory({
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [dateFilter, setDateFilter] = useState("all");
+  const [selectedTag, setSelectedTag] = useState("All Tags");
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const [selectedTag, setSelectedTag] = useState("All Tags");
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   const fileInputRef = useRef(null);
 
+  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const analyticsData = useMemo(() => {
+    const totalSentences = history.length;
+    const totalWords = history.reduce((acc, item) => acc + (item.text ? item.text.trim().split(/\s+/).length : 0), 0);
+    const phraseCounts = {};
+    history.forEach((item) => {
+      if (!item.text) return;
+      const t = item.text.trim();
+      phraseCounts[t] = (phraseCounts[t] || 0) + 1;
+    });
+    const top = Object.entries(phraseCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([text, count]) => ({ text, count }));
+    return { totalSentences, totalWords, top };
+  }, [history]);
+
   const allUniqueTags = useMemo(() => {
     const tagsSet = new Set();
-    history.forEach((msg) => {
-      if (Array.isArray(msg?.tags)) {
-        msg.tags.forEach((t) => {
-          if (typeof t === "string" && t.trim()) {
-            tagsSet.add(t.trim());
-          }
-        });
+    history.forEach((item) => {
+      if (Array.isArray(item.tags)) {
+        item.tags.forEach((t) => tagsSet.add(t));
       }
     });
     return Array.from(tagsSet);
   }, [history]);
 
-  React.useEffect(() => {
-    if (selectedTag !== "All Tags" && !allUniqueTags.includes(selectedTag)) {
-      setSelectedTag("All Tags");
-    }
-  }, [allUniqueTags, selectedTag]);
-
-  const analyticsData = useMemo(() => {
-    const source = sessionTranscript && sessionTranscript.length > 0 ? sessionTranscript : history;
-    const totalSentences = source.length;
-    const totalWords = source.reduce((acc, msg) => acc + (msg?.text ? msg.text.split(/\s+/).length : 0), 0);
-    const counts = {};
-    source.forEach((msg) => {
-      if (msg?.text) {
-        const key = msg.text.trim();
-        counts[key] = (counts[key] || 0) + 1;
-      }
-    });
-    const top = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([text, count]) => ({ text, count }));
-    return { totalSentences, totalWords, top };
-  }, [history, sessionTranscript]);
+  function handleExportCsv() {
+    if (!sessionTranscript || sessionTranscript.length === 0) return;
+    const headers = ["Timestamp", "Text", "Status"];
+    const rows = sessionTranscript.map((item) => [
+      escapeCSVCell(new Date(item.timestamp).toISOString()),
+      escapeCSVCell(item.text),
+      escapeCSVCell(item.status ?? "unknown"),
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Transcript-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   const handleExport = () => {
     try {

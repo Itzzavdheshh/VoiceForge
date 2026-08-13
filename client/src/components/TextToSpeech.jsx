@@ -68,6 +68,7 @@ const MAX_CHARS = 300;
 const DRAFT_KEY = "voiceforge_draft_text";
 
 export default function TextToSpeech({ onSpeak, disabled = false, status = "idle" }) {
+  const [activeEmotion, setActiveEmotion] = React.useState("neutral");
   const [text, setText] = React.useState(() => {
     try {
       return sessionStorage.getItem(DRAFT_KEY) || "";
@@ -138,8 +139,12 @@ if (estimatedDuration > 30) {
     await onSpeak(finalText, voice_settings_override);
     setText("");
     try {
-      sessionStorage.removeItem(DRAFT_KEY);
-    } catch (e) {}
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {
+      // Storage unavailable
+    }
   }
 
   function handleKeyDown(event) {

@@ -1,4 +1,11 @@
 import React from "react";
+import { CheckCircle2, Loader2, CircleAlert, ArrowRight, RotateCcw } from "lucide-react";
+import VoiceRecorder from "../components/VoiceRecorder.jsx";
+import useVoiceClone from "../hooks/useVoiceClone.js";
+import { COLOR_TAGS, AVATAR_ICONS } from "../components/ProfileCard.jsx";
+import { PeakLevelMeter } from "../components/PeakLevelMeter.jsx";
+import { useToast, ToastContainer } from "../components/useToast.jsx";
+
 import {
   CheckCircle2,
   Loader2,
@@ -324,26 +331,18 @@ export default function OnboardingTour({ activeTab, onSelectTab }) {
       const nextIndex = index + direction;
 
   React.useEffect(() => {
-    localStorage.setItem(
-      "voiceforge:maxUnlockedStep",
-      maxUnlockedStep.toString()
-    );
+    localStorage.setItem("voiceforge:maxUnlockedStep", maxUnlockedStep.toString());
   }, [maxUnlockedStep]);
 
   async function handleClone() {
     // 1. Strict validation guards: recording and a valid name are required.
     if (!hasKey || !recording) return;
-    if (recordingDuration < 10) return;
+    if (recording.duration !== undefined && recording.duration < 10) return;
     if (nameError) return; // block on empty / whitespace / over-limit name
 
     try {
       // 2. Perform real API call without overlapping mock declarations
-      const profile = await cloneVoice(
-        recording,
-        voiceName.trim(),
-        selectedColor,
-        selectedIcon
-      );
+      const profile = await cloneVoice(recording.blob || recording, voiceName.trim(), selectedColor, selectedIcon);
       if (profile) {
         setSuccessProfile(profile);
         setMaxUnlockedStep(2);

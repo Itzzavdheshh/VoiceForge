@@ -28,6 +28,7 @@ export default React.forwardRef(function VideoPreview({
   const subtitleTextRef = React.useRef(activeText);
   const subtitleFontSizeRef = React.useRef(subtitleFontSize);
   const subtitleBgOpacityRef = React.useRef(Number(subtitleBgOpacity));
+  const ortRef = useRef(null);
   const ortSessionRef = useRef(null);
   const ortRef = useRef(null);
   const isInferencingRef = useRef(false);

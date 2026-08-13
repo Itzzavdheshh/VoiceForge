@@ -1,6 +1,29 @@
 // Lets users manage browser-stored voice profiles and configure voice synthesis settings.
 import React from "react";
-import { ExternalLink, Trash2, CircleAlert, RotateCcw } from "lucide-react";
+import {
+  DEFAULT_VOICE_SETTINGS,
+  loadVoiceSettings,
+  persistVoiceSettings,
+  VOICE_PRESETS,
+} from "../utils/voiceSettings.js";
+import {
+  loadAccessibilitySettings,
+  persistAccessibilitySettings,
+  ACCESSIBILITY_SETTINGS_CHANGED_EVENT,
+  ACCESSIBILITY_SETTINGS_KEY
+} from "../utils/accessibilitySettings.js";
+import {
+  loadLanguage,
+  persistLanguage,
+  subscribeLanguageChange,
+  getLanguageByCode,
+  LANGUAGE_STORAGE_KEY,
+} from "../utils/languages.js";
+
+import { Trash2, CircleAlert, Download, Upload, Globe, Eye, QrCode, Webcam } from "lucide-react";
+import { useToast, ToastContainer } from "../components/useToast.jsx";
+import { LanguageSelector } from "../components/LanguageSelector.jsx";
+import { useTheme } from "../components/ThemeContext.jsx";
 import {
   deleteVoiceProfile,
   getSavedProfiles,
@@ -11,7 +34,9 @@ import { saveProfile } from "../utils/db.js";
 import { ProfileCard } from "../components/ProfileCard.jsx";
 import { ShareProfileModal } from "../components/ShareProfileModal.jsx";
 import { ReceiveProfileModal } from "../components/ReceiveProfileModal.jsx";
-import { PitchShifter } from "../utils/pitchShifter.js";
+import { TransferSetupModal } from "../components/TransferSetupModal.jsx";
+import { PeakLevelMeter } from "../components/PeakLevelMeter.jsx";
+import { AudioOutputSelector } from "../components/AudioOutputSelector.jsx";
 
 function AudioPlayback({ blob }) {
   const [audioUrl, setAudioUrl] = React.useState(null);
@@ -37,23 +62,10 @@ function AudioPlayback({ blob }) {
 export default function Settings() {
   const [profiles, setProfiles] = React.useState([]);
   const [dbError, setDbError] = React.useState("");
-  const { resetTour } = useOnboarding();
-  const [apiKey, setApiKey] = React.useState(() => {
-    try {
-      return getApiKey();
-    } catch {
-      return "";
-    }
-  });
-
-  React.useEffect(() => {
-    const migrated = migrateFromLocalStorage();
-    if (migrated) {
-      setApiKeyInput(getApiKey());
-      setMigratedNotice(true);
-    }
-  }, []);
-
+  const [sharingProfile, setSharingProfile] = React.useState(null);
+  const [isReceiving, setIsReceiving] = React.useState(false);
+  const [isTransferOpen, setIsTransferOpen] = React.useState(false);
+  const { toasts, showToast } = useToast();
   React.useEffect(() => {
     async function loadProfiles() {
       try {
@@ -959,6 +971,15 @@ export default function Settings() {
               className="sr-only"
             />
           </label>
+
+          <button
+            type="button"
+            onClick={() => setIsTransferOpen(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 font-bold text-white transition hover:bg-ink/85 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+          >
+            <QrCode size={18} aria-hidden="true" />
+            Transfer Setup (QR / Link)
+          </button>
         </div>
       </section>
 
@@ -966,6 +987,14 @@ export default function Settings() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-xl font-bold">Saved voice profiles</h2>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsTransferOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-bold text-ink transition hover:border-moss hover:text-moss dark:border-border dark:bg-black dark:text-neutral-200"
+            >
+              <QrCode size={16} />
+              Transfer Setup
+            </button>
             <button
               type="button"
               onClick={() => setIsReceiving(true)}
@@ -1017,6 +1046,12 @@ export default function Settings() {
             setIsReceiving(false);
             showToast("Profile received successfully!", "success");
           }}
+        />
+      )}
+
+      {isTransferOpen && (
+        <TransferSetupModal
+          onClose={() => setIsTransferOpen(false)}
         />
       )}
       <ToastContainer toasts={toasts} />
