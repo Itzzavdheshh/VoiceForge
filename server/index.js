@@ -90,6 +90,10 @@ app.use((error, _request, response, _next) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`VoiceForge API listening on http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, () => {
+    console.log(`VoiceForge API listening on http://localhost:${port}`);
+  });
+}
+
+export default app;

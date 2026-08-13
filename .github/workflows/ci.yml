@@ -30,7 +30,7 @@ jobs:
         run: npm run build
 
       - name: Test server
-        run: npm run test --workspace server -- --passWithNoTests
+        run: npm run test --workspace server
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
