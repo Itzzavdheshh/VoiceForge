@@ -78,6 +78,10 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
   });
   const [activeEmotion, setActiveEmotion] = React.useState("neutral");
   const trimmedText = text.trim();
+  const characterCount = text.length;
+  const wordCount = trimmedText ? trimmedText.split(/\s+/).length : 0;
+  const estimatedDuration = wordCount ? ((wordCount / 150) * 60).toFixed(1) : "0.0";
+  let durationCategory = estimatedDuration > 30 ? "Long" : estimatedDuration > 15 ? "Medium" : "Short";
 
   React.useEffect(() => {
     try {
@@ -121,6 +125,17 @@ if (estimatedDuration > 30) {
     return "text-ink/65 dark:text-muted";
   }
 
+  // Fix: Define the missing speakPhrase function
+  const speakPhrase = useCallback(async (phraseText) => {
+    if (disabled || status === "speaking" || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSpeak(phraseText);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [onSpeak, disabled, status, isSubmitting]);
+  
   async function submit() {
     if (!trimmedText || disabled || characterCount > MAX_CHARS) return;
 
