@@ -29,6 +29,8 @@ const tabs = [
   { id: "call",         label: "Call",          icon: Camera },
   { id: "compose",      label: "Compose",       icon: MessageSquare },
   { id: "analytics",    label: "Analytics",     icon: BarChart2 },
+  { id: "library",      label: "Library",       icon: FolderOpen },
+  { id: "healthcare",   label: "Healthcare",    icon: Heart },
   { id: "settings",     label: "Settings",      icon: SettingsIcon },
   { id: "contributors", label: "Contributors",  icon: Users },
   { id: "voice-profiles", label: "Voice Profiles", icon: Mic2,},
