@@ -15,6 +15,8 @@ export default function useTTS() {
   const [error, setError] = React.useState("");
   const [audioUrl, setAudioUrl] = React.useState("");
   const [engine, setEngine] = React.useState("chatterbox");
+  const [playbackId, setPlaybackId] = React.useState(0);
+
   const abortControllerRef = React.useRef(null);
 
   const updateAudioUrl = React.useCallback((nextUrl) => {
@@ -53,9 +55,10 @@ export default function useTTS() {
    *
    * @param {string} text The text to read.
    * @param {string} languageCode BCP-47 language tag to use.
+   * @param {AbortSignal} [signal] Optional abort signal to cancel synthesis.
    * @returns {Promise<void>} Resolves when speech completes.
    */
-  function browserSpeak(text, languageCode) {
+  function browserSpeak(text, languageCode, signal) {
     return new Promise((resolve, reject) => {
       if (!("speechSynthesis" in window)) {
         reject(new Error("Speech synthesis not supported"));
@@ -108,7 +111,7 @@ export default function useTTS() {
    * @param {string} [params.language_code] Chatterbox/BCP-47 language code.
    * @param {string} [params.ownerToken] Owner token for voiceId. If omitted,
    *   it is looked up from the locally saved profile matching voiceId.
-   * @returns {Promise<{audioUrl: string, engine: string}|{fallback: boolean, engine: string}>} Result of speech synthesis.
+   * @returns {Promise<{audioUrl: string, engine: string}|{fallback: boolean, engine: string}|{aborted: boolean}>} Result of speech synthesis.
    */
   async function speak({ text, voiceId, language_code, ownerToken, voice_settings_override }) {
     // Cancel any in-flight request before starting a new one.
@@ -145,11 +148,18 @@ export default function useTTS() {
         }),
       });
 
+      if (controller.signal.aborted) {
+        return { aborted: true };
+      }
+
       if (response.status === 404) {
         // Self-healing fallback:
         // 1. Look up the voice profile in IndexedDB
         const profile = await getProfile(voiceId);
         if (profile && profile.audioBlob) {
+          if (controller.signal.aborted) {
+            return { aborted: true };
+          }
           // 2. Quietly re-clone (POST /api/voice/clone)
           const formData = new FormData();
           formData.append("audio", profile.audioBlob, "voiceforge-reference.webm");
@@ -160,7 +170,12 @@ export default function useTTS() {
             method: "POST",
             signal: controller.signal,
             body: formData,
+            signal: controller.signal,
           });
+
+          if (controller.signal.aborted) {
+            return { aborted: true };
+          }
 
           if (cloneResponse.ok) {
             // 3. Retry the speak request
@@ -177,9 +192,14 @@ export default function useTTS() {
                 language_code,
                 voice_settings: voiceSettings,
               }),
+              signal: controller.signal,
             });
           }
         }
+      }
+
+      if (controller.signal.aborted) {
+        return { aborted: true };
       }
 
       if (!response.ok) {
@@ -188,6 +208,9 @@ export default function useTTS() {
         if (response.status === 404 && (payload.error || "").includes("Voice profile not found")) {
           const profile = await findProfileByVoiceId(voiceId);
           if (profile && profile.audioBlob) {
+            if (controller.signal.aborted) {
+              return { aborted: true };
+            }
             const formData = new FormData();
             formData.append("audio", profile.audioBlob, "voiceforge-reference.webm");
             formData.append("name", profile.name);
@@ -196,7 +219,12 @@ export default function useTTS() {
               method: "POST",
               signal: controller.signal,
               body: formData,
+              signal: controller.signal,
             });
+
+            if (controller.signal.aborted) {
+              return { aborted: true };
+            }
 
             if (cloneResponse.ok) {
               const clonePayload = await cloneResponse.json();
@@ -220,6 +248,10 @@ export default function useTTS() {
               activeVoiceId = updatedProfile.voice_id;
               resolvedOwnerToken = updatedProfile.ownerToken;
 
+              if (controller.signal.aborted) {
+                return { aborted: true };
+              }
+
               // Retry the speak request after silent re-cloning succeeds
               response = await authFetch("/api/voice/speak", {
                 method: "POST",
@@ -234,10 +266,15 @@ export default function useTTS() {
                   language_code,
                   voice_settings: voiceSettings,
                 }),
+                signal: controller.signal,
               });
             }
           }
         }
+      }
+
+      if (controller.signal.aborted) {
+        return { aborted: true };
       }
 
       if (!response.ok) {
@@ -273,7 +310,11 @@ export default function useTTS() {
       }
 
       try {
-        await browserSpeak(text, language_code);
+        await browserSpeak(text, language_code, controller.signal);
+
+        if (controller.signal.aborted) {
+          return { aborted: true };
+        }
 
         if (controller.signal.aborted) {
           return;
@@ -304,5 +345,6 @@ export default function useTTS() {
     error,
     audioUrl,
     engine,
+    playbackId,
   };
 }
