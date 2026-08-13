@@ -98,23 +98,23 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
 const characterCount = text.length;
 const charsLeft = MAX_CHARS - characterCount;
 
-const wordCount = trimmedText
-  ? trimmedText.split(/\s+/).length
-  : 0;
+  const wordCount = trimmedText
+    ? trimmedText.split(/\s+/).length
+    : 0;
 
-const estimatedDuration = wordCount
-  ? ((wordCount / 150) * 60).toFixed(1)
-  : "0.0";
+  const estimatedDuration = wordCount
+    ? ((wordCount / 150) * 60).toFixed(1)
+    : "0.0";
 
-let durationCategory = "Short";
+  let durationCategory = "Short";
 
-if (estimatedDuration > 15) {
-  durationCategory = "Medium";
-}
+  if (estimatedDuration > 15) {
+    durationCategory = "Medium";
+  }
 
-if (estimatedDuration > 30) {
-  durationCategory = "Long";
-}
+  if (estimatedDuration > 30) {
+    durationCategory = "Long";
+  }
 
   const activePreset = EMOTION_PRESETS.find((p) => p.id === activeEmotion) || EMOTION_PRESETS[0];
 
@@ -275,8 +275,12 @@ if (estimatedDuration > 30) {
         disabled={disabled || !trimmedText || status === "speaking" || characterCount > MAX_CHARS}
         className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <SendHorizontal size={18} aria-hidden="true" />
-        {status === "speaking" ? "Generating..." : "Speak"}
+        {isBusy ? (
+          <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+        ) : (
+          <SendHorizontal size={18} aria-hidden="true" />
+        )}
+        {isBusy ? "Generating..." : "Speak"}
       </button>
     </section>
   );
