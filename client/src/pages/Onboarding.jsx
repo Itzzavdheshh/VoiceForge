@@ -206,6 +206,12 @@ export default function Onboarding({ onReady }) {
   const isCloning = status === "cloning";
   const [serverStatus, setServerStatus] = React.useState({ isMock: false, space: "" });
 
+  const handleRecordingReady = React.useCallback((rec) => {
+    setRecording(rec);
+  }, []);
+
+  const recordingDuration = recording?.duration || 0;
+
   React.useEffect(() => {
     fetch("/api/voice/status")
       .then((res) => res.json())

@@ -16,6 +16,8 @@ const MIN_DURATION = 10;
 export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [isInitializing, setIsInitializing] = React.useState(false);
+  const [isExtracting, setIsExtracting] = React.useState(false);
+  const [rawAudioBlob, setRawAudioBlob] = React.useState(null);
   const [audioUrl, setAudioUrl] = React.useState("");
   const [duration, setDuration] = React.useState(0);
   const [recorderError, setRecorderError] = React.useState("");
@@ -194,6 +196,31 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
       errorTimerRef.current = setTimeout(() => setRecorderError(""), 6000);
     } finally {
       setIsInitializing(false);
+    }
+  }
+
+  async function handleFileUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsExtracting(true);
+    setRecorderError("");
+    try {
+      const { blob, duration: fileDuration } = await extractAudioFromFile(file);
+      setRawAudioBlob(blob);
+      const url = URL.createObjectURL(blob);
+      setAudioUrl((previous) => {
+        if (previous) URL.revokeObjectURL(previous);
+        return url;
+      });
+      setDuration(fileDuration);
+      durationRef.current = fileDuration;
+      chunksRef.current = [blob];
+      onRecordingReady(blob, fileDuration);
+    } catch (err) {
+      setRecorderError(err?.message || "Failed to process audio file.");
+    } finally {
+      setIsExtracting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 

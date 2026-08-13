@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { Copy, Eraser, Mic2, History, X } from "lucide-react";
-import { VoiceQuickSettings } from "./VoiceQuickSettings";
-import { FavoriteMessages } from "./FavoriteMessages";
-import { QuickReplies } from "./QuickReplies";
-import { SpeechHistory } from "./SpeechHistory";
+import { VoiceQuickSettings } from "./VoiceQuickSettings.jsx";
+import { FavoriteMessages } from "./FavoriteMessages.jsx";
+import { QuickReplies } from "./QuickReplies.jsx";
+import { SpeechHistory } from "./SpeechHistory.jsx";
 import { ToastContainer, useToast } from "./useToast.jsx";
 import { useSpeechHistory } from "../hooks/useSpeechHistory";
 import { LanguageSelector } from "./LanguageSelector.jsx";

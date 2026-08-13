@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useSpeechHistory } from '../hooks/useSpeechHistory';
+import { useSpeechHistory } from '../hooks/useSpeechHistory.js';
 import { Download, BarChart2, MessageSquare, Clock, Globe } from 'lucide-react';
 
 export default function Analytics() {

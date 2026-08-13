@@ -12,6 +12,13 @@ const TRANSCRIPT_KEY = "vf_transcript";
 const MAX_HISTORY = 25;
 const MAX_ANALYTICS = 2000;
 
+function generateUUID() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+}
+
 /**
  * Safely reads a JSON value from localStorage.
  * Returns `fallback` if the key is missing or the value is unparseable.
@@ -155,7 +162,7 @@ export function useSpeechHistory() {
 ]);
 
   setAnalyticsHistory((prev) => {
-    const newEntry = { id: crypto.randomUUID(), text: trimmed, timestamp, language: lang };
+    const newEntry = { id: generateUUID(), text: trimmed, timestamp, language: lang };
     const updated = [newEntry, ...prev];
     return updated.slice(0, MAX_ANALYTICS);
   });

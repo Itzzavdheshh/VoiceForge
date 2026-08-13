@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Inbox, Pin, Search, Trash2, Download } from "lucide-react";
-import { MessageCard } from "./MessageCard";
-import useDebounce from "../hooks/useDebounce";
+import { MessageCard } from "./MessageCard.jsx";
+import useDebounce from "../hooks/useDebounce.js";
 
-export function SpeechHistory({history,
-  favorites,
+export function SpeechHistory({
+  history = [],
+  favorites = new Set(),
   sessionTranscript = [],
   onReuse,
   onReplay,
@@ -13,14 +14,46 @@ export function SpeechHistory({history,
   onClearHistory,
   onCopy,
   onImportBackup,
+  onAddTag = () => {},
+  onRemoveTag = () => {},
+  onAddToQuickReplies = () => {},
   showToast,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
+  const [selectedTag, setSelectedTag] = useState("All Tags");
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  const allUniqueTags = useMemo(() => {
+    const tagsSet = new Set();
+    history.forEach((msg) => {
+      if (Array.isArray(msg.tags)) {
+        msg.tags.forEach((t) => tagsSet.add(t));
+      }
+    });
+    return Array.from(tagsSet);
+  }, [history]);
+
+  const analyticsData = useMemo(() => {
+    const totalSentences = history.length;
+    const totalWords = history.reduce((acc, msg) => acc + (msg.text ? msg.text.split(/\s+/).length : 0), 0);
+    const counts = {};
+    history.forEach((msg) => {
+      if (msg.text) {
+        const key = msg.text.trim();
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+    const top = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([text, count]) => ({ text, count }));
+    return { totalSentences, totalWords, top };
+  }, [history]);
 
   const handleExport = () => {
     try {
