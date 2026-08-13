@@ -231,7 +231,6 @@ const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
       })
     }).catch(err => console.error("Failed to save speech log:", err));
 
-    // Move duplicate to top instead of recreating
     const updated = [
       entry,
       ...prev.filter((m) => m.id !== entry.id),
