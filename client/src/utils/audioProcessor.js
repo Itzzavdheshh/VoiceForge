@@ -39,7 +39,7 @@ export class AudioProcessor {
 
   /**
    * Initializes the audio processor with a given audio element.
-   * @param {HTMLMediaElement} audioElement The <audio> or <video> element to analyze.
+   * @param {HTMLMediaElement|null} audioElement The <audio> or <video> element to analyze (optional).
    */
   async initialize(audioElement) {
     if (!audioElement) return;

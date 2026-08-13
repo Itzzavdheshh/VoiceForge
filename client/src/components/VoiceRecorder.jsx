@@ -13,7 +13,6 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   const [rawAudioBlob, setRawAudioBlob] = React.useState(null);
   const [audioUrl, setAudioUrl] = React.useState("");
   const [duration, setDuration] = React.useState(0);
-  const durationRef = React.useRef(0);
   const [recorderError, setRecorderError] = React.useState("");
 
   const fileInputRef = React.useRef(null);

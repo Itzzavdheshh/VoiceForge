@@ -10,6 +10,7 @@ import { applyAudioOutput } from "../utils/audioOutput";
 export default React.forwardRef(function VideoPreview({
   webcamStream,
   audioUrl,
+  engine,
   isSpeaking,
   onSpeakingChange,
   calibration = { xOffset: 0, yOffset: 0, scale: 1.0 },
@@ -559,7 +560,7 @@ export default React.forwardRef(function VideoPreview({
         aria-label="Lip-synced video output preview"
         className="aspect-video w-full rounded-md bg-black object-cover"
       />
-      {audioUrl && (
+      {audioUrl && engine !== "chatterbox" && (
         <audio
           ref={audioRef}
           key={audioUrl}

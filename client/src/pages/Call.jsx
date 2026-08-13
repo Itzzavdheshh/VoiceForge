@@ -886,6 +886,7 @@ export default function Call() {
           ref={canvasRef}
           webcamStream={webcamStream}
           audioUrl={audioUrl}
+          engine={engine}
           isSpeaking={isSpeaking}
           onSpeakingChange={handleSpeakingChange}
           calibration={calibration}
