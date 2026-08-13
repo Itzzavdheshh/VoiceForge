@@ -19,9 +19,9 @@ export async function extractAudioFromFile(file) {
       const wavBlob = audioBufferToWav(audioBuffer);
       return { blob: wavBlob, duration: Math.round(audioBuffer.duration) };
     } catch (err) {
-      throw new Error(
-        "Failed to extract audio track from video. " + err.message,
-      );
+      throw new Error("Failed to extract audio track from video. " + err.message);
+    } finally {
+      ctx.close().catch(() => {});
     }
   }
 

@@ -71,7 +71,7 @@ export default function useTTS() {
    *   it is looked up from the locally saved profile matching voiceId.
    * @returns {Promise<{audioUrl: string, engine: string}|{fallback: boolean, engine: string}|{aborted: boolean}>} Result of speech synthesis.
    */
-  async function speak({ text, voiceId, language_code, ownerToken }) {
+  async function speak({ text, voiceId, language_code, onSpeakingChange }) {
     // Cancel any in-flight request before starting a new one.
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -407,11 +407,9 @@ export default function useTTS() {
       }
 
       try {
-        await browserSpeak(text, language_code, controller.signal);
-
-        if (controller.signal.aborted) {
-          return { aborted: true };
-        }
+        if (onSpeakingChange) onSpeakingChange(true);
+        await browserSpeak(text, language_code);
+        if (onSpeakingChange) onSpeakingChange(false);
 
         setEngine("browser");
         setAudioUrl("");
@@ -421,7 +419,8 @@ export default function useTTS() {
           fallback: true,
           engine: "browser",
         };
-      } catch {
+      } catch (browserError) {
+        if (onSpeakingChange) onSpeakingChange(false);
         setError(ttsError?.message || String(ttsError));
         setStatus("error");
         throw ttsError;

@@ -526,8 +526,8 @@ export async function speak(request, response, next) {
 
     const defaultVoiceSettings = {
       stability: 0.45,
-      style: 0.2,
-      temperature: 0.8,
+      style: 0.5,
+      temperature: 0.8
     };
 
     const sanitizedSettings = {};
@@ -581,6 +581,23 @@ export async function speak(request, response, next) {
         sanitizedSettings.temperature = voice_settings.temperature;
       }
     }
+    sanitizedSettings.stability = voice_settings.stability;
+  }
+  if (voice_settings.style !== undefined) {
+    if (typeof voice_settings.style !== "number" || !Number.isFinite(voice_settings.style) || voice_settings.style < 0 || voice_settings.style > 2) {
+      response.status(400).json({ error: "style must be a finite number between 0 and 2." });
+      return;
+    }
+    sanitizedSettings.style = voice_settings.style;
+  }
+  if (voice_settings.temperature !== undefined) {
+    if (typeof voice_settings.temperature !== "number" || !Number.isFinite(voice_settings.temperature) || voice_settings.temperature < 0.05 || voice_settings.temperature > 5) {
+      response.status(400).json({ error: "temperature must be a finite number between 0.05 and 5." });
+      return;
+    }
+    sanitizedSettings.temperature = voice_settings.temperature;
+  }
+}
     const mergedSettings = { ...defaultVoiceSettings, ...sanitizedSettings };
 
     // Cryptographically secure, 128-bit identifier. Unlike Math.random(), this
