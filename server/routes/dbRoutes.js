@@ -1,28 +1,17 @@
 import { Router } from "express";
 import upload from "../middleware/upload.js";
 import { getDatabase } from "../utils/db.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
 // Voices endpoints
-router.post("/voices", authMiddleware, upload.single("audio"), async (req, res, next) => {
+router.post("/voices", upload.single("audio"), async (req, res, next) => {
   try {
-    const { voice_id, name, owner_token } = req.body || {};
-    if (!voice_id) {
-      return res.status(400).json({ error: "voice_id is required" });
-    }
+    const { voice_id, name, owner_token } = req.body;
     const db = await getDatabase();
     await db.run(
-      `INSERT OR REPLACE INTO voices (voice_id, name, owner_token, audio_blob, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        voice_id,
-        name || "Unnamed Voice",
-        owner_token || null,
-        req.file ? req.file.buffer : null,
-        new Date().toISOString(),
-        req.user.id
-      ]
+      `INSERT OR REPLACE INTO voices (voice_id, name, owner_token, audio_blob, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [voice_id, name, owner_token, req.file ? req.file.buffer : null, new Date().toISOString()]
     );
     res.json({ success: true });
   } catch (err) {
@@ -30,28 +19,20 @@ router.post("/voices", authMiddleware, upload.single("audio"), async (req, res, 
   }
 });
 
-router.get("/voices", authMiddleware, async (req, res, next) => {
+router.get("/voices", async (req, res, next) => {
   try {
     const db = await getDatabase();
-    // Scope search results to user_id and hide the owner_token from shared lists
-    const voices = await db.all(
-      "SELECT voice_id, name, created_at FROM voices WHERE user_id = ?",
-      [req.user.id]
-    );
+    const voices = await db.all("SELECT voice_id, name, owner_token, created_at FROM voices");
     res.json(voices);
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/voices/:id", authMiddleware, async (req, res, next) => {
+router.get("/voices/:id", async (req, res, next) => {
   try {
     const db = await getDatabase();
-    // Ensure the voice profile belongs to the authenticated user
-    const voice = await db.get(
-      "SELECT * FROM voices WHERE voice_id = ? AND user_id = ?",
-      [req.params.id, req.user.id]
-    );
+    const voice = await db.get("SELECT * FROM voices WHERE voice_id = ?", [req.params.id]);
     if (!voice) return res.status(404).json({ error: "Not found" });
     res.json({
       voice_id: voice.voice_id,
@@ -65,90 +46,25 @@ router.get("/voices/:id", authMiddleware, async (req, res, next) => {
   }
 });
 
-router.delete("/voices/:id", authMiddleware, async (req, res, next) => {
-  try {
-    const db = await getDatabase();
-    const result = await db.run(
-      "DELETE FROM voices WHERE voice_id = ? AND user_id = ?",
-      [req.params.id, req.user.id]
-    );
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "Voice profile not found or unauthorized" });
-    }
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.delete("/voices", authMiddleware, async (req, res, next) => {
-  try {
-    const db = await getDatabase();
-    await db.run("DELETE FROM voices WHERE user_id = ?", [req.user.id]);
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
 // Speech history endpoints
-router.get("/speech-history", authMiddleware, async (req, res, next) => {
+router.get("/speech-history", async (req, res, next) => {
   try {
     const db = await getDatabase();
-    // Scope speech history entries to user_id
-    const rows = await db.all(
-      "SELECT * FROM speech_history WHERE user_id = ? ORDER BY timestamp DESC",
-      [req.user.id]
-    );
+    const rows = await db.all("SELECT * FROM speech_history ORDER BY timestamp DESC");
     res.json(rows);
   } catch (err) {
     next(err);
   }
 });
 
-router.post("/speech-history", authMiddleware, async (req, res, next) => {
+router.post("/speech-history", async (req, res, next) => {
   try {
-    const { id, text, voice_id, language_code, timestamp, is_favorite } = req.body || {};
-    if (!id || !text) {
-      return res.status(400).json({ error: "id and text are required" });
-    }
+    const { id, text, voice_id, language_code, timestamp } = req.body;
     const db = await getDatabase();
-    
-    // Protect against cross-user record overwriting on ID conflicts
-    const existing = await db.get("SELECT user_id FROM speech_history WHERE id = ?", [id]);
-    if (existing && existing.user_id !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized: ID collision with another user's record" });
-    }
-
-    // Save is_favorite properly in the database query
     await db.run(
-      `INSERT OR REPLACE INTO speech_history (id, text, voice_id, language_code, is_favorite, timestamp, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        text,
-        voice_id || null,
-        language_code || "en-US",
-        is_favorite ? 1 : 0,
-        timestamp || Date.now(),
-        req.user.id
-      ]
+      `INSERT OR REPLACE INTO speech_history (id, text, voice_id, language_code, timestamp) VALUES (?, ?, ?, ?, ?)`,
+      [id, text, voice_id, language_code, timestamp || Date.now()]
     );
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.delete("/speech-history/:id", authMiddleware, async (req, res, next) => {
-  try {
-    const db = await getDatabase();
-    const result = await db.run(
-      "DELETE FROM speech_history WHERE id = ? AND user_id = ?",
-      [req.params.id, req.user.id]
-    );
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "Speech history record not found or unauthorized" });
-    }
     res.json({ success: true });
   } catch (err) {
     next(err);

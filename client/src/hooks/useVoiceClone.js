@@ -14,7 +14,7 @@ export function getSavedProfiles() {
 
 export async function syncVoices() {
   try {
-    const res = await authFetch("/api/voices");
+    const res = await fetch("/api/voices");
     if (!res.ok) return;
     const remoteVoices = await res.json();
 
@@ -23,7 +23,7 @@ export async function syncVoices() {
 
     for (const remote of remoteVoices) {
       if (!localIds.has(remote.voice_id)) {
-        const detailRes = await authFetch(`/api/voices/${remote.voice_id}`);
+        const detailRes = await fetch(`/api/voices/${remote.voice_id}`);
         if (detailRes.ok) {
           const detail = await detailRes.json();
           let audioBlob = null;
@@ -60,7 +60,7 @@ export async function syncVoices() {
         if (local.audioBlob) {
           formData.append("audio", local.audioBlob, "voiceforge-reference.webm");
         }
-        await authFetch("/api/voices", {
+        await fetch("/api/voices", {
           method: "POST",
           body: formData
         });
@@ -97,7 +97,7 @@ export async function saveVoiceProfile(profile, audioBlob = null) {
     if (audioBlob) {
       formData.append("audio", audioBlob, "voiceforge-reference.webm");
     }
-    await authFetch("/api/voices", {
+    await fetch("/api/voices", {
       method: "POST",
       body: formData
     });

@@ -6,7 +6,6 @@ import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import voiceRoutes from "./routes/voice.js";
 import dbRoutes from "./routes/dbRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
 import { getDatabase } from "./utils/db.js";
 import { getIsMock } from "./utils/mock.js";
 
@@ -61,21 +60,6 @@ app.get("/api/health", healthLimiter, (_request, response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/voice", voiceRoutes);
 app.use("/api", dbRoutes);
-
-// In production or when client/dist exists, serve compiled React SPA static files
-const staticDistPath = path.resolve(__dirname, "../client/dist");
-app.use(express.static(staticDistPath));
-
-app.use((req, res, next) => {
-  if (req.method !== "GET" || req.path.startsWith("/api") || !req.headers.accept?.includes("text/html")) {
-    return next();
-  }
-  res.sendFile(path.join(staticDistPath, "index.html"), (err) => {
-    if (err) {
-      next();
-    }
-  });
-});
 
 app.use((error, _request, response, _next) => {
   logger.error({ err: error }, "Unhandled server error");
