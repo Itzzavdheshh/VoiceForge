@@ -1,4 +1,5 @@
 <!-- Documents the VoiceForge local development workflow, browser constraints, and MVP roadmap. -->
+
 # VoiceForge
 
 VoiceForge is a browser-based assistive video tool that lets a user type during calls and output cloned speech with a lip-synced face preview.
@@ -72,7 +73,7 @@ npm install
 cp .env.example .env
 ```
 
-4. *(Optional)* Open `.env` and review the settings. The defaults run in offline mock mode, so no API key or internet access is needed. See [Environment Variables](#environment-variables) for the full reference.
+4. _(Optional)_ Open `.env` and review the settings. The defaults run in offline mock mode, so no API key or internet access is needed. See [Environment Variables](#environment-variables) for the full reference.
 5. Start the client and server together:
 
 ```bash
@@ -81,7 +82,25 @@ npm run dev
 
 6. Open `http://localhost:5173` in Chrome or Edge.
 
-For more details on how to develop locally, including Docker instructions and our mock architecture, see the [Development Workflow & Local-First Architecture Guide](docs/development-workflow.md).
+### Using Docker (Alternative)
+
+If you have Docker installed and want to avoid installing specific Node.js versions, you can spin up the entire application stack using Docker Compose:
+
+1. Copy the environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Start the application:
+   ```bash
+   docker-compose up -d
+   ```
+3. Open `http://localhost:5173` in Chrome or Edge.
+
+To stop the containers:
+
+```bash
+docker-compose down
+```
 
 ---
 
@@ -89,15 +108,13 @@ For more details on how to develop locally, including Docker instructions and ou
 
 All variables live in your local `.env` file (copy from `.env.example`). **None of them require a paid account or API key.**
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `VOICE_ENGINE_SPACE` | *(commented out)* | The Hugging Face Gradio space used for voice synthesis. See the dual-mode setup below. |
-| `MOCK_CHATTERBOX` | `true` | Controls whether the live AI or an offline test stub is used. See below. |
-| `PORT` | `3001` | Express API port. |
-| `CLIENT_URL` | `http://localhost:5173` | Allowed CORS origin for the Vite dev server. |
-| `STREAM_SECRET` | *(auto-generated)* | AES-256-GCM signing key for speech stream tokens. Set a fixed value to survive server restarts. |
-| `JWT_SECRET` | *(commented out)* | Signing key for JWT access tokens. |
-| `JWT_REFRESH_SECRET` | *(commented out)* | Signing key for JWT refresh tokens. |
+| Variable             | Default                 | Description                                                                                     |
+| -------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `VOICE_ENGINE_SPACE` | _(commented out)_       | The Hugging Face Gradio space used for voice synthesis. See the dual-mode setup below.          |
+| `MOCK_CHATTERBOX`    | `true`                  | Controls whether the live AI or an offline test stub is used. See below.                        |
+| `PORT`               | `3001`                  | Express API port.                                                                               |
+| `CLIENT_URL`         | `http://localhost:5173` | Allowed CORS origin for the Vite dev server.                                                    |
+| `STREAM_SECRET`      | _(auto-generated)_      | AES-256-GCM signing key for speech stream tokens. Set a fixed value to survive server restarts. |
 
 ### Dual-Mode Voice Engine Setup
 
@@ -186,31 +203,13 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 ## API
 
-> [!NOTE]
-> All sensitive endpoints (e.g., voice cloning, speech generation, and voices) require a valid JWT bearer token in the `Authorization` header (`Authorization: Bearer <token>`).
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/api/auth/register` | Register a new user. Returns user info, an access token (valid for 15m), and a refresh token (valid for 7d). |
-| `POST` | `/api/auth/login` | Login user. Returns user info, an access token, and a refresh token. |
-| `POST` | `/api/auth/refresh` | Refresh access token using a valid `refreshToken`. Returns a new access token. |
-
-### Voice & Database Endpoints
-
-| Method | Endpoint | Auth Required | Description |
-| --- | --- | --- | --- |
-| `POST` | `/api/voice/clone` | Yes | Upload reference audio. Stores it server-side and returns a `voice_id`. |
-| `POST` | `/api/voice/speak` | Yes | Send text, `voice_id`, and optional voice settings. Returns a signed `speechId` and streaming `audioUrl`. |
-| `GET` | `/api/voice/speak/stream` | No | Stream the Chatterbox-generated audio for a pending signed speech token (`t`). |
-| `GET` | `/api/voice/status` | No | Returns current engine mode (`isMock`, `space`) for debugging. |
-| `POST` | `/api/voices` | Yes | Save or replace a voice profile in the database. |
-| `GET` | `/api/voices` | Yes | Retrieve all voice profiles. |
-| `GET` | `/api/voices/:id` | Yes | Retrieve details of a specific voice profile. |
-| `GET` | `/api/health` | No | Returns local API health status. |
-
-
+| Method | Endpoint                               | Description                                                                                                         |
+| ------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/api/voice/clone`                     | Upload reference audio. Stores it server-side and returns a `voice_id`. No external API call in mock mode.          |
+| `POST` | `/api/voice/speak`                     | Send text, `voice_id`, and optional voice settings. Returns a signed `speechId` and streaming `audioUrl`.           |
+| `GET`  | `/api/voice/speak/stream?t=<speechId>` | Stream the Chatterbox-generated audio for a pending signed speech token (`t`). Proxied from the Hugging Face Space. |
+| `GET`  | `/api/voice/status`                    | Returns current engine mode (`isMock`, `space`) for debugging.                                                      |
+| `GET`  | `/api/health`                          | Returns local API health status.                                                                                    |
 
 ## Roadmap
 

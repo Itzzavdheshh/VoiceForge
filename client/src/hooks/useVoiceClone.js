@@ -1,7 +1,11 @@
 // Provides a small client-side API for uploading a recording and saving cloned voice profiles.
 import React from "react";
-import { getAllProfiles, saveProfile, deleteProfile, clearStorage } from "../utils/db.js";
-import { authFetch } from "../utils/auth.js";
+import {
+  getAllProfiles,
+  saveProfile,
+  deleteProfile,
+  clearStorage,
+} from "../utils/db.js";
 
 // Fix (Issue 2): must match the server-side Multer limit in server/middleware/upload.js.
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
@@ -79,10 +83,14 @@ export async function saveVoiceProfile(profile, audioBlob = null) {
     id: profile.voice_id,
     voice_id: profile.voice_id,
     name: profile.name || `Voice ${profiles.length + 1}`,
-    colorTag: profile.colorTag || colorTag || "emerald",
-    avatarIcon: profile.avatarIcon || avatarIcon || "user",
-    createdAt: profile.createdAt || new Date().toISOString(),
-    audioBlob: audioBlob || profile.audioBlob || null // Store the binary reference audio Blob
+    // Fix (Broken Voice Synthesis): persist the owner_token returned by
+    // POST /api/voice/clone alongside the profile. The server now requires
+    // this token on /api/voice/speak to prove ownership of voice_id, so it
+    // must be retrievable later from the saved profile, not just held in
+    // memory during the clone flow.
+    ownerToken: profile.ownerToken || profile.owner_token || null,
+    createdAt: new Date().toISOString(),
+    audioBlob, // Store the binary reference audio Blob
   };
   await saveProfile(nextProfile);
 
@@ -144,7 +152,11 @@ export async function clearAllVoiceProfiles() {
 export async function getActiveVoiceProfile() {
   const profiles = await getSavedProfiles();
   const activeVoiceId = localStorage.getItem(ACTIVE_KEY);
-  return profiles.find((profile) => profile.voice_id === activeVoiceId) || profiles[0] || null;
+  return (
+    profiles.find((profile) => profile.voice_id === activeVoiceId) ||
+    profiles[0] ||
+    null
+  );
 }
 
 export function subscribeProfileChanges(callback) {
@@ -182,17 +194,19 @@ export default function useVoiceClone() {
       // instant, clear feedback instead of waiting for the full upload to
       // complete before Multer rejects it on the server.
       if (!audioBlob) {
-        throw new Error("No audio recording found. Please record your voice first.");
+        throw new Error(
+          "No audio recording found. Please record your voice first.",
+        );
       }
       if (!audioBlob.type.startsWith("audio/")) {
         throw new Error(
-          `Unsupported file type "${audioBlob.type}". Please upload an audio recording.`
+          `Unsupported file type "${audioBlob.type}". Please upload an audio recording.`,
         );
       }
       if (audioBlob.size > MAX_UPLOAD_BYTES) {
         const sizeMB = (audioBlob.size / (1024 * 1024)).toFixed(1);
         throw new Error(
-          `Recording is ${sizeMB} MB — the maximum allowed size is 12 MB. Please record a shorter clip.`
+          `Recording is ${sizeMB} MB — the maximum allowed size is 12 MB. Please record a shorter clip.`,
         );
       }
 
@@ -202,13 +216,13 @@ export default function useVoiceClone() {
 
       const response = await authFetch("/api/voice/clone", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
         throw new Error(
-          "Unable to connect to the VoiceForge backend. Please ensure the local server is running and try again."
+          "Could not connect to the VoiceForge server. Please ensure your local backend is running on port 3001.",
         );
       }
 
@@ -221,12 +235,14 @@ export default function useVoiceClone() {
       // Fix (Broken Voice Synthesis): forward the owner_token returned by
       // the server into saveVoiceProfile so it lands in the stored profile
       // (see ownerToken field above) instead of being silently dropped.
-      const profile = await saveVoiceProfile({
-        voice_id: payload.voice_id,
-        name: payload.name || name,
-        colorTag,
-        avatarIcon
-      }, audioBlob);
+      const profile = await saveVoiceProfile(
+        {
+          voice_id: payload.voice_id,
+          owner_token: payload.owner_token,
+          name: payload.name || name,
+        },
+        audioBlob,
+      );
 
       setStatus("success");
       return profile;

@@ -1,4 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// Searchable, accessible language picker with flag indicators and region grouping.
+//
+// Used on the Call page, Compose page (compact mode), and Settings page
+// as the unified way to select an output language for Chatterbox TTS.
+
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ChevronDown, Check, Search, Globe, X } from "lucide-react";
 import { SUPPORTED_LANGUAGES, getLanguageByCode, getRegions } from "../utils/languages.js";
 
@@ -24,13 +35,18 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
     if (!search.trim()) return SUPPORTED_LANGUAGES;
     const q = search.toLowerCase().trim();
     return SUPPORTED_LANGUAGES.filter(
-      (l) => l.name.toLowerCase().includes(q) || l.nativeName.toLowerCase().includes(q) || l.code.toLowerCase().includes(q)
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        l.nativeName.toLowerCase().includes(q) ||
+        l.code.toLowerCase().includes(q),
     );
   }, [search]);
 
   const flatItems = useMemo(() => {
     const items = [{ type: "auto", code: "", name: "Auto-detect" }];
-    const filteredRegions = regions.filter((r) => filtered.some((l) => l.region === r));
+    const filteredRegions = regions.filter((r) =>
+      filtered.some((l) => l.region === r),
+    );
     for (const region of filteredRegions) {
       items.push({ type: "header", region });
       for (const lang of filtered.filter((l) => l.region === region)) {
@@ -40,10 +56,24 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
     return items;
   }, [filtered, regions]);
 
-  const selectableIndices = useMemo(() => flatItems.reduce((acc, item, i) => {
-    if (item.type !== "header") acc.push(i);
-    return acc;
-  }, []), [flatItems]);
+  // Only selectable items (skip headers) for keyboard focus
+  const selectableIndices = useMemo(
+    () =>
+      flatItems.reduce((acc, item, i) => {
+        if (item.type !== "header") acc.push(i);
+        return acc;
+      }, []),
+    [flatItems],
+  );
+
+  // ── Open / Close ──────────────────────────────────────────────────────
+  const openDropdown = useCallback(() => {
+    setIsOpen(true);
+    setSearch("");
+    setFocusIndex(-1);
+    // Focus the search input after render
+    requestAnimationFrame(() => searchRef.current?.focus());
+  }, []);
 
   const closeDropdown = useCallback(() => {
     setIsOpen(false);
@@ -71,31 +101,77 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [isOpen, closeDropdown]);
 
-  const selectLanguage = useCallback((code) => {
-    onChange(code);
-    closeDropdown();
-  }, [onChange, closeDropdown]);
+  // ── Select handler ────────────────────────────────────────────────────
+  const selectLanguage = useCallback(
+    (code) => {
+      onChange(code);
+      closeDropdown();
+    },
+    [onChange, closeDropdown],
+  );
 
-  const handleKeyDown = useCallback((e) => {
-    if (!isOpen) {
-      if (["Enter", " ", "ArrowDown"].includes(e.key)) { e.preventDefault(); openDropdown(); }
-      return;
-    }
-    switch (e.key) {
-      case "Escape": e.preventDefault(); closeDropdown(); break;
-      case "ArrowDown": e.preventDefault();
-        const nextIdx = selectableIndices[Math.min(selectableIndices.indexOf(focusIndex) + 1, selectableIndices.length - 1)];
-        if (nextIdx !== undefined) { setFocusIndex(nextIdx); scrollToItem(nextIdx); }
-        break;
-      case "ArrowUp": e.preventDefault();
-        const prevIdx = selectableIndices[Math.max(selectableIndices.indexOf(focusIndex) - 1, 0)];
-        if (prevIdx !== undefined) { setFocusIndex(prevIdx); scrollToItem(prevIdx); }
-        break;
-      case "Enter": e.preventDefault();
-        if (focusIndex >= 0 && flatItems[focusIndex]) selectLanguage(flatItems[focusIndex].code);
-        break;
-    }
-  }, [isOpen, focusIndex, flatItems, selectableIndices, openDropdown, closeDropdown, selectLanguage]);
+  // ── Keyboard nav ──────────────────────────────────────────────────────
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (!isOpen) {
+        if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+          e.preventDefault();
+          openDropdown();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          closeDropdown();
+          break;
+        case "ArrowDown": {
+          e.preventDefault();
+          const currentSelIdx = selectableIndices.indexOf(focusIndex);
+          const nextSelIdx = Math.min(
+            currentSelIdx + 1,
+            selectableIndices.length - 1,
+          );
+          const next = selectableIndices[nextSelIdx];
+          if (next !== undefined) {
+            setFocusIndex(next);
+            scrollToItem(next);
+          }
+          break;
+        }
+        case "ArrowUp": {
+          e.preventDefault();
+          const currentSelIdx = selectableIndices.indexOf(focusIndex);
+          const prevSelIdx = Math.max(currentSelIdx - 1, 0);
+          const prev = selectableIndices[prevSelIdx];
+          if (prev !== undefined) {
+            setFocusIndex(prev);
+            scrollToItem(prev);
+          }
+          break;
+        }
+        case "Enter": {
+          e.preventDefault();
+          if (focusIndex >= 0 && flatItems[focusIndex]) {
+            selectLanguage(flatItems[focusIndex].code);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [
+      isOpen,
+      focusIndex,
+      flatItems,
+      selectableIndices,
+      openDropdown,
+      closeDropdown,
+      selectLanguage,
+    ],
+  );
 
   function scrollToItem(index) {
     const list = listRef.current;
@@ -120,9 +196,7 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
         className={[
           "group inline-flex items-center gap-2 rounded-lg border font-medium transition-all duration-200",
           "focus:outline-none focus:ring-2 focus:ring-moss/40 dark:focus:ring-glow/40",
-          compact
-            ? "px-3 py-2 text-sm"
-            : "w-full px-4 py-3 text-sm",
+          compact ? "px-3 py-2 text-sm" : "w-full px-4 py-3 text-sm",
           isOpen
             ? "border-moss bg-mint/20 text-ink dark:border-glow dark:bg-glow/10 dark:text-neutral-100"
             : "border-neutral-200 bg-white text-neutral-700 hover:border-moss/50 hover:bg-moss/5 dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow/50 dark:hover:bg-glow/5",
@@ -141,6 +215,11 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
           className={[
             "flex flex-col overflow-hidden rounded-xl border shadow-lg animate-fade-in-up",
             "border-neutral-200/80 bg-white dark:border-border dark:bg-surface",
+            "animate-fade-in-up",
+            "max-w-[calc(100vw-2rem)]",
+            compact
+              ? "left-0 w-72"
+              : "left-0 right-0 min-w-0 sm:min-w-[320px] sm:w-96",
           ].join(" ")}
           style={panelStyle}
         >
@@ -164,7 +243,19 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
               aria-activedescendant={focusIndex >= 0 && flatItems[focusIndex] ? `lang-option-${flatItems[focusIndex].code ?? "auto"}` : undefined}
               className="flex-1 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
-            {search && <button type="button" aria-label="Clear language search" onClick={() => { setSearch(""); searchRef.current?.focus(); }}><X size={14} /></button>}
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  searchRef.current?.focus();
+                }}
+                className="rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                aria-label="Clear search"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            )}
           </div>
 
           <ul 
@@ -201,13 +292,21 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
                         : "text-neutral-700 dark:text-neutral-300",
                     ].join(" ")}
                   >
-                    <Globe size={18} aria-hidden="true" className="flex-shrink-0 text-neutral-400 dark:text-neutral-500" />
+                    <Globe
+                      size={18}
+                      aria-hidden="true"
+                      className="flex-shrink-0 text-neutral-400 dark:text-neutral-500"
+                    />
                     <span className="flex-1">Auto-detect</span>
                     <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
                       Let AI detect
                     </span>
                     {isSelected && (
-                      <Check size={15} aria-hidden="true" className="flex-shrink-0 text-moss dark:text-glow" />
+                      <Check
+                        size={15}
+                        aria-hidden="true"
+                        className="flex-shrink-0 text-moss dark:text-glow"
+                      />
                     )}
                   </button>
                 );
@@ -239,14 +338,60 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
                   data-index={index}
                   onClick={() => selectLanguage(item.code)}
                   onMouseEnter={() => setFocusIndex(index)}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm cursor-pointer ${focusIndex === index ? "bg-moss/8" : ""} ${isSelected ? "font-semibold text-moss dark:text-glow" : "text-neutral-700 dark:text-neutral-300"}`}>
-                  <span className="text-lg" aria-hidden="true">{item.type === "auto" ? "🌐" : item.flag}</span>
-                  <span className="flex-1 truncate">{item.name}</span>
-                  {isSelected && <Check size={15} />}
-                </li>
+                  className={[
+                    "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors",
+                    isFocused
+                      ? "bg-moss/8 dark:bg-glow/8"
+                      : "hover:bg-neutral-50 dark:hover:bg-white/5",
+                    isSelected
+                      ? "font-semibold text-moss dark:text-glow"
+                      : "text-neutral-700 dark:text-neutral-300",
+                  ].join(" ")}
+                >
+                  <span
+                    className="flex-shrink-0 text-lg leading-none"
+                    aria-hidden="true"
+                  >
+                    {item.flag}
+                  </span>
+                  <span className="flex-1 truncate">
+                    {item.name}
+                    <span className="ml-1.5 text-xs text-neutral-400 dark:text-neutral-500">
+                      {item.nativeName !== item.name ? item.nativeName : ""}
+                    </span>
+                  </span>
+                  <span className="flex-shrink-0 font-mono text-[11px] text-neutral-300 dark:text-neutral-600">
+                    {item.code}
+                  </span>
+                  {isSelected && (
+                    <Check
+                      size={15}
+                      aria-hidden="true"
+                      className="flex-shrink-0 text-moss dark:text-glow"
+                    />
+                  )}
+                </button>
               );
             })}
-          </ul>
+          </div>
+
+          {/* Footer hint */}
+          <div className="border-t border-neutral-100 px-4 py-2 dark:border-border">
+            <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">
+                ↑↓
+              </kbd>{" "}
+              navigate{" · "}
+              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">
+                Enter
+              </kbd>{" "}
+              select{" · "}
+              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">
+                Esc
+              </kbd>{" "}
+              close
+            </p>
+          </div>
         </div>
       )}
     </div>

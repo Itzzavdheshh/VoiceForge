@@ -1,6 +1,18 @@
 // Coordinates top-level navigation, saved voice state, and page rendering for VoiceForge.
-import React, { useState, useEffect } from "react";
-import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu, X, Users, Info, BarChart2, LogOut } from "lucide-react";
+import React from "react";
+import {
+  Camera,
+  Mic2,
+  Settings as SettingsIcon,
+  MessageSquare,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  Users,
+  Info,
+  BarChart2,
+} from "lucide-react";
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
@@ -8,7 +20,7 @@ import VoiceForge from "./components/VoiceForge";
 import Analytics from "./pages/Analytics.jsx";
 import VoiceForge from "./components/VoiceForge.jsx";
 import { useTheme } from "./components/ThemeContext.jsx";
-import Footer from './components/Footer.jsx';
+import Footer from "./components/Footer.jsx";
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
@@ -22,19 +34,9 @@ const tabs = [
   { id: "onboarding", label: "Onboarding", icon: Mic2 },
   { id: "call", label: "Call", icon: Camera },
   { id: "compose", label: "Compose", icon: MessageSquare },
+  { id: "analytics", label: "Analytics", icon: BarChart2 },
   { id: "settings", label: "Settings", icon: SettingsIcon },
   { id: "contributors", label: "Contributors", icon: Users },
-  { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
-  { id: "call",         label: "Call",          icon: Camera },
-  { id: "compose",      label: "Compose",       icon: MessageSquare },
-  { id: "analytics",    label: "Analytics",     icon: BarChart2 },
-  { id: "library",      label: "Library",       icon: FolderOpen },
-  { id: "healthcare",   label: "Healthcare",    icon: Heart },
-  { id: "settings",     label: "Settings",      icon: SettingsIcon },
-  { id: "contributors", label: "Contributors",  icon: Users },
-  { id: "voice-profiles", label: "Voice Profiles", icon: Mic2,},
-  { id: "speaking-history", label: "History", icon: MessageSquare,},
-  { id: "voice-quality", label: "Quality", icon: Mic2,},
   { id: "about", label: "About", icon: Info },
 ];
 
@@ -113,12 +115,6 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [shortcutsOpen]);
 
-  function scrollToTop() {
-    window.scrollTo({
-      top: 0,
-      behavior: "auto",
-    });
-  }
   function selectTab(tab) {
     if (!tabIds.has(tab)) return;
 
@@ -171,7 +167,10 @@ export default function App() {
   // On initial load, honor direct links to /privacy-policy
   React.useEffect(() => {
     try {
-      if (typeof window !== "undefined" && window.location?.pathname === "/privacy-policy") {
+      if (
+        typeof window !== "undefined" &&
+        window.location?.pathname === "/privacy-policy"
+      ) {
         setActiveTab("privacy-policy");
       }
     } catch {
@@ -204,7 +203,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-cloud text-ink dark:bg-night dark:text-neutral-100">
-
       {/* Global Header */}
       <header className="sticky top-0 z-50 border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -215,7 +213,9 @@ export default function App() {
             role="button"
             tabIndex={0}
             aria-label="Go to home"
-            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectTab("onboarding")}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") && selectTab("onboarding")
+            }
           >
             <img
               src="/models/logo5.png"
@@ -251,10 +251,16 @@ export default function App() {
             type="button"
             onClick={toggleTheme}
             aria-pressed={theme === "dark"}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-ink/15 bg-white text-ink transition hover:border-moss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:focus-visible:ring-glow sm:hidden"
           >
-            {theme === "dark" ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
+            {theme === "dark" ? (
+              <Sun size={17} aria-hidden="true" />
+            ) : (
+              <Moon size={17} aria-hidden="true" />
+            )}
           </button>
 
           {/* Desktop nav + theme toggle */}
@@ -293,16 +299,22 @@ export default function App() {
               type="button"
               onClick={toggleTheme}
               aria-pressed={theme === "dark"}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
               title={theme === "dark" ? "Light mode" : "Dark mode"}
               className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-ink/15 bg-white text-ink transition hover:border-moss hover:text-moss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow dark:focus-visible:ring-glow"
             >
-              {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+              {theme === "dark" ? (
+                <Sun size={18} aria-hidden="true" />
+              ) : (
+                <Moon size={18} aria-hidden="true" />
+              )}
             </button>
           </div>
-
         </div>
-
       </header>
 
       {/* Main Content Area */}
@@ -314,20 +326,17 @@ export default function App() {
             {activeTab === "compose" && <VoiceForge />}
 
         {activeTab !== "compose" && (
-          <div id={`tabpanel-${activeTab}`} role="tabpanel" aria-label={`${activeTab} panel`} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
-            {activeTab === "call"       && <Call />}
-            {activeTab === "settings"   && <Settings />}
-            {activeTab === "analytics"  && <Analytics />}
-            {activeTab === "voice-profiles" && <VoiceProfiles />}
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            {activeTab === "onboarding" && (
+              <Onboarding onReady={() => selectTab("call")} />
+            )}
+            {activeTab === "call" && <Call />}
+            {activeTab === "settings" && <Settings />}
+            {activeTab === "analytics" && <Analytics />}
             {activeTab === "contributors" && <Contributors />}
             {activeTab === "about" && <About onNavigate={selectTab} />}
-            {activeTab === "analytics" && <Analytics />}
-            {activeTab === "library" && <Library />}
-            {activeTab === "healthcare" && <Healthcare />}
-            {activeTab === "privacy-policy" && (<PrivacyPolicy
-              onBackHome={() => selectTab("onboarding")}
-             />
+            {activeTab === "privacy-policy" && (
+              <PrivacyPolicy onBackHome={() => selectTab("onboarding")} />
             )}
           </>
         )}
@@ -370,17 +379,20 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Bottom padding so content isn't hidden behind bottom nav on mobile */}
-          <div className="h-16 sm:hidden" aria-hidden="true" />
-          
-          <KeyboardShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-          <ScrollToBottomButton activeTab={activeTab} />
-          <ScrollToTopButton activeTab={activeTab} />
-        </>
-      )}
-      {isLoggedIn && (
-        <Footer onNavigate={navigateTo} tabs={tabs} onOpenShortcuts={() => setShortcutsOpen(true)} />
-      )}
+      {/* Bottom padding so content isn't hidden behind bottom nav on mobile */}
+      <div className="h-16 sm:hidden" aria-hidden="true" />
+
+      <KeyboardShortcutsModal
+        isOpen={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+      />
+      <ScrollToBottomButton activeTab={activeTab} />
+      <ScrollToTopButton activeTab={activeTab} />
+      <Footer
+        onNavigate={navigateTo}
+        tabs={tabs}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
     </div>
   );
 }

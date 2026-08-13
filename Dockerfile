@@ -1,21 +1,29 @@
-FROM node:20-alpine
-
+# Base stage for installing dependencies
+FROM node:20-alpine AS base
 WORKDIR /app
+COPY package*.json ./
+COPY client/package*.json ./client/
+COPY server/package*.json ./server/
+RUN npm ci
 
-# Copy package files
-COPY package.json package-lock.json ./
-COPY client/package.json ./client/
-COPY server/package.json ./server/
-
-# Install dependencies
-RUN npm install
-
-# Copy all other source code
+# Development stage
+FROM base AS development
 COPY . .
-
-# Expose ports for client (Vite) and server (Express)
-EXPOSE 5173
-EXPOSE 3001
-
-# Start the dev server
+EXPOSE 3001 5173
 CMD ["npm", "run", "dev"]
+
+# Build stage
+FROM base AS build
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS production
+WORKDIR /app
+COPY package*.json ./
+COPY server/package*.json ./server/
+RUN npm ci --omit=dev
+COPY --from=build /app/server ./server
+COPY --from=build /app/client/dist ./client/dist
+EXPOSE 3001
+CMD ["npm", "start"]

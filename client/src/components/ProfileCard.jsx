@@ -53,27 +53,7 @@ export function ProfileCard({ profile, onDelete, onShare, onUpdate }) {
     }
   };
 
-  async function handleSelectColor(colorKey) {
-    try {
-      const updated = { ...profile, colorTag: colorKey };
-      await saveVoiceProfile(updated, profile.audioBlob);
-      onUpdate?.(updated);
-    } catch (err) {
-      console.error("Failed to update profile color:", err);
-    }
-  }
-
-  async function handleSelectIcon(iconKey) {
-    try {
-      const updated = { ...profile, avatarIcon: iconKey };
-      await saveVoiceProfile(updated, profile.audioBlob);
-      onUpdate?.(updated);
-    } catch (err) {
-      console.error("Failed to update profile icon:", err);
-    }
-  }
-
-  const formattedDate = profile.createdAt 
+  const formattedDate = profile.createdAt
     ? new Date(profile.createdAt).toLocaleDateString()
     : "Unknown date";
 
@@ -108,44 +88,6 @@ export function ProfileCard({ profile, onDelete, onShare, onUpdate }) {
         </div>
       </div>
 
-      {isCustomizing && (
-        <div className="border-b border-ink/10 bg-neutral-50 p-3 text-xs space-y-2 dark:border-border dark:bg-black/40">
-          <div>
-            <span className="font-bold text-ink/70 dark:text-neutral-300">Color Tag:</span>
-            <div className="flex items-center gap-2 mt-1.5">
-              {Object.entries(COLOR_TAGS).map(([key, item]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleSelectColor(key)}
-                  title={item.label}
-                  aria-label={`Select ${item.label} color tag`}
-                  className={`h-5 w-5 rounded-full ${item.badge} transition-transform ${activeColorKey === key ? "ring-2 ring-moss ring-offset-1 scale-110" : "opacity-80 hover:opacity-100"}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span className="font-bold text-ink/70 dark:text-neutral-300">Avatar Icon:</span>
-            <div className="flex items-center gap-2 mt-1.5">
-              {Object.entries(AVATAR_ICONS).map(([key, Icon]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleSelectIcon(key)}
-                  title={key}
-                  aria-label={`Select ${key} avatar icon`}
-                  className={`flex h-7 w-7 items-center justify-center rounded-md border text-ink/80 transition-transform dark:text-neutral-200 ${profile.avatarIcon === key ? "border-moss bg-mint/20 text-moss font-bold scale-105 dark:border-glow dark:text-glow" : "border-neutral-200 bg-white hover:bg-neutral-100 dark:border-border dark:bg-surface"}`}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      
       <div className="flex flex-1 flex-col p-4">
         <p className="mb-4 text-xs font-mono text-ink/50 dark:text-muted truncate">
           ID: {profile.voice_id}
@@ -158,12 +100,20 @@ export function ProfileCard({ profile, onDelete, onShare, onUpdate }) {
               onClick={togglePlay}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-moss text-white hover:bg-moss/90 dark:bg-glow dark:text-black"
             >
-              {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+              {isPlaying ? (
+                <Pause size={14} fill="currentColor" />
+              ) : (
+                <Play size={14} fill="currentColor" className="ml-0.5" />
+              )}
             </button>
             <div className="h-6 flex-1 rounded-sm bg-ink/10 dark:bg-white/10 relative overflow-hidden flex items-center justify-between px-1">
               {/* Fake waveform for visual aesthetics */}
               {[...Array(20)].map((_, i) => (
-                <div key={i} className="w-1 bg-moss dark:bg-glow rounded-full opacity-50" style={{ height: `${Math.max(20, Math.random() * 100)}%` }}></div>
+                <div
+                  key={i}
+                  className="w-1 bg-moss dark:bg-glow rounded-full opacity-50"
+                  style={{ height: `${Math.max(20, Math.random() * 100)}%` }}
+                ></div>
               ))}
               {isPlaying && (
                 <div className="absolute inset-0 bg-moss/20 dark:bg-glow/20 animate-pulse pointer-events-none"></div>

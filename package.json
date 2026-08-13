@@ -14,8 +14,8 @@
     "dev:server": "npm run dev --workspace server",
     "build": "npm run build --workspace client",
     "start": "npm run start --workspace server",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "lint": "npx eslint .",
+    "format:check": "npx prettier --check ."
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",

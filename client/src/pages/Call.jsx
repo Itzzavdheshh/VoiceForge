@@ -1,6 +1,13 @@
 // Renders the main call workspace for webcam preview, typed speech, output video, and virtual camera controls.
 import React from "react";
-import { Camera, CircleAlert, Sliders, ChevronDown, RotateCcw, Download, ShieldCheck, Grid } from "lucide-react";
+import {
+  Camera,
+  CircleAlert,
+  Sliders,
+  ChevronDown,
+  RotateCcw,
+  ShieldCheck,
+} from "lucide-react";
 import TextToSpeech from "../components/TextToSpeech.jsx";
 import DeviceSelector from "../components/DeviceSelector.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
@@ -68,7 +75,7 @@ export default function Call() {
     return () => {
       window.removeEventListener(
         "voiceforge:profileChanged",
-        loadActiveProfile
+        loadActiveProfile,
       );
       window.removeEventListener("storage", loadActiveProfile);
     };
@@ -76,38 +83,42 @@ export default function Call() {
 
   const [isCalibrationOpen, setIsCalibrationOpen] = React.useState(false);
   const [calibration, setCalibration] = React.useState(() => {
-    const savedX = getStoredValue("voiceforge:calibrationXOffset");
-    const savedY = getStoredValue("voiceforge:calibrationYOffset");
-    const savedScale = getStoredValue("voiceforge:calibrationScale");
+    try {
+      const savedX = localStorage.getItem("voiceforge:calibrationXOffset");
+      const savedY = localStorage.getItem("voiceforge:calibrationYOffset");
+      const savedScale = localStorage.getItem("voiceforge:calibrationScale");
 
-    let x = savedX !== null ? parseInt(savedX, 10) : 0;
-    let y = savedY !== null ? parseInt(savedY, 10) : 0;
-    let scale = savedScale !== null ? parseFloat(savedScale) : 1.0;
+      let x = savedX !== null ? parseInt(savedX, 10) : 0;
+      let y = savedY !== null ? parseInt(savedY, 10) : 0;
+      let scale = savedScale !== null ? parseFloat(savedScale) : 1.0;
 
-    // Sanitize and clamp values to default limits
-    if (isNaN(x)) {
-      x = 0;
-    } else {
-      x = Math.max(-400, Math.min(400, x));
+      // Sanitize and clamp values to default limits
+      if (isNaN(x)) {
+        x = 0;
+      } else {
+        x = Math.max(-400, Math.min(400, x));
+      }
+
+      if (isNaN(y)) {
+        y = 0;
+      } else {
+        y = Math.max(-250, Math.min(150, y));
+      }
+
+      if (isNaN(scale)) {
+        scale = 1.0;
+      } else {
+        scale = Math.max(0.5, Math.min(2.5, scale));
+      }
+
+      return {
+        xOffset: x,
+        yOffset: y,
+        scale,
+      };
+    } catch {
+      return { xOffset: 0, yOffset: 0, scale: 1.0 };
     }
-
-    if (isNaN(y)) {
-      y = 0;
-    } else {
-      y = Math.max(-250, Math.min(150, y));
-    }
-
-    if (isNaN(scale)) {
-      scale = 1.0;
-    } else {
-      scale = Math.max(0.5, Math.min(2.5, scale));
-    }
-
-    return {
-      xOffset: x,
-      yOffset: y,
-      scale,
-    };
   });
 
   const handleCalibrationChange = (key, value) => {
@@ -125,10 +136,14 @@ export default function Call() {
 
     setCalibration((prev) => {
       const updated = { ...prev, [key]: parsedValue };
-      setStoredValue(
-        `voiceforge:calibration${key.charAt(0).toUpperCase() + key.slice(1)}`,
-        parsedValue.toString()
-      );
+      try {
+        localStorage.setItem(
+          `voiceforge:calibration${key.charAt(0).toUpperCase() + key.slice(1)}`,
+          parsedValue.toString(),
+        );
+      } catch {
+        /* storage unavailable – continue without persisting */
+      }
       return updated;
     });
   };
@@ -145,21 +160,6 @@ export default function Call() {
     let activeStream = null;
     let isMounted = true;
 
-    async function fetchDevices() {
-      if (!navigator.mediaDevices?.enumerateDevices) return;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputDevices = devices.filter(
-          (device) => device.kind === "videoinput"
-        );
-        if (isMounted) {
-          setVideoDevices(videoInputDevices);
-        }
-      } catch (err) {
-        console.error("Failed to enumerate devices", err);
-      }
-    }
-
     async function openCamera() {
       if (privacyMode) {
         setWebcamStream(null);
@@ -170,14 +170,13 @@ export default function Call() {
       }
 
       try {
-        const constraints = {
-          video: selectedDeviceId
-            ? { deviceId: { exact: selectedDeviceId } }
-            : true,
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
           audio: false,
-        };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        });
 
+        // Prevent webcam resource leak if component unmounts
+        // before getUserMedia resolves.
         if (!isMounted) {
           stream.getTracks().forEach((track) => track.stop());
           return;
@@ -191,18 +190,9 @@ export default function Call() {
         }
 
         setCameraError("");
-
-        await fetchDevices();
-
-        if (isMounted && stream.getVideoTracks().length > 0) {
-          const track = stream.getVideoTracks()[0];
-          const settings = track.getSettings();
-          if (settings.deviceId && !selectedDeviceId) {
-            setSelectedDeviceId(settings.deviceId);
-          }
-        }
       } catch (webcamError) {
         if (!isMounted) return;
+
         setCameraError(webcamError?.message || String(webcamError));
         showToast("Camera access failed", "error");
       }
@@ -210,23 +200,14 @@ export default function Call() {
 
     openCamera();
 
-    if (navigator.mediaDevices?.addEventListener) {
-      navigator.mediaDevices.addEventListener("devicechange", fetchDevices);
-    }
-
     return () => {
       isMounted = false;
-      if (navigator.mediaDevices?.removeEventListener) {
-        navigator.mediaDevices.removeEventListener(
-          "devicechange",
-          fetchDevices
-        );
-      }
+
       if (activeStream) {
         activeStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [showToast, retryCamera, privacyMode, selectedDeviceId]);
+  }, [showToast, privacyMode]);
 
   async function handleSpeak(text, voice_settings_override) {
     if (!activeProfile?.voice_id) return;
@@ -525,9 +506,12 @@ export default function Call() {
                   max="400"
                   step="1"
                   value={calibration.xOffset}
-                  onChange={(e) => handleCalibrationChange("xOffset", parseInt(e.target.value, 10))}
-                  title="Adjust horizontal position of the mouth overlay"
-                  aria-label="Horizontal position slider for mouth calibration"
+                  onChange={(e) =>
+                    handleCalibrationChange(
+                      "xOffset",
+                      parseInt(e.target.value, 10),
+                    )
+                  }
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -553,9 +537,12 @@ export default function Call() {
                   max="150"
                   step="1"
                   value={calibration.yOffset}
-                  onChange={(e) => handleCalibrationChange("yOffset", parseInt(e.target.value, 10))}
-                  title="Adjust vertical position of the mouth overlay"
-                  aria-label="Vertical position slider for mouth calibration"
+                  onChange={(e) =>
+                    handleCalibrationChange(
+                      "yOffset",
+                      parseInt(e.target.value, 10),
+                    )
+                  }
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -578,9 +565,9 @@ export default function Call() {
                   max="2.5"
                   step="0.1"
                   value={calibration.scale}
-                  onChange={(e) => handleCalibrationChange("scale", parseFloat(e.target.value))}
-                  title="Adjust size of the mouth overlay"
-                  aria-label="Scale slider for mouth calibration"
+                  onChange={(e) =>
+                    handleCalibrationChange("scale", parseFloat(e.target.value))
+                  }
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -613,19 +600,92 @@ export default function Call() {
         <select
           id="output-language"
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          title="Select the output language for speech synthesis"
-          aria-label="Select output language for speech synthesis"
-          className="w-full rounded-md border border-ink/15 bg-cloud p-3 dark:border-border dark:bg-black dark:text-neutral-100"
-        >
-          <option value="en">English</option>
-          <option value="hi">Hindi</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="pt">Portuguese</option>
-          <option value="ja">Japanese</option>
-        </select>
+          onChange={setLanguage}
+        />
+      </section>
+      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold">Subtitles Overlay Settings</h2>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">
+              Overlay spoken words on the webcam video preview sent to the
+              virtual camera.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={subtitlesEnabled}
+              onChange={(e) => {
+                setSubtitlesEnabled(e.target.checked);
+                localStorage.setItem(
+                  "voiceforge:subtitlesEnabled",
+                  e.target.checked.toString(),
+                );
+              }}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-neutral-600 peer-checked:bg-coral"></div>
+            <span className="ml-2 text-sm font-medium text-neutral-600 dark:text-neutral-300">
+              Enabled
+            </span>
+          </label>
+        </div>
+
+        {subtitlesEnabled && (
+          <div className="grid gap-4 sm:grid-cols-2 pt-3 border-t border-neutral-200 dark:border-neutral-700">
+            <div>
+              <label
+                htmlFor="sub-font-size"
+                className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2"
+              >
+                Font Size
+              </label>
+              <select
+                id="sub-font-size"
+                value={subtitleFontSize}
+                onChange={(e) => {
+                  setSubtitleFontSize(e.target.value);
+                  localStorage.setItem(
+                    "voiceforge:subtitleFontSize",
+                    e.target.value,
+                  );
+                }}
+                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral/45 dark:border-border dark:bg-black dark:text-neutral-200"
+              >
+                <option value="small">Small (18px)</option>
+                <option value="medium">Medium (24px)</option>
+                <option value="large">Large (32px)</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="sub-bg-opacity"
+                className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2"
+              >
+                Background Box Opacity
+              </label>
+              <select
+                id="sub-bg-opacity"
+                value={subtitleBgOpacity}
+                onChange={(e) => {
+                  setSubtitleBgOpacity(e.target.value);
+                  localStorage.setItem(
+                    "voiceforge:subtitleBgOpacity",
+                    e.target.value,
+                  );
+                }}
+                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral/45 dark:border-border dark:bg-black dark:text-neutral-200"
+              >
+                <option value="0">Transparent (0%)</option>
+                <option value="0.3">Light (30%)</option>
+                <option value="0.6">Medium (60%)</option>
+                <option value="0.85">Dark (85%)</option>
+              </select>
+            </div>
+          </div>
+        )}
       </section>
       
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr_0.9fr]">

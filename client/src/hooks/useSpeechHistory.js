@@ -86,10 +86,14 @@ export function useSpeechHistory() {
   // ── State ────────────────────────────────────────────────────────────────
   const [history, setHistory] = useState(() => readStorage(HISTORY_KEY, []));
   const [favorites, setFavorites] = useState(
-    () => new Set(readStorage(FAVS_KEY, []))
+    () => new Set(readStorage(FAVS_KEY, [])),
   );
-  const [sessionTranscript, setSessionTranscript] = useState(() => readSessionStorage(TRANSCRIPT_KEY, []));
-  const [analyticsHistory, setAnalyticsHistory] = useState(() => readStorage(ANALYTICS_KEY, []));
+  const [sessionTranscript, setSessionTranscript] = useState(() =>
+    readSessionStorage(TRANSCRIPT_KEY, []),
+  );
+  const [analyticsHistory, setAnalyticsHistory] = useState(() =>
+    readStorage(ANALYTICS_KEY, []),
+  );
 
   // ── Persistence ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -166,79 +170,74 @@ export function useSpeechHistory() {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   /**
- * Adds a message to speech history.
- *
- * Behavior:
- * - trims whitespace
- * - prevents empty messages
- * - preserves existing IDs for duplicates
- * - moves duplicate entries to top
- * - enforces MAX_HISTORY limit
- *
- * @param {string} text - Message text to store
- */
-const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
-  const trimmed = text.trim();
+   * Adds a message to speech history.
+   *
+   * Behavior:
+   * - trims whitespace
+   * - prevents empty messages
+   * - preserves existing IDs for duplicates
+   * - moves duplicate entries to top
+   * - enforces MAX_HISTORY limit
+   *
+   * @param {string} text - Message text to store
+   * @param {string} lang - Language code
+   */
+  const addMessage = useCallback((text, lang = "en-US") => {
+    const trimmed = text.trim();
 
-  if (!trimmed) return;
+    if (!trimmed) return;
 
-  const timestamp = Date.now();
+    const timestamp = Date.now();
 
-  setSessionTranscript((prev) => [
-    ...prev,
-    { text: trimmed, timestamp },
-  ]);
+    setSessionTranscript((prev) => [
+      ...prev,
+      {
+        text: trimmed,
+        timestamp,
+        status: "success",
+        language: lang,
+      },
+    ]);
 
-  // Save to IndexedDB transcripts store for Phase 3 & 4
-  saveTranscript({
-    text: trimmed,
-    voice_id: voiceId,
-    session_id: sessionId,
-    timestamp
-  }).catch((err) => console.error("Error saving transcript to IndexedDB:", err));
+    setAnalyticsHistory((prev) => {
+      const newEntry = {
+        id: crypto.randomUUID(),
+        text: trimmed,
+        timestamp,
+        language: lang,
+      };
+      const updated = [newEntry, ...prev];
+      return updated.slice(0, MAX_ANALYTICS);
+    });
 
-  setHistory((prev) => {
-    const existing = prev.find((m) => m.text === trimmed);
+    setHistory((prev) => {
+      // Check existing message
+      const existing = prev.find((m) => m.text === trimmed);
 
-    // Fixed duplicate declaration syntax error
-    const entry = existing
-      ? { ...existing, timestamp }
-      : { id: crypto.randomUUID(), text: trimmed, timestamp };
+      // Preserve existing ID if duplicate found, but update timestamp
+      // so re-spoken messages sort correctly after a page reload.
+      const updatedEntry = existing
+        ? {
+            ...existing,
+            timestamp: Date.now(),
+            tags: Array.isArray(existing.tags) ? existing.tags : [],
+          }
+        : {
+            id: crypto.randomUUID(),
+            text: trimmed,
+            timestamp: Date.now(),
+            tags: [],
+          };
 
-    // Sync to backend database
-    authFetch("/api/speech-history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: updatedEntry.id,
-        text: updatedEntry.text,
-        language_code: lang,
-        timestamp: updatedEntry.timestamp,
-        is_favorite: favorites.has(updatedEntry.id) ? 1 : 0
-      })
-    }).catch(err => console.error("Failed to save speech log:", err));
+      // Move duplicate to top instead of recreating
+      const updated = [
+        updatedEntry,
+        ...prev.filter((m) => m.id !== updatedEntry.id),
+      ];
 
-    // Sync to backend database
-    fetch("/api/speech-history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: updatedEntry.id,
-        text: updatedEntry.text,
-        language_code: lang,
-        timestamp: updatedEntry.timestamp,
-        is_favorite: favorites.has(updatedEntry.id) ? 1 : 0
-      })
-    }).catch(err => console.error("Failed to save speech log:", err));
-
-    const updated = [
-      entry,
-      ...prev.filter((m) => m.id !== entry.id),
-    ];
-
-    return updated.slice(0, MAX_HISTORY);
-  });
-}, [favorites]);
+      return updated.slice(0, MAX_HISTORY);
+    });
+  }, []);
 
   /**
    * Removes a message by id and also removes it from favorites.
@@ -250,9 +249,6 @@ const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
       next.delete(id);
       return next;
     });
-    fetch(`/api/speech-history/${id}`, {
-      method: "DELETE"
-    }).catch(err => console.error("Failed to delete speech log:", err));
   }, []);
 
   /**
@@ -291,6 +287,55 @@ const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
     setFavorites(new Set());
     setSessionTranscript([]);
   }, []);
+
+  /**
+   * Imports a history and favorites backup.
+   * Merges imported items with the existing setup, preventing text duplicates
+   * and updating favorite relationships.
+   */
+  const importBackup = useCallback(
+    (importedHistory, importedFavorites) => {
+      const mergedMap = new Map();
+      // Add existing history
+      history.forEach((m) => mergedMap.set(m.text, m));
+
+      const favIdsToAdd = [];
+      importedHistory.forEach((impMsg) => {
+        const isImportedFav = importedFavorites.includes(impMsg.id);
+        if (mergedMap.has(impMsg.text)) {
+          const existingMsg = mergedMap.get(impMsg.text);
+          if (isImportedFav) {
+            favIdsToAdd.push(existingMsg.id);
+          }
+        } else {
+          mergedMap.set(impMsg.text, impMsg);
+          if (isImportedFav) {
+            favIdsToAdd.push(impMsg.id);
+          }
+        }
+      });
+
+      const mergedList = Array.from(mergedMap.values());
+      mergedList.sort((a, b) => b.timestamp - a.timestamp);
+      const finalHistory = mergedList.slice(0, MAX_HISTORY);
+
+      const nextFavorites = new Set(favorites);
+      favIdsToAdd.forEach((id) => nextFavorites.add(id));
+
+      // Clean up favorites: only keep favorites whose IDs are in the finalHistory
+      const finalHistoryIds = new Set(finalHistory.map((m) => m.id));
+      const cleanedFavorites = new Set();
+      nextFavorites.forEach((id) => {
+        if (finalHistoryIds.has(id)) {
+          cleanedFavorites.add(id);
+        }
+      });
+
+      setHistory(finalHistory);
+      setFavorites(cleanedFavorites);
+    },
+    [history, favorites],
+  );
 
   return {
     history,

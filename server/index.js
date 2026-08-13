@@ -28,8 +28,8 @@ getDatabase().then(() => {
 if (getIsMock()) {
   console.warn(
     "\x1b[33m[VoiceForge] Mock mode active — Chatterbox calls are stubbed." +
-    " Voice clone returns a fixture voice_id; TTS streams silent audio." +
-    " Set MOCK_CHATTERBOX=false to use the real Hugging Face engine.\x1b[0m"
+      " Voice clone returns a fixture voice_id; TTS streams silent audio." +
+      " Set MOCK_CHATTERBOX=false to use the real Hugging Face engine.\x1b[0m",
   );
 }
 
@@ -43,8 +43,7 @@ const healthLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (_req, res) =>
-    res.status(429).json({ error: "Too Many Requests" })
+  handler: (_req, res) => res.status(429).json({ error: "Too Many Requests" }),
 });
 
 // Enable trust proxy so rate limiters can identify real client IPs
@@ -66,7 +65,7 @@ app.use("/api", dbRoutes);
 app.use((error, _request, response, _next) => {
   logger.error({ err: error }, "Unhandled server error");
   response.status(error.status || 500).json({
-    error: error.message || "Unexpected VoiceForge server error."
+    error: error.message || "Unexpected VoiceForge server error.",
   });
 });
 

@@ -1,13 +1,13 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  app:
+  voiceforge:
     build:
       context: .
-      dockerfile: Dockerfile
+      target: development
     ports:
-      - "5173:5173"
       - "3001:3001"
+      - "5173:5173"
     volumes:
       - .:/app
       - /app/node_modules
@@ -17,3 +17,5 @@ services:
       - .env
     environment:
       - NODE_ENV=development
+      - PORT=3001
+    command: npm run dev

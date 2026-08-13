@@ -67,15 +67,12 @@ const EMOTION_PRESETS = [
 const MAX_CHARS = 300;
 const DRAFT_KEY = "voiceforge_draft_text";
 
-export default function TextToSpeech({ onSpeak, disabled = false, status = "idle" }) {
-  const [activeEmotion, setActiveEmotion] = React.useState("neutral");
-  const [text, setText] = React.useState(() => {
-    try {
-      return sessionStorage.getItem(DRAFT_KEY) || "";
-    } catch (e) {
-      return "";
-    }
-  });
+export default function TextToSpeech({
+  onSpeak,
+  disabled = false,
+  status = "idle",
+}) {
+  const [text, setText] = React.useState("");
   const [activeEmotion, setActiveEmotion] = React.useState("neutral");
   const trimmedText = text.trim();
   const characterCount = text.length;
@@ -95,12 +92,10 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
 
   useUnsavedChanges(trimmedText.length > 0);
 
-const characterCount = text.length;
-const charsLeft = MAX_CHARS - characterCount;
+  const characterCount = text.length;
+  const charsLeft = MAX_CHARS - characterCount;
 
-  const wordCount = trimmedText
-    ? trimmedText.split(/\s+/).length
-    : 0;
+  const wordCount = trimmedText ? trimmedText.split(/\s+/).length : 0;
 
   const estimatedDuration = wordCount
     ? ((wordCount / 150) * 60).toFixed(1)
@@ -116,7 +111,8 @@ const charsLeft = MAX_CHARS - characterCount;
     durationCategory = "Long";
   }
 
-  const activePreset = EMOTION_PRESETS.find((p) => p.id === activeEmotion) || EMOTION_PRESETS[0];
+  const activePreset =
+    EMOTION_PRESETS.find((p) => p.id === activeEmotion) || EMOTION_PRESETS[0];
 
   function getCounterColor() {
     if (charsLeft < 0) return "text-red-500 font-bold";
@@ -137,7 +133,7 @@ const charsLeft = MAX_CHARS - characterCount;
   }, [onSpeak, disabled, status, isSubmitting]);
   
   async function submit() {
-    if (!trimmedText || disabled || characterCount > MAX_CHARS) return;
+    if (!trimmedText || disabled) return;
 
     // Build the final text with the emotion prompt prefix
     const finalText = activePreset.promptPrefix
@@ -152,14 +148,9 @@ const charsLeft = MAX_CHARS - characterCount;
     }
 
     await onSpeak(finalText, voice_settings_override);
+    if (!trimmedText || disabled || characterCount > MAX_CHARS) return;
+    await onSpeak(trimmedText);
     setText("");
-    try {
-      if (typeof localStorage !== "undefined") {
-        localStorage.removeItem(DRAFT_KEY);
-      }
-    } catch {
-      // Storage unavailable
-    }
   }
 
   function handleKeyDown(event) {
@@ -174,25 +165,19 @@ const charsLeft = MAX_CHARS - characterCount;
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">Type to speak</h2>
-          <p className="mt-1 text-sm text-ink/65 dark:text-muted">Press Enter to speak. Shift + Enter adds a new line.</p>
+          <p className="mt-1 text-sm text-ink/65 dark:text-muted">
+            Press Enter to speak. Shift + Enter adds a new line.
+          </p>
         </div>
         <div className="text-right">
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setText("")}
-              disabled={!text}
-              aria-label="Clear text"
-              title="Clear text"
-              className="inline-flex items-center gap-1.5 rounded-md border border-ink/10 bg-cloud px-3 py-1 text-sm font-semibold text-ink/70 transition-all duration-200 hover:border-moss/40 hover:bg-mint/40 disabled:cursor-not-allowed disabled:opacity-40 dark:border-border dark:bg-black dark:text-neutral-400 dark:hover:border-glow/40 dark:hover:bg-glow/10"
-            >
-              <Eraser size={15} aria-hidden="true" />
-              Clear
-            </button>
-            <span className={["rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold dark:border-border", getCounterColor()].join(" ")}>
-              {characterCount} / {MAX_CHARS}
-            </span>
-          </div>
+          <span
+            className={[
+              "rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold dark:border-border",
+              getCounterColor(),
+            ].join(" ")}
+          >
+            {characterCount} / {MAX_CHARS}
+          </span>
 
           <p
             aria-live="polite"
@@ -231,7 +216,9 @@ const charsLeft = MAX_CHARS - characterCount;
                     : "border-ink/10 bg-cloud text-ink/70 hover:border-moss/40 hover:bg-mint/40 dark:border-border dark:bg-black dark:text-neutral-400 dark:hover:border-glow/40 dark:hover:bg-glow/10",
                 ].join(" ")}
               >
-                <span aria-hidden="true" className="text-base">{preset.emoji}</span>
+                <span aria-hidden="true" className="text-base">
+                  {preset.emoji}
+                </span>
                 {preset.label}
               </button>
             );
@@ -239,7 +226,9 @@ const charsLeft = MAX_CHARS - characterCount;
         </div>
         {activeEmotion !== "neutral" && (
           <p className="mt-2 text-xs text-ink/50 dark:text-muted">
-            <span className="font-semibold">{activePreset.emoji} {activePreset.label}:</span>{" "}
+            <span className="font-semibold">
+              {activePreset.emoji} {activePreset.label}:
+            </span>{" "}
             {activePreset.description}
           </p>
         )}
@@ -251,8 +240,13 @@ const charsLeft = MAX_CHARS - characterCount;
         onChange={(event) => setText(event.target.value.slice(0, 300))}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        aria-label="Message for cloned voice speech"
-        className="min-h-64 flex-1 resize-none rounded-md border border-ink/15 bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:border-moss focus:ring-4 focus:ring-mint disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
+        aria-describedby="tts-char-hint"
+        className={[
+          "min-h-64 flex-1 resize-none rounded-md border bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500",
+          charsLeft < 0
+            ? "border-red-400 focus:border-red-400 focus:ring-red-100 dark:border-red-700 dark:focus:ring-red-900/30"
+            : "border-ink/15 focus:border-moss focus:ring-mint dark:border-border dark:focus:border-glow dark:focus:ring-glow/25",
+        ].join(" ")}
         placeholder="Type what you want to say..."
         title="Type your message here and press Enter to speak"
         aria-label="Text input for speech synthesis"
@@ -264,19 +258,27 @@ const charsLeft = MAX_CHARS - characterCount;
       >
         Characters: {characterCount}
       </p>
-      
+
       {charsLeft < 0 && (
-        <p id="tts-char-hint" role="alert" className="mt-2 text-xs font-semibold text-red-500">
-          {Math.abs(charsLeft)} character{Math.abs(charsLeft) !== 1 ? "s" : ""} over the 300-character limit.
+        <p
+          id="tts-char-hint"
+          role="alert"
+          className="mt-2 text-xs font-semibold text-red-500"
+        >
+          {Math.abs(charsLeft)} character{Math.abs(charsLeft) !== 1 ? "s" : ""}{" "}
+          over the 300-character limit.
         </p>
       )}
 
       <button
         type="button"
         onClick={submit}
-        disabled={disabled || !text.trim() || status === "speaking"}
-        title={status === "speaking" ? "Generating speech..." : "Speak the typed text"}
-        aria-label={status === "speaking" ? "Generating speech..." : "Speak the typed text"}
+        disabled={
+          disabled ||
+          !trimmedText ||
+          status === "speaking" ||
+          characterCount > MAX_CHARS
+        }
         className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isBusy ? (
