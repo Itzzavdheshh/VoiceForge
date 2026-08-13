@@ -5,7 +5,23 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import voiceRoutes from "./routes/voice.js";
+import dbRoutes from "./routes/dbRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import { getDatabase } from "./utils/db.js";
 import { getIsMock } from "./utils/mock.js";
+
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+
+// Initialize SQLite database
+getDatabase().then(() => {
+  console.log("[VoiceForge] SQLite Database initialized successfully.");
+}).catch((err) => {
+  console.error("[VoiceForge] Failed to initialize database:", err);
+});
 
 // Warn clearly when mock mode is active so it is never silently enabled.
 if (getIsMock()) {
@@ -42,7 +58,9 @@ app.get("/api/health", healthLimiter, (_request, response) => {
   response.json({ ok: true, service: "voiceforge-api" });
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/voice", voiceRoutes);
+app.use("/api", dbRoutes);
 
 // In production or when client/dist exists, serve compiled React SPA static files
 const staticDistPath = path.resolve(__dirname, "../client/dist");

@@ -1,7 +1,7 @@
 import React from "react";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
 import { getSavedProfiles, saveVoiceProfile } from "./useVoiceClone.js";
-import { getProfile } from "../utils/db.js";
+import { authFetch } from "../utils/auth.js";
 
 /**
  * React hook that manages Text-to-Speech (TTS) generation state.
@@ -130,7 +130,7 @@ export default function useTTS() {
       let activeVoiceId = voiceId;
       let resolvedOwnerToken = ownerToken || (await findProfileByVoiceId(voiceId))?.ownerToken || null;
 
-      let response = await fetch("/api/voice/speak", {
+      let response = await authFetch("/api/voice/speak", {
         method: "POST",
         signal: controller.signal,
         headers: {
@@ -156,7 +156,7 @@ export default function useTTS() {
           formData.append("name", profile.name);
           formData.append("voice_id", voiceId);
 
-          const cloneResponse = await fetch("/api/voice/clone", {
+          const cloneResponse = await authFetch("/api/voice/clone", {
             method: "POST",
             signal: controller.signal,
             body: formData,
@@ -164,7 +164,7 @@ export default function useTTS() {
 
           if (cloneResponse.ok) {
             // 3. Retry the speak request
-            response = await fetch("/api/voice/speak", {
+            response = await authFetch("/api/voice/speak", {
               method: "POST",
               signal: controller.signal,
               headers: {
@@ -173,6 +173,7 @@ export default function useTTS() {
               body: JSON.stringify({
                 text,
                 voice_id: voiceId,
+                owner_token: resolvedOwnerToken,
                 language_code,
                 voice_settings: voiceSettings,
               }),
@@ -191,7 +192,7 @@ export default function useTTS() {
             formData.append("audio", profile.audioBlob, "voiceforge-reference.webm");
             formData.append("name", profile.name);
 
-            const cloneResponse = await fetch("/api/voice/clone", {
+            const cloneResponse = await authFetch("/api/voice/clone", {
               method: "POST",
               signal: controller.signal,
               body: formData,
@@ -220,7 +221,7 @@ export default function useTTS() {
               resolvedOwnerToken = updatedProfile.ownerToken;
 
               // Retry the speak request after silent re-cloning succeeds
-              response = await fetch("/api/voice/speak", {
+              response = await authFetch("/api/voice/speak", {
                 method: "POST",
                 signal: controller.signal,
                 headers: {
