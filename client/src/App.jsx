@@ -4,6 +4,7 @@ import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu,
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
+import VoiceForge from "./components/VoiceForge";
 import Analytics from "./pages/Analytics.jsx";
 import VoiceForge from "./components/VoiceForge.jsx";
 import { useTheme } from "./components/ThemeContext.jsx";
@@ -19,6 +20,11 @@ import AuthView from "./components/AuthView.jsx";
 import { clearStorage } from "./utils/db.js";
 
 const tabs = [
+  { id: "onboarding", label: "Onboarding", icon: Mic2 },
+  { id: "call", label: "Call", icon: Camera },
+  { id: "compose", label: "Compose", icon: MessageSquare },
+  { id: "settings", label: "Settings", icon: SettingsIcon },
+  { id: "contributors", label: "Contributors", icon: Users },
   { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
   { id: "call",         label: "Call",          icon: Camera },
   { id: "compose",      label: "Compose",       icon: MessageSquare },
@@ -34,19 +40,9 @@ const tabs = [
 const DEFAULT_TAB = "onboarding";
 const tabIds = new Set(tabs.map((tab) => tab.id));
 
-// We intentionally use sessionStorage (not localStorage) here so that the
-// active tab is only remembered for the lifetime of the current browser tab.
-// This keeps in-session navigation (e.g. refreshing while on Compose) smooth,
-// while making it much more likely that a fresh visit (a new tab/window
-// opened independently, or reopening after the browser was fully closed)
-// lands back on Onboarding. Note: this isn't an absolute guarantee in every
-// browser/scenario (e.g. sessionStorage is inherited when a tab is opened
-// via window.open from an existing VoiceForge tab, and some browsers'
-// session-restore features can preserve it across restarts), but it's a
-// meaningful improvement over localStorage, which persisted indefinitely.
 function getSavedTab() {
   try {
-    const saved = sessionStorage.getItem("voiceforge:activeTab");
+    const saved = localStorage.getItem("voiceforge:activeTab");
     return tabIds.has(saved) ? saved : DEFAULT_TAB;
   } catch {
     return DEFAULT_TAB;
@@ -55,7 +51,7 @@ function getSavedTab() {
 
 function saveActiveTab(tab) {
   try {
-    sessionStorage.setItem("voiceforge:activeTab", tab);
+    localStorage.setItem("voiceforge:activeTab", tab);
   } catch {
     // Storage can be unavailable in private or restricted browser contexts.
   }
@@ -116,10 +112,18 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [shortcutsOpen]);
 
+  function scrollToTop() {
+    window.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+  }
   function selectTab(tab) {
     if (!tabIds.has(tab)) return;
+
     saveActiveTab(tab);
     setActiveTab(tab);
+    scrollToTop();
   }
 
   // Arrow key navigation for desktop nav tabs (WAI-ARIA Tabs pattern)
@@ -153,11 +157,15 @@ export default function App() {
   // Support navigation to non-tab routes such as the privacy policy.
   function navigateTo(route) {
     if (route === "privacy-policy") {
+      scrollToTop();
       setActiveTab("privacy-policy");
       return;
     }
+
     selectTab(route);
   }
+
+  // Support navigation to non-tab routes such as the privacy policy.
 
   // On initial load, honor direct links to /privacy-policy
   React.useEffect(() => {
@@ -194,6 +202,28 @@ export default function App() {
   }, []);
 
   return (
+    <div className="min-h-screen flex flex-col bg-cloud text-ink dark:bg-night dark:text-neutral-100">
+
+      {/* Global Header */}
+      <header className="sticky top-0 z-50 border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          {/* Logo + Title */}
+          <div
+            className="flex items-center gap-3 min-w-0 cursor-pointer"
+            onClick={() => selectTab("onboarding")}
+            role="button"
+            tabIndex={0}
+            aria-label="Go to home"
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectTab("onboarding")}
+          >
+            <img
+              src="/models/logo5.png"
+              alt="VoiceForge Logo"
+              className="h-10 w-10 flex-shrink-0 object-contain sm:h-12 sm:w-12"
+            />
+            <div className="min-w-0">
+              <p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow sm:block">
+                Open source assistive video
     <div className="min-h-screen bg-cloud text-ink dark:bg-night dark:text-neutral-100">
       <OnboardingTour activeTab={activeTab} onSelectTab={selectTab} />
       <header className="border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
