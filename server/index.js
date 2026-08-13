@@ -5,9 +5,11 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import voiceRoutes from "./routes/voice.js";
+import authRoutes from "./routes/authRoutes.js";
 import dbRoutes from "./routes/dbRoutes.js";
 import { getDatabase } from "./utils/db.js";
 import { getIsMock } from "./utils/mock.js";
+import { logger } from "./utils/logger.js";
 
 import path from "path";
 import { fileURLToPath } from "url";

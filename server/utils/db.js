@@ -43,6 +43,13 @@ export async function getDatabase() {
       is_favorite INTEGER DEFAULT 0,
       timestamp INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   return dbInstance;
