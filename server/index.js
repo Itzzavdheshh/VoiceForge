@@ -114,14 +114,20 @@ app.use(
       if (!origin || origin === allowedOrigin) {
         callback(null, true);
       } else {
-        callback(null, false);
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+app.use((err, req, res, next) => {
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({ error: err.message });
+  }
+  next(err);
+});
 app.use(express.json({ limit: "1mb" }));
 
 // Rate limiter for voice API endpoints to prevent quota abuse.
