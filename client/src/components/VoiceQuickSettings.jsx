@@ -192,9 +192,9 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             onChange={updateSetting("pitch")}
           />
           <SliderRow
-            id="vqs-pitch"
-            label="Voice Pitch"
-            description="Adjust voice pitch."
+            id="vqs-dsp-pitch"
+            label="Voice Pitch (DSP)"
+            description="Adjust voice pitch via DSP engine."
             value={settings.dspPitch}
             onChange={updateSetting("dspPitch")}
             min={0.5}
@@ -202,9 +202,9 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             step={0.05}
           />
           <SliderRow
-            id="vqs-speed"
-            label="Speech Pace (Speed)"
-            description="Adjust speech playback speed."
+            id="vqs-dsp-speed"
+            label="Speech Pace (DSP)"
+            description="Adjust speech playback speed via DSP engine."
             value={settings.dspSpeed}
             onChange={updateSetting("dspSpeed")}
             min={0.5}
@@ -212,7 +212,7 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             step={0.05}
           />
           <SliderRow
-            id="vqs-speed"
+            id="vqs-api-speed"
             label="Playback Speed"
             description="Lower → slower delivery. Higher → faster delivery."
             value={settings.speed ?? 1.0}
@@ -222,7 +222,7 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             onChange={updateSetting("speed")}
           />
           <SliderRow
-            id="vqs-pitch"
+            id="vqs-api-pitch"
             label="Simulated Pitch Shift"
             description="Adjust the synthesized voice pitch tones."
             value={settings.pitch ?? 0.5}
