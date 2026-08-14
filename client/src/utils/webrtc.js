@@ -76,6 +76,13 @@ export function receiveDataInChunks(dataChannel, onComplete) {
       currentSize += event.data.byteLength;
     }
   };
+export function monitorPeerConnection(pc, onError) {
+  if (!pc) return;
+  pc.oniceconnectionstatechange = () => {
+    if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+      onError?.(new Error(`WebRTC ICE connection state: ${pc.iceConnectionState}`));
+    }
+  };
 }
 
 export function waitForICEConnection(peerConnection, timeoutMs = 15000) {
