@@ -59,11 +59,11 @@ export function encodeWAV(audioBuffer, startOffset = 0, endOffset = null, option
 
   let offset = 44;
   for (let i = 0; i < numSamples; i++) {
-    const idx = startSample + i;
-    if (numChannels === 1 && originalChannels > 1) {
-      // Downmix stereo to mono
-      const monoSample = (channelData[0][idx] + channelData[1][idx]) / 2;
-      const clamped = Math.max(-1, Math.min(1, monoSample));
+      const rawSample = channelData[c][startSample + i];
+      const safeSample = isNaN(rawSample) ? 0 : rawSample;
+      // Clamp sample to [-1, 1]
+      const clamped = Math.max(-1, Math.min(1, safeSample));
+      // Convert to 16-bit PCM integer
       const pcmSample = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
       view.setInt16(offset, pcmSample, true);
       offset += 2;
