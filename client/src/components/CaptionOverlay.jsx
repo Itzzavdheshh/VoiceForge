@@ -6,10 +6,19 @@ export default function CaptionOverlay({
   isEnabled,
   position,
   fontSize,
+  text = "",
   onToggle,
   onPositionChange,
   onFontSizeChange,
 }) {
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [text]);
+
   return (
     <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
       <div className="flex items-center justify-between mb-3">
@@ -77,6 +86,16 @@ export default function CaptionOverlay({
               ))}
             </div>
           </div>
+
+          {/* Live Preview Scroll Box */}
+          {text && (
+            <div
+              ref={containerRef}
+              className="max-h-24 overflow-y-auto rounded-md bg-cloud p-2 text-xs text-ink/80 scroll-smooth dark:bg-night dark:text-neutral-200"
+            >
+              {text}
+            </div>
+          )}
 
           <p className="text-xs text-ink/50 dark:text-muted italic">
             Captions appear on the video canvas as you type.
