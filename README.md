@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 10] healthcare governance mode - caregiver pin lock for preset protection (#336)
+# TODO: [phase 11] pitch and speed sliders - real-time voice controls in quick settings (#337)
