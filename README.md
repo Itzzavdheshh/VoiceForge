@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #524: feat:
+<!-- fix: docs: add "Development Workflow & Local-First Architecture"  (#523) -->
