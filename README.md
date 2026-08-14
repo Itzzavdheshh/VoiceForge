@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #450: [BUG] MediaStream Track Memory Leak
+# TODO: fix for #447: feat: Handle IndexedDB Quota and Incognito Failures
