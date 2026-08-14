@@ -1,19 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { useToast, ToastContainer } from "./useToast.jsx";
-import { Plus, X, Check, Pencil } from "lucide-react";
+import React from "react";
 
-const CATEGORIES = ["General", "Social", "Needs", "Urgent"];
-
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-const DEFAULT_QUICK_REPLIES = [
-  { id: generateId(), label: "Hello", phrase: "Hello", category: "Social" },
-  { id: generateId(), label: "Thank you", phrase: "Thank you", category: "Social" },
-  { id: generateId(), label: "Please wait", phrase: "Please wait", category: "Urgent" },
-  { id: generateId(), label: "I need help", phrase: "I need help", category: "Urgent" },
-  { id: generateId(), label: "Can you repeat that?", phrase: "Can you repeat that?", category: "Needs" },
-  { id: generateId(), label: "Yes, I understand", phrase: "Yes, I understand", category: "Social" },
-  { id: generateId(), label: "No, thank you", phrase: "No, thank you", category: "Needs" },
+const QUICK_REPLIES = [
+  { label: "Hello", phrase: "Hello" },
+  { label: "Thank you", phrase: "Thank you" },
+  { label: "Please wait", phrase: "Please wait" },
+  { label: "I need help", phrase: "I need help" },
+  { label: "Repeat that?", phrase: "Can you repeat that?" },
+  { label: "Yes", phrase: "Yes, I understand" },
+  { label: "No thanks", phrase: "No, thank you" },
 ];
 
 const STORAGE_KEY = "vf_quick_replies";
@@ -259,46 +253,30 @@ const handleEditKeyDown = (e, oldPhrase) => {
   return (
     <section
       aria-labelledby="qr-heading"
-      className="flex-shrink-0 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-background"
+      className="flex-shrink-0 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-black"
     >
-      <div className="mb-2 flex items-center justify-between">
-        <h3
-          id="qr-heading"
-          className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500"
-        >
-          Quick replies
-        </h3>
-        <div className="flex items-center gap-3">
-          {isEditing && (
-            <button
-              onClick={() => {
-                setEditingReplyId(null);
-                setEditingReplyData(null);
-                setIsAdding(true);
-              }}
-              className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-              aria-label="Add new quick reply"
-            >
-              <Plus size={12} aria-hidden="true" />
-              Add
-            </button>
-          )}
+      <h3
+        id="qr-heading"
+        className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500"
+      >
+        Quick replies
+      </h3>
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Quick reply phrases">
+        {QUICK_REPLIES.map(({ label, phrase }) => (
           <button
-            onClick={() => {
-              setIsEditing(!isEditing);
-              setIsAdding(false);
-              setEditingReplyId(null);
-              setEditingReplyData(null);
-              setNewPhrase("");
-              setEditingPhrase(null);
-              setEditedValue("");
-            }}
-            className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 transition-colors"
-            aria-label={
-              isEditing
-                ? "Done customizing quick replies"
-                : "Customize quick replies"
-            }
+            key={phrase}
+            onClick={() => onSelect(phrase)}
+            className={[
+              "rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5",
+              "text-sm text-neutral-700 transition-all duration-150",
+              "hover:-translate-y-px hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700",
+              "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1",
+              "active:translate-y-0 active:scale-95",
+              "dark:border-border dark:bg-surface dark:text-neutral-300",
+              "dark:hover:border-blue-500 dark:hover:bg-blue-500/15 dark:hover:text-blue-300 dark:focus:ring-offset-black",
+            ].join(" ")}
+            aria-label={`Quick reply: ${phrase}`}
           >
             {isEditing ? "Done" : "Customize"}
           </button>

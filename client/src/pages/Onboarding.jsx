@@ -351,63 +351,33 @@ export default function Onboarding({ onReady }) {
 
   return (
     <div className="space-y-6">
-      <ToastContainer />
-      
-      {/* HEADER BANNER */}
       <section className="rounded-lg bg-black p-6 text-white shadow-soft dark:border dark:border-border dark:bg-surface dark:shadow-soft-dk">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-mint">
-              Step {activeStep} of 3
+              Step 1 of 3
             </p>
             <h2 className="mt-2 text-3xl font-bold">
-              {stepContent[activeStep].title}
+              Create your voice profile
             </h2>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-ink/75 dark:text-white/75">
-              {stepContent[activeStep].description}
+            <p className="mt-3 max-w-3xl text-base leading-7 text-white/75">
+              Record a short, consent-based reference clip. VoiceForge sends it
+              to ElevenLabs through your local server and saves the returned
+              voice ID in this browser.
             </p>
           </div>
-          
-          {/* STEP PROGRESS INDICATORS COMPONENT GRID */}
-          <ol className="grid w-full grid-cols-3 gap-2 sm:max-w-xs lg:max-w-sm" aria-label={`Onboarding progress, Step ${activeStep} of 3`}>
-            {stepContent[activeStep].labels.map((label, index) => {
-              let isBarFilled = false;
-              let isCurrent = false;
-
-              if (activeStep === 1) {
-                if (index === 0) isBarFilled = true;
-                if (index === 1 && recording) isBarFilled = true;
-                if (index === 2 && (successProfile || maxUnlockedStep >= 2)) isBarFilled = true;
-
-                if (index === 2 && (successProfile || maxUnlockedStep >= 2)) isCurrent = true;
-                else if (index === 1 && recording && !(successProfile || maxUnlockedStep >= 2)) isCurrent = true;
-                else if (index === 0 && !recording) isCurrent = true;
-              } else if (activeStep === 2) {
-                if (index === 0) isBarFilled = true;
-                if (index === 1) isBarFilled = true;
-                if (index === 2 && maxUnlockedStep >= 3) isBarFilled = true;
-
-                if (index === 2 && maxUnlockedStep >= 3) isCurrent = true;
-                else if (index === 1 && !(maxUnlockedStep >= 3)) isCurrent = true;
-              } else if (activeStep === 3) {
-                isBarFilled = true;
-                if (index === 2) isCurrent = true;
-              }
-
-              return (
-                <li key={label} aria-current={isCurrent ? "step" : undefined}>
-                  <span className="sr-only">
-                    {isCurrent ? `Current: ${label}` : isBarFilled ? `Completed: ${label}` : `Upcoming: ${label}`}
-                  </span>
-                  <div
-                    className={`h-2 rounded-full transition-all duration-300 ${isBarFilled ? "bg-coral" : "bg-ink/15 dark:bg-white/25"}`}
-                    aria-hidden="true"
-                    title={label}
-                  />
-                </li>
-              );
-            })}
-          </ol>
+          <div
+            className="grid w-full max-w-sm grid-cols-3 gap-2"
+            aria-label="Onboarding progress"
+          >
+            {["Record", "Clone", "Call"].map((step, index) => (
+              <div
+                key={step}
+                className={`h-2 rounded-full ${index === 0 ? "bg-coral" : "bg-white/25"}`}
+                title={step}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -424,123 +394,52 @@ export default function Onboarding({ onReady }) {
             </div>
           )}
 
-          <VoiceRecorder 
-            onRecordingReady={(blob, meta) => setRecording(blob ? { blob, ...meta } : null)} 
-            disabled={isCloning} 
+      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
+        <label
+          className="block text-sm font-bold text-ink dark:text-neutral-100"
+          htmlFor="voice-name"
+        >
+          Voice profile name
+        </label>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <input
+            id="voice-name"
+            value={voiceName}
+            onChange={(event) => setVoiceName(event.target.value)}
+            className="min-h-11 flex-1 rounded-md border border-ink/15 bg-cloud px-3 text-ink outline-none focus:border-moss focus:ring-4 focus:ring-mint dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
           />
-
-          <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
-            <label className="block text-sm font-bold text-ink dark:text-neutral-100" htmlFor="voice-name">
-              Voice profile name
-            </label>
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-              <input
-                id="voice-name"
-                ref={setVoiceNameRef}
-                value={voiceName}
-                onChange={(event) => setVoiceName(event.target.value)}
-                disabled={isCloning}
-                maxLength={MAX_NAME_LENGTH}
-                aria-describedby="voice-name-feedback"
-                aria-invalid={nameError ? "true" : undefined}
-                className={[
-                  "min-h-11 flex-1 rounded-md border px-3 text-ink outline-none transition",
-                  "focus:ring-4 focus:ring-mint dark:bg-black dark:text-neutral-100",
-                  nameError
-                    ? "border-coral focus:border-coral dark:border-coral/70"
-                    : "border-ink/15 focus:border-moss dark:border-border",
-                  "bg-cloud dark:bg-black",
-                ].join(" ")}
-              />
-              <button
-                type="button"
-                onClick={handleClone}
-                disabled={isCloning || !hasKey || !recording || recording.duration < 10 || Boolean(nameError)}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isCloning && <Loader2 className="animate-spin" size={18} />}
-                Clone voice
-              </button>
-            </div>
-
-            {/* Name validation feedback + character counter */}
-            <div
-              id="voice-name-feedback"
-              className="mt-1.5 flex items-center justify-between gap-2 text-xs"
+          <button
+            type="button"
+            onClick={handleClone}
+            disabled={!recording || isCloning}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isCloning && (
+              <Loader2 className="animate-spin" size={18} aria-hidden="true" />
+            )}
+            Clone voice
+          </button>
+        </div>
+        {isCloning && (
+          <p className="mt-3 text-sm font-semibold text-moss dark:text-glow">
+            Cloning in progress. This can take a moment on the free tier.
+          </p>
+        )}
+        {error && (
+          <p className="mt-3 text-sm font-semibold text-coral">{error}</p>
+        )}
+        {successProfile && (
+          <div className="mt-4 flex flex-col gap-3 rounded-md bg-mint p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-glow/15">
+            <p className="inline-flex items-center gap-2 font-bold text-ink dark:text-neutral-50">
+              <CheckCircle2 size={20} aria-hidden="true" />
+              Voice cloned successfully
+            </p>
+            <button
+              type="button"
+              onClick={onReady}
+              className="rounded-md bg-black px-4 py-2 font-bold text-white dark:bg-glow dark:text-black"
             >
-              {nameError ? (
-                <p className="flex items-center gap-1 font-semibold text-coral" role="alert">
-                  <CircleAlert size={13} aria-hidden="true" />
-                  {nameError}
-                </p>
-              ) : (
-                <span />
-              )}
-              <span
-                className={[
-                  "tabular-nums",
-                  voiceName.length >= 90
-                    ? "font-semibold text-coral"
-                    : "text-ink/45 dark:text-muted",
-                ].join(" ")}
-                aria-live="polite"
-                aria-label={`${voiceName.length} of ${MAX_NAME_LENGTH} characters used`}
-              >
-                {voiceName.length}/{MAX_NAME_LENGTH}
-              </span>
-            </div>
-
-            {/* Render actual API errors transparently instead of swallowing failures */}
-            {apiError && (
-              <p className="mt-3 text-sm font-semibold text-coral flex items-center gap-1.5" role="alert">
-                <CircleAlert size={16} />
-                {apiError}
-              </p>
-            )}
-            
-            {(successProfile || maxUnlockedStep >= 2) && (
-              <div className="mt-4 flex flex-col gap-3 rounded-md bg-mint p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-glow/15">
-                <p className="inline-flex items-center gap-2 font-bold text-ink dark:text-neutral-50">
-                  <CheckCircle2 size={20} className="text-moss dark:text-glow" />
-                  Voice profile setup verified!
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setActiveStep(2)}
-                  className="inline-flex items-center gap-2 rounded-md bg-black px-4 py-2 font-bold text-white dark:bg-glow dark:text-black"
-                >
-                  Continue to Step 2
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            )}
-          </section>
-        </>
-      )}
-
-      {/* STEP 2 */}
-      {activeStep === 2 && (
-        <Step2VoiceSettings
-          onBack={() => setActiveStep(1)}
-          onContinue={() => { setMaxUnlockedStep(3); setActiveStep(3); }}
-        />
-      )}
-
-      {/* STEP 3 */}
-      {activeStep === 3 && (
-        <section className="rounded-lg border border-ink/10 bg-white p-6 shadow-soft dark:border-border dark:bg-surface">
-          <h3 className="text-xl font-bold text-ink dark:text-neutral-100">Ready for Activation</h3>
-          <p className="mt-2 text-sm text-neutral-500">Your custom voice template setup is complete.</p>
-          <div className="my-6 p-12 border-2 border-dashed border-ink/10 rounded-md text-center text-neutral-400">
-            Pipeline deployment status diagnostics verify operational conditions are ideal.
-          </div>
-          
-          <div className="flex justify-between items-center border-t pt-4">
-            <button type="button" onClick={() => setActiveStep(2)} className="text-sm font-bold text-ink dark:text-neutral-300 hover:underline">
-              ← Back to Settings
-            </button>
-            <button type="button" onClick={onReady} className="rounded-md bg-black px-5 py-2 font-bold text-white dark:bg-glow dark:text-black">
-              Complete Setup & Go to Call
+              Continue to call
             </button>
           </div>
         </section>

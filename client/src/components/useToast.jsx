@@ -13,10 +13,9 @@ export function useToast(duration = 2200) {
     };
   }, []);
 
-  const showToast = useCallback(
-    (message, type = "success") => {
-      const id = ++nextId;
-      setToasts((previous) => [...previous, { id, message, type }]);
+  const showToast = useCallback((message, type = "success") => {
+    const id = ++nextId;
+    setToasts((previous) => [...previous, { id, message, type }]);
 
     timers.current[id] = setTimeout(() => {
       setToasts((previous) => previous.filter((toast) => toast.id !== id));
@@ -27,10 +26,8 @@ export function useToast(duration = 2200) {
   return { toasts, showToast };
 }
 
-// FIX: Added default value for toasts prop to prevent undefined error
-export function ToastContainer({ toasts = [] }) {
-  // Guard clause to handle undefined or empty array
-  if (!toasts || toasts.length === 0) return null;
+export function ToastContainer({ toasts }) {
+  if (toasts.length === 0) return null;
 
   return (
     <div
@@ -39,12 +36,7 @@ export function ToastContainer({ toasts = [] }) {
       className="pointer-events-none fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2"
     >
       {toasts.map((toast) => {
-        const Icon =
-          toast.type === "error"
-            ? AlertTriangle
-            : toast.type === "info"
-              ? Info
-              : Check;
+        const Icon = toast.type === "error" ? AlertTriangle : toast.type === "info" ? Info : Check;
         return (
           <div
             key={toast.id}

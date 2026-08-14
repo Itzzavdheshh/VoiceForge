@@ -1,14 +1,11 @@
 // Coordinates top-level navigation, saved voice state, and page rendering for VoiceForge.
 import React from "react";
-import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu, X, Users, Info, BarChart2, FolderOpen, Heart } from "lucide-react";
+import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon } from "lucide-react";
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
 import VoiceForge from "./components/VoiceForge";
-import Analytics from "./pages/Analytics.jsx";
-import VoiceForge from "./components/VoiceForge.jsx";
 import { useTheme } from "./components/ThemeContext.jsx";
-import Footer from "./components/footer";
 
 const tabs = [
   { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
@@ -151,33 +148,16 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-dvh flex flex-col bg-cloud text-ink dark:bg-night dark:text-neutral-100">
-      
-      {/* Global Header */}
-      <header className="sticky top-0 z-40 border-b border-ink/10 bg-white/70 backdrop-blur-md dark:border-border dark:bg-surface/70">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          {/* Logo + Title */}
-            <div
-              className="flex items-center gap-3 min-w-0 cursor-pointer"
-              onClick={() => selectTab("onboarding")}
-              role="button"
-              tabIndex={0}
-              aria-label="Go to home"
-              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectTab("onboarding")}
-            >
-              <img
-                src="/models/logo5.png"
-                alt="VoiceForge Logo"
-                className="h-10 w-10 flex-shrink-0 object-contain sm:h-12 sm:w-12"
-              />
-            <div className="min-w-0">
-              <p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow sm:block">
-                Open source assistive video
-              </p>
-              <h1 className="text-xl font-bold tracking-normal text-ink dark:text-neutral-50 sm:text-2xl lg:text-3xl">
-                VoiceForge
-              </h1>
-            </div>
+    <main className="min-h-screen bg-cloud text-ink dark:bg-night dark:text-neutral-100">
+      <header className="border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow">
+              Open source assistive video
+            </p>
+            <h1 className="mt-1 text-3xl font-bold tracking-normal text-ink dark:text-neutral-50">
+              VoiceForge
+            </h1>
           </div>
 
           {/* Mobile: theme toggle only */}

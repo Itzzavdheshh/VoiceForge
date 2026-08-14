@@ -1,5 +1,5 @@
-﻿import React, { useMemo, useState, useDeferredValue } from "react";
-import { ChevronLeft, ChevronRight, Inbox, Pin, Search, Trash2, Download } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Inbox, Pin, Search, Trash2 } from "lucide-react";
 import { MessageCard } from "./MessageCard";
 import useDebounce from "../hooks/useDebounce";
 
@@ -24,13 +24,13 @@ export function SpeechHistory({
   const visible = useMemo(() => {
     let messages = tab === "pinned" ? history.filter((message) => favorites.has(message.id)) : history;
 
-    if (debouncedSearch.trim()) {
-      const query = debouncedSearch.toLowerCase();
+    if (search.trim()) {
+      const query = search.toLowerCase();
       messages = messages.filter((message) => message.text.toLowerCase().includes(query));
     }
 
     return messages;
-  }, [history, favorites, tab, debouncedSearch]);
+  }, [history, favorites, tab, search]);
 
   const tabs = ["all", "pinned"];
 
@@ -49,63 +49,12 @@ export function SpeechHistory({
     }
   }
 
-  function handleExportTranscript() {
-    if (!sessionTranscript || sessionTranscript.length === 0) return;
-    
-    const formattedText = sessionTranscript
-      .map(item => `[${new Date(item.timestamp).toLocaleTimeString()}] ${item.text}`)
-      .join("\n");
-      
-    const blob = new Blob([formattedText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Transcript-${new Date().toISOString().split("T")[0]}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleExportCSV() {
-    if (!sessionTranscript || sessionTranscript.length === 0) return;
-    const headers = ["Timestamp", "Text"];
-    const rows = sessionTranscript.map(item => [
-      new Date(item.timestamp).toLocaleString(),
-      `"${item.text.replace(/"/g, '""')}"`
-    ]);
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.href = encodedUri;
-    link.download = `voiceforge_transcript_${Date.now()}.csv`;
-    link.click();
-  }
-
-  function handleExportJSON() {
-    if (!sessionTranscript || sessionTranscript.length === 0) return;
-    const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sessionTranscript, null, 2));
-    const link = document.createElement("a");
-    link.href = jsonStr;
-    link.download = `voiceforge_transcript_${Date.now()}.json`;
-    link.click();
-  }
-
-  function handleSummarize() {
-    if (!sessionTranscript || sessionTranscript.length === 0) return;
-    const texts = sessionTranscript.map(t => t.text).join(" ");
-    const wordCount = texts.split(/\s+/).filter(Boolean).length;
-    const sentences = texts.match(/[^.!?]+[.!?]+/g) || [texts];
-    const summary = sentences.slice(0, 2).join(" ") || texts;
-    
-    alert(`Conversation Analytics Summary:\n\n- Active Session Word Count: ${wordCount} words\n- Sentences summary: "${summary}"\n- Sentiment Trend: Neutral/Informative`);
-  }
-
   return (
     <aside
       className={[
         "flex flex-shrink-0 flex-col border-r border-neutral-200 bg-neutral-50",
-        "h-full transition-all duration-200 dark:border-border dark:bg-black",
-        collapsed ? "w-12" : "w-[min(80vw,320px)]",
+        "transition-all duration-200 dark:border-border dark:bg-black",
+        collapsed ? "w-12" : "w-80",
       ].join(" ")}
       aria-label="Speech history"
     >
@@ -194,7 +143,7 @@ export function SpeechHistory({
             tabIndex={0}
           >
             {visible.length === 0 ? (
-              <EmptyState tab={tab} hasSearch={Boolean(debouncedSearch.trim())} />
+              <EmptyState tab={tab} hasSearch={Boolean(search.trim())} />
             ) : (
               <ul className="space-y-2" aria-label="Message list">
                 {visible.map((message) => (
@@ -217,42 +166,9 @@ export function SpeechHistory({
           </div>
 
           {history.length > 0 && (
-            <div className="flex flex-col gap-2 flex-shrink-0 border-t border-neutral-200 p-2 dark:border-border">
-              {sessionTranscript && sessionTranscript.length > 0 && (
-                <div className="space-y-1.5 w-full">
-                  <button
-                    onClick={handleExportTranscript}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600 transition hover:border-blue-300 hover:bg-blue-50 dark:border-border dark:text-neutral-300 dark:hover:bg-blue-900/20"
-                  >
-                    <Download size={13} aria-hidden="true" />
-                    Export TXT
-                  </button>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      onClick={handleExportCSV}
-                      className="flex items-center justify-center gap-1.5 rounded-md border border-neutral-200 py-1 text-[11px] text-neutral-600 transition hover:border-blue-300 hover:bg-blue-50 dark:border-border dark:text-neutral-300 dark:hover:bg-blue-900/20"
-                    >
-                      Export CSV
-                    </button>
-                    <button
-                      onClick={handleExportJSON}
-                      className="flex items-center justify-center gap-1.5 rounded-md border border-neutral-200 py-1 text-[11px] text-neutral-600 transition hover:border-blue-300 hover:bg-blue-50 dark:border-border dark:text-neutral-300 dark:hover:bg-blue-900/20"
-                    >
-                      Export JSON
-                    </button>
-                  </div>
-                  <button
-                    onClick={handleSummarize}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-md border border-moss bg-moss text-white px-3 py-1.5 text-xs font-bold hover:bg-moss/90 dark:border-glow dark:bg-glow dark:text-black"
-                  >
-                    Summarize Session
-                  </button>
-                </div>
-              )}
+            <div className="flex-shrink-0 border-t border-neutral-200 p-2 dark:border-border">
               <button
                 onClick={handleClearHistory}
-                title="Clear all speech history"
-                aria-label="Clear all speech history"
                 className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-border dark:hover:border-red-800 dark:hover:bg-red-500/15 dark:hover:text-red-400"
               >
                 <Trash2 size={13} aria-hidden="true" />
@@ -279,31 +195,6 @@ function EmptyState({ tab, hasSearch }) {
       ? "Pin a message to keep it here."
       : "Speak a message to get started.";
 
-
-  function handleExportCSV() {
-    if (!sessionTranscript || sessionTranscript.length === 0) return;
-    const headers = ["Timestamp", "Text"];
-    const rows = sessionTranscript.map(item => [
-      new Date(item.timestamp).toLocaleString(),
-      `"${item.text.replace(/"/g, '""')}"`
-    ]);
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.href = encodedUri;
-    link.download = `voiceforge_transcript_${Date.now()}.csv`;
-    link.click();
-  }
-
-  function handleExportJSON() {
-    if (!sessionTranscript || sessionTranscript.length === 0) return;
-    const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sessionTranscript, null, 2));
-    const link = document.createElement("a");
-    link.href = jsonStr;
-    link.download = `voiceforge_transcript_${Date.now()}.json`;
-    link.click();
-  }
   return (
     <div className="flex flex-col items-center py-10 text-center text-sm text-neutral-400">
       <Icon size={28} aria-hidden="true" className="mb-2" />

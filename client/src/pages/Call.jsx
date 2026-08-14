@@ -92,23 +92,15 @@ export default function Call() {
 
     async function loadActiveProfile() {
       try {
-        const profile = await getActiveVoiceProfile();
-
-        if (!isMounted) return;
-
-        if (!profile) {
-          setActiveProfile(null);
-          setDbError("No voice profile found");
-          return;
-        }
-
-        setActiveProfile(profile);
-        setDbError("");
-      } catch (err) {
-        console.error("Profile load failed:", err);
-
-        if (!isMounted) return;
-        setDbError(err?.message || String(err));
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        activeStream = stream;
+        setWebcamStream(stream);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      } catch (webcamError) {
+        setCameraError(webcamError.message);
       }
     }
     loadActiveProfile();
@@ -237,20 +229,17 @@ export default function Call() {
 
   // ---------------- SAFE SPEAK FUNCTION ----------------
   async function handleSpeak(text) {
+    if (!activeProfile?.voice_id) return;
     try {
-      if (!activeProfile?.voice_id) {
-        showToast("No voice profile selected", "error");
-        return;
-      }
-
-      await speak({
-    return {
-      xOffset: x,
-      yOffset: y,
-      scale
-    };
-  } catch {
-    return { xOffset: 0, yOffset: 0, scale: 1.0 };
+      const result = await speak({ text, voiceId: activeProfile.voice_id });
+      setIsSpeaking(true);
+      const audio = new Audio(result.audioUrl);
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => setIsSpeaking(false);
+      await audio.play();
+    } catch {
+      setIsSpeaking(false);
+    }
   }
 });
 
@@ -394,13 +383,6 @@ export default function Call() {
             Voice: {activeProfile?.name || "No profile"}
           </span>
       {/* ── Header card ───────────────────────────────────────────────────── */}
-      {engine === "browser" && (
-      <div inert={isSpeechActive ? "" : undefined} className="space-y-5">
-        {engine === "browser" && (
-        <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm font-medium text-yellow-800">
-          Using Browser Voice (Offline Mode)
-        </div>
-      )}
       <section className="rounded-lg border border-ink/10 bg-white p-4 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -422,22 +404,9 @@ export default function Call() {
         </div>
       </section>
 
-      {/* ERRORS */}
-      {dbError && (
-        <div className="p-3 border border-red-300 text-red-600">
-          {dbError}
-        <div
-          role="alert"
-          className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink"
-        >
-        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink">
-          <CircleAlert size={18} aria-hidden="true" />
-          <span>Database Error: {dbError}. Please ensure IndexedDB is enabled and not blocked.</span>
-        </div>
-      )}
-
-      {!activeProfile && !dbError && (
-        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink dark:text-neutral-200">
+      {/* ── No profile warning ─────────────────────────────────────────────── */}
+      {!activeProfile && (
+        <div className="flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-4 text-sm font-semibold text-ink dark:border-coral/30 dark:bg-coral/10 dark:text-neutral-200">
           <CircleAlert size={18} aria-hidden="true" />
           Create or select a voice profile before speaking.
         </div>
@@ -662,7 +631,7 @@ export default function Call() {
 
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr_0.9fr]">
         {/* Webcam panel */}
-        <section inert={isSpeechActive ? "" : undefined} className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
+        <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
           <div className="mb-4 flex items-center gap-2">
             <Camera
               size={19}

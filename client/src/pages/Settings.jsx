@@ -1,69 +1,16 @@
 // Lets users manage browser-stored voice profiles and configure voice synthesis settings.
 import React from "react";
-import {
-  DEFAULT_VOICE_SETTINGS,
-  loadVoiceSettings,
-  persistVoiceSettings,
-  VOICE_PRESETS,
-} from "../utils/voiceSettings.js";
-import {
-  loadLanguage,
-  persistLanguage,
-  getLanguageByCode,
-  LANGUAGE_STORAGE_KEY,
-} from "../utils/languages.js";
-
-import { Trash2, CircleAlert, Download, Upload, Globe } from "lucide-react";
-import { useToast, ToastContainer } from "../components/useToast.jsx";
-import { LanguageSelector } from "../components/LanguageSelector.jsx";
+import { ExternalLink, Trash2 } from "lucide-react";
 import {
   deleteVoiceProfile,
   getSavedProfiles,
-  clearAllVoiceProfiles,
 } from "../hooks/useVoiceClone.js";
-import { saveProfile } from "../utils/db.js";
-import { ProfileCard } from "../components/ProfileCard.jsx";
-import { ShareProfileModal } from "../components/ShareProfileModal.jsx";
-import { ReceiveProfileModal } from "../components/ReceiveProfileModal.jsx";
-
-function AudioPlayback({ blob }) {
-  const [audioUrl, setAudioUrl] = React.useState(null);
-
-  React.useEffect(() => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    setAudioUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [blob]);
-
-  if (!audioUrl) return null;
-  return (
-    <audio
-      src={audioUrl}
-      controls
-      className="mt-2 h-8 w-full max-w-xs"
-    />
-  );
-}
 
 export default function Settings() {
-  const [profiles, setProfiles] = React.useState([]);
-  const [dbError, setDbError] = React.useState("");
-  const [sharingProfile, setSharingProfile] = React.useState(null);
-  const [isReceiving, setIsReceiving] = React.useState(false);
-  const { toasts, showToast } = useToast();
-  React.useEffect(() => {
-    async function loadProfiles() {
-      try {
-        const loaded = await getSavedProfiles();
-        setProfiles(loaded);
-        setDbError("");
-      } catch (err) {
-        setDbError(err?.message || String(err));
-      }
-    }
-    loadProfiles();
-  }, []);
+  const [apiKey, setApiKey] = React.useState(
+    localStorage.getItem("voiceforge:elevenlabsApiKey") || "",
+  );
+  const [profiles, setProfiles] = React.useState(getSavedProfiles());
 
   const defaultSettings = DEFAULT_VOICE_SETTINGS;
   const [voiceSettings, setVoiceSettings] = React.useState(loadVoiceSettings);
@@ -574,7 +521,8 @@ export default function Settings() {
         </p>
         <h2 className="mt-2 text-3xl font-bold">Settings</h2>
         <p className="mt-3 max-w-3xl text-base leading-7 text-white/75">
-          Manage voice profiles saved in this browser.
+          Store your ElevenLabs key for local experiments and manage voice
+          profiles saved in this browser.
         </p>
       </section>
       {dbError && (
@@ -583,6 +531,7 @@ export default function Settings() {
           <span>Database error: {dbError}</span>
         </div>
 
+      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
 
           <label className="flex-1 text-sm font-bold" htmlFor="api-key">
@@ -591,9 +540,7 @@ export default function Settings() {
               id="api-key"
               type="password"
               value={apiKey}
-              onChange={(event) => setApiKeyInput(event.target.value)}
-              title="Enter your ElevenLabs API key"
-              aria-label="Enter your ElevenLabs API key"
+              onChange={(event) => setApiKey(event.target.value)}
               className="mt-2 min-h-11 w-full rounded-md border border-ink/15 bg-cloud px-3 text-ink outline-none focus:border-moss focus:ring-4 focus:ring-mint dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
               placeholder="sk_..."
             />
@@ -601,8 +548,6 @@ export default function Settings() {
           <button
             type="button"
             onClick={saveApiKey}
-            title="Save your ElevenLabs API key for this session"
-            aria-label="Save your ElevenLabs API key for this session"
             className="min-h-11 rounded-md bg-moss px-5 font-bold text-white"
           >
             Save key
@@ -611,8 +556,6 @@ export default function Settings() {
             href="https://elevenlabs.io/"
             target="_blank"
             rel="noreferrer"
-            title="Get a free ElevenLabs API key"
-            aria-label="Get a free ElevenLabs API key"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-ink/15 px-4 font-bold text-ink hover:border-moss hover:text-moss dark:border-border dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow"
           >
             Free tier
@@ -620,267 +563,21 @@ export default function Settings() {
           </a>
         </div>
         <p className="mt-3 text-sm text-ink/65 dark:text-muted">
-          Your key is kept for this browser session only — it is cleared when
-          you close the tab and is not shared with other tabs. You will need to
-          re-enter it each session. The backend reads{" "}
-          <code className="font-mono">.env</code> first; this field is a
-          client-side override.
+          The backend reads `.env` first. This local key is available for future
+          client-only experiments.
         </p>
       </section>
 
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
-        <h2 className="text-xl font-bold">Voice Synthesis Settings</h2>
-        <p className="mt-1 text-sm text-ink/65 mb-5 dark:text-muted">Adjust how ElevenLabs generates your cloned speech.</p>
-        
-        <div className="space-y-4">
-          <div>
-            <label
-              className="flex justify-between text-sm font-bold"
-              htmlFor="stability"
-            >
-              <span>Stability</span>
-              <span className="text-ink/65 dark:text-muted">{voiceSettings.stability}</span>
-            </label>
-            <input
-              id="stability"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={voiceSettings.stability}
-              onChange={(e) => saveVoiceSettings({ ...voiceSettings, stability: parseFloat(e.target.value) })}
-              title="Adjust voice stability - lower values are more expressive, higher values are more consistent"
-              aria-label="Adjust voice stability"
-              className="w-full mt-2"
-            />
-            <p className="text-xs text-ink/50 mt-1 dark:text-muted">Lower values are more expressive; higher values are more consistent.</p>
-          </div>
-          
-          <div>
-            <label className="flex justify-between text-sm font-bold" htmlFor="similarity">
-              <span>Similarity Boost</span>
-              <span className="text-ink/65 dark:text-muted">{voiceSettings.similarity_boost}</span>
-            </label>
-            <input
-              id="similarity"
-              type="range"
-              min="0" max="1" step="0.01"
-              value={voiceSettings.similarity_boost}
-              onChange={(e) => saveVoiceSettings({ ...voiceSettings, similarity_boost: parseFloat(e.target.value) })}
-              title="Adjust similarity to original voice - higher values match closer but may introduce artifacts"
-              aria-label="Adjust similarity boost"
-              className="w-full mt-2"
-            />
-            <p className="text-xs text-ink/50 mt-1 dark:text-muted">Higher values make the voice closer to the original but may introduce artifacts.</p>
-          </div>
-
-          <div>
-            <label
-              className="flex justify-between text-sm font-bold"
-              htmlFor="temperature"
-            >
-              <span>Temperature</span>
-              <span className="text-ink/65">{voiceSettings.temperature}</span>
-            </label>
-            <input
-              id="temperature"
-              type="range"
-              min="0.05" max="5" step="0.01"
-              value={voiceSettings.temperature}
-              onChange={(e) =>
-                saveVoiceSettings({
-                  ...voiceSettings,
-                  temperature: parseFloat(e.target.value),
-                })
-              }
-              className="w-full mt-2"
-            />
-            <p className="text-xs text-ink/50 mt-1">
-              Lower values are steadier; higher values allow more variation.
-            </p>
-          </div>
-
-          <div>
-            <label
-              className="flex justify-between text-sm font-bold"
-              htmlFor="style"
-            >
-              <span>Style Exaggeration</span>
-              <span className="text-ink/65 dark:text-muted">{voiceSettings.style}</span>
-            </label>
-            <input
-              id="style"
-              type="range"
-              min="0" max="2" step="0.01"
-              value={voiceSettings.style}
-              onChange={(e) => saveVoiceSettings({ ...voiceSettings, style: parseFloat(e.target.value) })}
-              title="Adjust style exaggeration - higher values exaggerate the reference audio style"
-              aria-label="Adjust style exaggeration"
-              className="w-full mt-2"
-            />
-            <p className="text-xs text-ink/50 mt-1 dark:text-muted">Higher values exaggerate the style of the reference audio.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Language & Region ─────────────────────────────────────────── */}
-      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
-        <div className="flex items-center gap-2 mb-1">
-          <Globe
-            size={20}
-            aria-hidden="true"
-            className="text-moss dark:text-glow"
-          />
-          <h2 className="text-xl font-bold">Language &amp; Region</h2>
-        </div>
-        <p className="mt-1 text-sm text-ink/65 mb-5 dark:text-muted">
-          Choose the default output language for Chatterbox voice synthesis.
-          This applies across the Call and Compose pages.
-        </p>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <label
-              htmlFor="settings-language"
-              className="mb-2 block text-sm font-bold text-ink dark:text-neutral-200"
-            >
-              Default Language
-            </label>
-            <LanguageSelector
-              id="settings-language"
-              value={language}
-              onChange={(code) => {
-                setLanguage(code);
-                persistLanguage(code);
-                showToast(
-                  code
-                    ? `Language set to ${getLanguageByCode(code)?.name || code}`
-                    : "Language set to Auto-detect",
-                  "success",
-                );
-              }}
-            />
-          </div>
-          {selectedLangObj && (
-            <div className="flex items-center gap-2 rounded-lg border border-ink/10 px-4 py-3 dark:border-border">
-              <span className="text-2xl" aria-hidden="true">
-                {selectedLangObj.flag}
-              </span>
-              <div>
-                <p className="text-sm font-bold text-ink dark:text-neutral-200">
-                  {selectedLangObj.name}
-                </p>
-                <p className="text-xs text-ink/55 dark:text-muted">
-                  {selectedLangObj.nativeName} ·{" "}
-                  <code className="font-mono">{selectedLangObj.code}</code>
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <p className="mt-3 text-xs text-ink/50 dark:text-muted">
-          Powered by Chatterbox Multilingual TTS - supports 23 languages. Choose
-          &ldquo;Auto-detect&rdquo; to let the AI infer the language from your
-          text.
-        </p>
-      </section>
-
-      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
-        <h2 className="text-xl font-bold">Backup & Restore</h2>
-        <p className="mt-1 text-sm text-ink/65 mb-5 dark:text-muted">
-          Save your speech history, custom quick replies, and calibration
-          settings to a file, or restore them.
-        </p>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-moss px-5 font-bold text-white transition hover:bg-moss/90"
-          >
-            <Download size={18} aria-hidden="true" />
-            Export Configuration
-          </button>
-
-          <label
-            htmlFor="import-config-file"
-            className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-ink/15 bg-white px-5 font-bold text-ink hover:border-moss hover:text-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow"
-          >
-            <Upload size={18} aria-hidden="true" />
-            Import Configuration
-            <input
-              id="import-config-file"
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-              className="sr-only"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={() => setIsTransferOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 font-bold text-white transition hover:bg-ink/85 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-          >
-            <QrCode size={18} aria-hidden="true" />
-            Transfer Setup (QR / Link)
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold">Saved voice profiles</h2>
-          <div className="flex items-center gap-3">
-            <label
-              htmlFor="settings-import-vfp"
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-bold text-white transition hover:bg-moss/90 dark:bg-glow dark:text-black"
-            >
-              <Upload size={14} />
-              Import Profile (.vfp)
-              <input
-                id="settings-import-vfp"
-                type="file"
-                accept=".vfp"
-                onChange={handleImportVFP}
-                className="sr-only"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setIsTransferOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-bold text-ink transition hover:border-moss hover:text-moss dark:border-border dark:bg-black dark:text-neutral-200"
-            >
-              <QrCode size={16} />
-              Transfer Setup
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsReceiving(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-bold text-white transition hover:bg-moss/90 dark:bg-glow dark:text-black"
-            >
-              Receive Profile
-            </button>
-            {profiles.length > 0 && (
-              <button
-                type="button"
-                onClick={removeAllProfiles}
-                className="text-sm font-bold text-coral hover:underline"
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <h2 className="text-xl font-bold">Saved voice profiles</h2>
+        <div className="mt-4 divide-y divide-ink/10 rounded-md border border-ink/10 dark:divide-border dark:border-border">
           {profiles.length === 0 && (
-            <p className="col-span-full p-4 text-sm text-ink/65 dark:text-muted border border-ink/10 rounded-md dark:border-border">
+            <p className="p-4 text-sm text-ink/65 dark:text-muted">
               No saved profiles yet.
             </p>
           )}
           {profiles.map((profile) => (
-            <ProfileCard
+            <div
               key={profile.voice_id}
               className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -889,8 +586,6 @@ export default function Settings() {
                 <p className="mt-1 break-all text-sm text-ink/60 dark:text-muted">
                   {profile.voice_id}
                 </p>
-                {profile.audioBlob && <AudioPlayback blob={profile.audioBlob} />}
- 
               </div>
               <button
                 type="button"
