@@ -17,9 +17,7 @@ export function LanguageSelector({ value, onChange, id = "lang-selector", compac
   const panelRef = useRef(null);
   const searchRef = useRef(null);
   const generatedId = useId();
-  const panelId = id ?? generatedId;
   const listRef = useRef(null);
-  const triggerRef = useRef(null);
 
   // Dynamic IDs to prevent collision when multiple selectors are on the page
   const listboxId = `lang-listbox-${id}`;
