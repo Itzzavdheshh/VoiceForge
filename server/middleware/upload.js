@@ -1,5 +1,6 @@
 // Configures Multer for in-memory reference audio uploads used by the Chatterbox voice cloning flow.
 import multer from "multer";
+import { fileTypeFromBuffer } from "file-type";
 
 const ALLOWED_MIME_TYPES = [
   "audio/webm",
@@ -18,17 +19,23 @@ const upload = multer({
     fields: 5,
     parts: 6,
   },
-  fileFilter: (_request, file, callback) => {
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      callback(
-        new Error(
-          "Invalid audio format. Allowed types: webm, wav, mp3, mp4, ogg, flac.",
-        ),
-      );
+  fileFilter: async (_request, file, callback) => {
+    if (!file.mimetype.startsWith("audio/")) {
+      callback(new Error("Please upload an audio recording."));
       return;
     }
-    callback(null, true);
-  },
+
+    try {
+      const detectedType = await fileTypeFromBuffer(file.buffer);
+      if (!detectedType || !detectedType.mime.startsWith("audio/")) {
+        callback(new Error("Uploaded file is not a valid audio recording. The file contents do not match an audio format."));
+        return;
+      }
+      callback(null, true);
+    } catch (error) {
+      callback(new Error("Failed to validate file type: " + error.message));
+    }
+  }
 });
 
 export default upload;
