@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] missing multer error handlers for limit_part_count, limit_field_key, limit_field_value, limit_field_count return 500 instead of user-friendly message (#513)
+# TODO: [bug] parseboundednumber missing upper bound allows dangerously large environment values (#514)
