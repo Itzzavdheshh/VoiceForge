@@ -21,7 +21,11 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   const [audioUrl, setAudioUrl] = React.useState("");
   const [duration, setDuration] = React.useState(0);
   const [recorderError, setRecorderError] = React.useState("");
+  const [rawAudioBlob, setRawAudioBlob] = React.useState(null);
+  const [isExtracting, setIsExtracting] = React.useState(false);
+
   const recorderRef = React.useRef(null);
+  const fileInputRef = React.useRef(null);
   const chunksRef = React.useRef([]);
   const timerRef = React.useRef(null);
   const streamRef = React.useRef(null);
@@ -235,32 +239,32 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   }
 
   async function handleFileUpload(event) {
-    const file = event.target.files?.[0];
+    const [file] = event.target.files || [];
     if (!file) return;
 
-    // Reset previous state
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl("");
-    setRecorderError("");
-    onRecordingReady(null);
-    setDuration(0);
-    durationRef.current = 0;
-    
-    setIsExtracting(true);
-    
     try {
-      const { blob, duration } = await extractAudioFromFile(file);
+      setIsExtracting(true);
+      setRecorderError("");
+      const { blob, duration: extractedDuration } = await extractAudioFromFile(file);
+      const normalizedDuration = Math.max(0, Math.round(extractedDuration));
+
+      setRawAudioBlob(blob);
       const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
-      setDuration(duration);
-      durationRef.current = duration;
-      onRecordingReady(blob, duration);
+      setAudioUrl((previous) => {
+        if (previous) URL.revokeObjectURL(previous);
+        return url;
+      });
+      setDuration(normalizedDuration);
+      durationRef.current = normalizedDuration;
+      onRecordingReady(blob, { duration: normalizedDuration, isValid: normalizedDuration >= MIN_DURATION });
     } catch (err) {
-      setRecorderError(err.message || String(err));
+      const friendlyMessage = err?.message || "Unable to process the selected file.";
+      setRecorderError(friendlyMessage);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setRecorderError(""), 6000);
     } finally {
       setIsExtracting(false);
-      // Reset input so the same file can be selected again
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      event.target.value = "";
     }
   }
 
