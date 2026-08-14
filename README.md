@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #447: feat: Handle IndexedDB Quota and Incognito Failures
+# TODO: fix for #446: feat: Add a Camera Mirror/Flip Toggle
