@@ -1,7 +1,6 @@
-// Starts the local Express API that proxies VoiceForge voice synthesis through Chatterbox Multilingual TTS.
-import helmet from "helmet";
-import cors from "cors";
+// Starts the local Express API that proxies VoiceForge requests to ElevenLabs.
 import dotenv from "dotenv";
+import cors from "cors";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
 import voiceRoutes from "./routes/voice.js";
@@ -17,18 +16,14 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
-
-// Initialize SQLite database
-getDatabase().then(() => {
-  console.log("[VoiceForge] SQLite Database initialized successfully.");
-}).catch((err) => {
-  console.error("[VoiceForge] Failed to initialize database:", err);
-});
+if (process.env.NODE_ENV === "production" && !process.env.STREAM_SECRET?.trim()) {
+  console.error(
+    "[VoiceForge] FATAL: STREAM_SECRET is not set in production. " +
+    "All speech tokens would be invalidated on every server restart. " +
+    "Set STREAM_SECRET in your environment and restart."
+  );
+  process.exit(1);
+}
 
 // Warn clearly when mock mode is active so it is never silently enabled.
 if (getIsMock()) {
@@ -107,8 +102,6 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 // Enable trust proxy so rate limiters can identify real client IPs
-// behind reverse proxies (e.g., load balancers, CDNs).
-// Set to 1 for single-hop proxies; adjust based on your deployment topology.
 app.set("trust proxy", 1);
 
 app.use(cors({ origin: clientUrl, credentials: true }));
