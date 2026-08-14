@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 9] aac symbol board - augmentative and alternative communication tile grid (#335)
+# TODO: [phase 10] healthcare governance mode - caregiver pin lock for preset protection (#336)
