@@ -7,11 +7,14 @@ const router = Router();
 // Voices endpoints
 router.post("/voices", upload.single("audio"), async (req, res, next) => {
   try {
-    const { voice_id, name, owner_token } = req.body;
+    const { voice_id, name, owner_token } = req.body || {};
+    if (!voice_id || typeof voice_id !== "string" || !voice_id.trim()) {
+      return res.status(400).json({ error: "voice_id is required" });
+    }
     const db = await getDatabase();
     await db.run(
       `INSERT OR REPLACE INTO voices (voice_id, name, owner_token, audio_blob, created_at) VALUES (?, ?, ?, ?, ?)`,
-      [voice_id, name, owner_token, req.file ? req.file.buffer : null, new Date().toISOString()]
+      [voice_id.trim(), name || "Voice", owner_token || null, req.file ? req.file.buffer : null, new Date().toISOString()]
     );
     res.json({ success: true });
   } catch (err) {
