@@ -10,6 +10,8 @@ import useVirtualCamera from "../hooks/useVirtualCamera.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
 import { useToast, ToastContainer } from "../components/useToast.jsx";
 import { loadLanguage, persistLanguage } from "../utils/languages.js";
+import CaptionOverlay from "../components/CaptionOverlay.jsx";
+import useCaption from "../hooks/useCaption.js";
 
 export default function Call() {
   const [webcamStream, setWebcamStream] = React.useState(null);
@@ -64,7 +66,18 @@ export default function Call() {
     persistLanguage(language);
   }, [language]);
   const [dbError, setDbError] = React.useState("");
-  const { speak, status, error, audioUrl, engine } = useTTS();
+  const { speak, status, error, audioUrl } = useTTS();
+  const {
+    captionText,
+    isEnabled: captionEnabled,
+    position: captionPosition,
+    fontSize: captionFontSize,
+    updateCaption,
+    clearCaption,
+    toggleEnabled,
+    updatePosition,
+    updateFontSize,
+  } = useCaption();
   const virtualCamera = useVirtualCamera(canvasRef);
 
   React.useEffect(() => {
@@ -464,21 +477,27 @@ export default function Call() {
           status={status}
         />
 
-        <div inert={isSpeechActive ? "" : undefined}>
-          <VideoPreview
-            ref={canvasRef}
-            webcamStream={webcamStream}
-            audioUrl={audioUrl}
-            isSpeaking={isSpeaking}
-            onSpeakingChange={setIsSpeaking}
-            calibration={calibration}
-            isCalibrating={isCalibrationOpen}
-            activeText={activeText}
-            subtitlesEnabled={subtitlesEnabled}
-            subtitleFontSize={subtitleFontSize}
-            subtitleBgOpacity={parseFloat(subtitleBgOpacity)}
-          />
-        </div>
+        <VideoPreview
+          ref={canvasRef}
+          webcamStream={webcamStream}
+          audioUrl={audioUrl}
+          isSpeaking={isSpeaking}
+          onSpeakingChange={setIsSpeaking}
+          calibration={calibration}
+          isCalibrating={isCalibrationOpen}
+          captionText={captionText}
+          captionEnabled={captionEnabled}
+          captionPosition={captionPosition}
+          captionFontSize={captionFontSize}
+        />
+        <CaptionOverlay
+          isEnabled={captionEnabled}
+          position={captionPosition}
+          fontSize={captionFontSize}
+          onToggle={toggleEnabled}
+          onPositionChange={updatePosition}
+          onFontSizeChange={updateFontSize}
+        />
       </div>
 
       <div inert={isSpeechActive ? "" : undefined} className="space-y-5">

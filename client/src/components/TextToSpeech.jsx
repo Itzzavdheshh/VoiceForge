@@ -1,58 +1,38 @@
 import React from "react";
 import { SendHorizontal } from "lucide-react";
-
-const MAX_CHARS = 300;
-
-export default function TextToSpeech({ onSpeak, disabled = false, status = "idle" }) {
-  // Move the constant here, inside the component scope
-  const MAX_TTS_CHARS = 300;
-  
+export default function TextToSpeech({ onSpeak, disabled = false, status = "idle", onTextChange, onSpoken }) {
   const [text, setText] = React.useState("");
   const [announcement, setAnnouncement] = React.useState("");
   const lastSpokenTextRef = React.useRef("");
   
   const trimmedText = text.trim();
-  const characterCount = text.length;
-  const wordCount = trimmedText ? trimmedText.split(/\s+/).length : 0;
-  const estimatedDuration = wordCount ? ((wordCount / 150) * 60).toFixed(1) : "0.0";
-  let durationCategory = estimatedDuration > 30 ? "Long" : estimatedDuration > 15 ? "Medium" : "Short";
-
-  const phrases = [
-    { label: "SOS / Help", text: "Help me, please!", urgent: true },
-    { label: "Danger Alert", text: "I am in danger!", urgent: true },
-    { label: "Need Medical", text: "I need medical assistance.", urgent: true },
-    { label: "Emergency", text: "This is an emergency.", urgent: true },
-    { label: "Hello", text: "Hello!" }, { label: "Thank You", text: "Thank you." },
-    { label: "Yes", text: "Yes." }, { label: "No", text: "No." },
-    { label: "Please", text: "Please." }, { label: "Sorry", text: "I am sorry." },
-    { label: "Bye", text: "Goodbye." }, { label: "More", text: "More, please." },
-    { label: "Done", text: "I am done." }, { label: "Wait", text: "Please wait." }
-  ];
-
-  // Fix: Define the missing speakPhrase function
-  const speakPhrase = useCallback(async (phraseText) => {
-    if (disabled || status === "speaking" || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await onSpeak(phraseText);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [onSpeak, disabled, status, isSubmitting]);
-  
+const characterCount = trimmedText.length;
+const wordCount = trimmedText
+  ? trimmedText.split(/\s+/).length
+  : 0;
+const estimatedDuration = wordCount
+  ? ((wordCount / 150) * 60).toFixed(1)
+  : "0.0";
+let durationCategory = "Short";
+if (estimatedDuration > 15) {
+  durationCategory = "Medium";
+}
+if (estimatedDuration > 30) {
+  durationCategory = "Long";
+}
   async function submit() {
-    if (!trimmedText || disabled || status === "speaking") return;
-    await onSpeak(trimmedText);
-    setText("");
-  }
-
+  if (!trimmedText || disabled) return;
+  await onSpeak(trimmedText);
+  setText("");
+  onTextChange?.("");
+  onSpoken?.();
+}
   function handleKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       submit();
     }
   }
-
   return (
     <section className="flex h-full min-h-[420px] flex-col rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -66,17 +46,13 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
   <span className={["rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold dark:border-border", getCounterColor()].join(" ")}>
     {characterCount} / {MAX_CHARS}
   </span>
-
-          <p
-            aria-live="polite"
-            className="mt-2 text-xs text-ink/60 dark:text-muted"
-          >
-            Est. Duration: {estimatedDuration}s ({durationCategory})
-          </p>
-        </div>
-        <p aria-live="polite" className="text-xs text-ink/60 dark:text-muted">
-          Est. Duration: {estimatedDuration}s ({durationCategory})
-        </p>
+  <p
+  aria-live="polite"
+  className="mt-2 text-xs text-ink/60 dark:text-muted"
+>
+  Est. Duration: {estimatedDuration}s ({durationCategory})
+</p>
+</div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
@@ -89,8 +65,10 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
       </div>
 
       <textarea
-        maxLength={MAX_TTS_CHARS}
-        value={text} onChange={(e) => setText(e.target.value)} onKeyDown={handleKeyDown} disabled={disabled}
+        value={text}
+        onChange={(event) => { setText(event.target.value); onTextChange?.(event.target.value); }}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
         className="min-h-64 flex-1 resize-none rounded-md border border-ink/15 bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:border-moss focus:ring-4 focus:ring-mint disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
         placeholder="Type what you want to say..."
         title="Type your message here and press Enter to speak"
