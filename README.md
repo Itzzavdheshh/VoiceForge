@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat: handle indexeddb quota and incognito failures (#447)
+# TODO: feat: add an "interrupt / stop speech" button (#448)
