@@ -62,4 +62,21 @@ const upload = multer({
   }
 });
 
+export function handleUploadMiddleware(fieldName) {
+  const single = upload.single(fieldName);
+  return (req, res, next) => {
+    single(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ error: "File size exceeds the 12MB limit." });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      } else if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  };
+}
+
 export default upload;
