@@ -162,6 +162,7 @@ async function generateClonedVoice(
   voiceSettings = {},
   abortSignal = null
 ) {
+  const spaceIdentifier = process.env.VOICE_ENGINE_SPACE || "ResembleAI/Chatterbox-Multilingual-TTS";
   const normalizedVoiceSettings =
     voiceSettings && typeof voiceSettings === "object" ? voiceSettings : {};
 
@@ -235,6 +236,7 @@ async function generateClonedVoice(
   if (!audioUrl) {
     throw new Error("Chatterbox returned no audio URL.");
   }
+  return audioUrl;
 }
 
 export function clampNumber(value, min, max, fallback) {
