@@ -76,6 +76,21 @@ export default function About({ onNavigate }) {
         </div>
       </section>
 
+      <section className="mb-12 rounded-xl border border-border bg-card p-6">
+        <h2 className="text-xl font-semibold mb-2">Software Version & Release Info</h2>
+        <div className="flex flex-wrap items-center justify-between text-sm text-muted-foreground gap-4">
+          <div>
+            <span className="font-bold text-foreground">VoiceForge v1.0.0</span> (Stable Release)
+          </div>
+          <div>
+            Build: <code className="font-mono bg-muted px-2 py-0.5 rounded text-xs">2026.08-prod</code>
+          </div>
+          <div>
+            License: <span className="font-semibold text-foreground">MIT License</span>
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-xl border border-border bg-card p-8 text-center">
         <h2 className="text-2xl font-semibold mb-3">Open Source and Community</h2>
         <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
