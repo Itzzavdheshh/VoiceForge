@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #339: [Phase 13] Transcript Export - CSV and JSON metadata download from Speech Histor
+# TODO: issue #513
