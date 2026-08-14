@@ -48,9 +48,24 @@ export function ThemeProvider({ children }) {
       }
     }
 
+    function handleSystemThemeChange(e) {
+      // Only auto-switch if user hasn't explicitly stored a manual theme preference
+      try {
+        if (!localStorage.getItem("voiceforge:theme")) {
+          setTheme(e.matches ? "dark" : "light");
+        }
+      } catch {}
+    }
+
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleStorage);
-      return () => window.removeEventListener("storage", handleStorage);
+      const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+      mediaQuery?.addEventListener?.("change", handleSystemThemeChange);
+
+      return () => {
+        window.removeEventListener("storage", handleStorage);
+        mediaQuery?.removeEventListener?.("change", handleSystemThemeChange);
+      };
     }
   }, []);
 
