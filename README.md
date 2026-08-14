@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #398: [BUG] speak() always saves to history, even on failed speech synthesis or silent
+# TODO: fix for #392: feat: add live captions overlay on the lip-synced video preview
