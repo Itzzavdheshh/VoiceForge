@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 11] pitch and speed sliders - real-time voice controls in quick settings (#337)
+# TODO: [phase 13] transcript export - csv and json metadata download from speech history (#339)
