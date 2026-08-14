@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] speak() always saves to history, even on failed speech synthesis or silent browser fallback (#398)
+# TODO: feat: add "clear text" eraser button to call page tts composer (#407)
