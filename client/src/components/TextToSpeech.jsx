@@ -70,11 +70,23 @@ if (estimatedDuration > 30) {
 </p>
 </div>
       </div>
+      <div
+        role="status"
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {status === "speaking" && "Synthesizing and playing speech audio..."}
+        {status === "error" && "Speech synthesis encountered an error."}
+      </div>
+
       <textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
+        aria-label="Text to synthesize"
+        aria-invalid={charsLeft < 0}
         aria-describedby="tts-char-hint"
         className={["min-h-64 flex-1 resize-none rounded-md border bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500",
           charsLeft < 0

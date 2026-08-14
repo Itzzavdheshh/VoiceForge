@@ -10,9 +10,67 @@ export function ReceiveProfileModal({ onClose, onSuccess }) {
   const [offerText, setOfferText] = useState("");
   const [answerText, setAnswerText] = useState("");
   const [error, setError] = useState("");
-  const pcRef = useRef(null);
-  const videoRef = useRef(null);
-  const codeReaderRef = useRef(null);
+  const modalRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+
+    const focusableSelectors = [
+      "button",
+      "[href]",
+      "input",
+      "select",
+      "textarea",
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(", ");
+
+    function getFocusable() {
+      if (!modalRef.current) return [];
+      return Array.from(modalRef.current.querySelectorAll(focusableSelectors));
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key === "Tab" && modalRef.current) {
+        const focusable = getFocusable();
+        if (focusable.length === 0) {
+          event.preventDefault();
+          modalRef.current.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey) {
+          if (
+            document.activeElement === first ||
+            document.activeElement === modalRef.current
+          ) {
+            event.preventDefault();
+            (last ?? modalRef.current).focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            event.preventDefault();
+            (first ?? modalRef.current).focus();
+          }
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    modalRef.current?.focus();
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === "function") {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, [onClose]);
 
   useEffect(() => {
     return () => {
@@ -112,19 +170,51 @@ export function ReceiveProfileModal({ onClose, onSuccess }) {
     navigator.clipboard.writeText(answerText);
   };
 
+  const HEADING_ID = "receive-profile-heading";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl dark:bg-surface dark:text-neutral-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={HEADING_ID}
+      aria-describedby="receive-profile-desc"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        role="presentation"
+        aria-hidden="true"
+      />
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        className="relative w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl outline-none dark:bg-surface dark:text-neutral-100"
+      >
         <div className="flex items-center justify-between border-b border-ink/10 p-4 dark:border-border">
-          <h2 className="text-xl font-bold">Receive Voice Profile</h2>
-          <button onClick={onClose} className="rounded p-1 hover:bg-ink/10 dark:hover:bg-white/10">
-            <X size={20} />
+          <h2 id={HEADING_ID} className="text-xl font-bold">Receive Voice Profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close receive voice profile modal"
+            className="rounded p-1 hover:bg-ink/10 dark:hover:bg-white/10"
+          >
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
         <div className="p-6">
+          <p id="receive-profile-desc" className="sr-only">
+            Peer-to-peer WebRTC voice profile receiver helper.
+          </p>
+          <div role="status" aria-live="polite" className="sr-only">
+            {step === "waiting_for_offer" && "Ready to scan or paste sender offer."}
+            {step === "generating_answer" && "Processing offer and creating connection answer."}
+            {step === "receiving" && "Receiving voice profile data."}
+            {step === "completed" && "Voice profile received and saved successfully."}
+          </div>
           {error && (
-            <div className="mb-4 rounded-md bg-coral/10 p-3 text-sm text-coral">
+            <div role="alert" className="mb-4 rounded-md bg-coral/10 p-3 text-sm text-coral">
               {error}
             </div>
           )}
