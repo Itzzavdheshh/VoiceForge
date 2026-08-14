@@ -127,9 +127,16 @@ export function useSpeechHistory() {
   const trimmed = text.trim();
   if (!trimmed) return;
 
-  const entryId = id || crypto.randomUUID();
-  const existing = history.find((m) => m.text === trimmed);
-  const resolvedId = existing ? existing.id : entryId;
+  const timestamp = Date.now();
+
+  setSessionTranscript((prev) => [
+  ...prev,
+  {
+    text: trimmed,
+    timestamp,
+    status: "success",
+  },
+]);
 
   setHistory((prev) => {
     // Check existing message

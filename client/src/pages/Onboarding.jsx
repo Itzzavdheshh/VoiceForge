@@ -201,13 +201,27 @@ const MIN_NAME_LENGTH = 3;
 const MAX_NAME_LENGTH = 100;
 
 export default function Onboarding({ onReady }) {
-  const [recording, setRecording] = React.useState(null); // stores { blob, duration, isValid }
+  const [recording, setRecording] = React.useState(null);
+  const [recordingDuration, setRecordingDuration] = React.useState(0);
+
+  function handleRecordingReady(blob, duration = 0) {
+    setRecording(blob);
+    setRecordingDuration(duration);
+  }
+
   const [voiceName, setVoiceName] = React.useState("VoiceForge Voice");
   const [successProfile, setSuccessProfile] = React.useState(null);
   const { cloneVoice, status, error: apiError } = useVoiceClone();
   const { toasts, showToast } = useToast();
   const isCloning = status === "cloning";
+<<<<<<< HEAD
   const [serverStatus, setServerStatus] = React.useState({ isMock: false, space: "" });
+=======
+  const [serverStatus, setServerStatus] = React.useState({
+    isMock: false,
+    hasServerKey: false,
+  });
+>>>>>>> 7eeb8da (refactor: reuse voice name length constants)
 
   React.useEffect(() => {
     fetch("/api/voice/status")
@@ -404,52 +418,118 @@ export default function Onboarding({ onReady }) {
             </div>
           )}
 
-      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
-        <label
-          className="block text-sm font-bold text-ink dark:text-neutral-100"
-          htmlFor="voice-name"
-        >
-          Voice profile name
-        </label>
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-          <input
-            id="voice-name"
-            value={voiceName}
-            onChange={(event) => setVoiceName(event.target.value)}
-            className="min-h-11 flex-1 rounded-md border border-ink/15 bg-cloud px-3 text-ink outline-none focus:border-moss focus:ring-4 focus:ring-mint dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
-          />
-          <button
-            type="button"
-            onClick={handleClone}
-            disabled={!recording || isCloning}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isCloning && (
-              <Loader2 className="animate-spin" size={18} aria-hidden="true" />
-            )}
-            Clone voice
-          </button>
-        </div>
-        {isCloning && (
-          <p className="mt-3 text-sm font-semibold text-moss dark:text-glow">
-            Cloning in progress. This can take a moment on the free tier.
-          </p>
-        )}
-        {error && (
-          <p className="mt-3 text-sm font-semibold text-coral">{error}</p>
-        )}
-        {successProfile && (
-          <div className="mt-4 flex flex-col gap-3 rounded-md bg-mint p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-glow/15">
-            <p className="inline-flex items-center gap-2 font-bold text-ink dark:text-neutral-50">
-              <CheckCircle2 size={20} aria-hidden="true" />
-              Voice cloned successfully
-            </p>
-            <button
-              type="button"
-              onClick={onReady}
-              className="rounded-md bg-black px-4 py-2 font-bold text-white dark:bg-glow dark:text-black"
+          <VoiceRecorder onRecordingReady={handleRecordingReady} disabled={isCloning} />
+
+          <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
+            <label className="block text-sm font-bold text-ink dark:text-neutral-100" htmlFor="voice-name">
+              Voice profile name
+            </label>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+              <input
+                id="voice-name"
+                value={voiceName}
+                onChange={(event) => setVoiceName(event.target.value)}
+                disabled={isCloning}
+                maxLength={MAX_NAME_LENGTH}
+                aria-describedby="voice-name-feedback"
+                aria-invalid={nameError ? "true" : undefined}
+                className={[
+                  "min-h-11 flex-1 rounded-md border px-3 text-ink outline-none transition",
+                  "focus:ring-4 focus:ring-mint dark:bg-black dark:text-neutral-100",
+                  nameError
+                    ? "border-coral focus:border-coral dark:border-coral/70"
+                    : "border-ink/15 focus:border-moss dark:border-border",
+                  "bg-cloud dark:bg-black",
+                ].join(" ")}
+              />
+              <button
+                type="button"
+                onClick={handleClone}
+                disabled={isCloning || !hasKey || !recording || recordingDuration < 10 || Boolean(nameError)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCloning && <Loader2 className="animate-spin" size={18} />}
+                Clone voice
+              </button>
+            </div>
+
+            {/* Name validation feedback + character counter */}
+            <div
+              id="voice-name-feedback"
+              className="mt-1.5 flex items-center justify-between gap-2 text-xs"
             >
-              Continue to call
+              {nameError ? (
+                <p className="flex items-center gap-1 font-semibold text-coral" role="alert">
+                  <CircleAlert size={13} aria-hidden="true" />
+                  {nameError}
+                </p>
+              ) : (
+                <span />
+              )}
+              <span
+                className={[
+                  "tabular-nums",
+                  voiceName.length >= 90
+                    ? "font-semibold text-coral"
+                    : "text-ink/45 dark:text-muted",
+                ].join(" ")}
+                aria-live="polite"
+                aria-label={`${voiceName.length} of ${MAX_NAME_LENGTH} characters used`}
+              >
+                {voiceName.length}/{MAX_NAME_LENGTH}
+              </span>
+            </div>
+
+            {/* Render actual API errors transparently instead of swallowing failures */}
+            {apiError && (
+              <p className="mt-3 text-sm font-semibold text-coral flex items-center gap-1.5" role="alert">
+                <CircleAlert size={16} />
+                {apiError}
+              </p>
+            )}
+            
+            {(successProfile || maxUnlockedStep >= 2) && (
+              <div className="mt-4 flex flex-col gap-3 rounded-md bg-mint p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-glow/15">
+                <p className="inline-flex items-center gap-2 font-bold text-ink dark:text-neutral-50">
+                  <CheckCircle2 size={20} className="text-moss dark:text-glow" />
+                  Voice profile setup verified!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="inline-flex items-center gap-2 rounded-md bg-black px-4 py-2 font-bold text-white dark:bg-glow dark:text-black"
+                >
+                  Continue to Step 2
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {/* STEP 2: WORKSPACE PROPERTIES CONTROLS */}
+      {activeStep === 2 && (
+        <Step2VoiceSettings
+          onBack={() => setActiveStep(1)}
+          onContinue={() => { setMaxUnlockedStep(3); setActiveStep(3); }}
+        />
+      )}
+
+      {/* STEP 3: PIPELINE DEPLOYMENT CHECKLIST */}
+      {activeStep === 3 && (
+        <section className="rounded-lg border border-ink/10 bg-white p-6 shadow-soft dark:border-border dark:bg-surface">
+          <h3 className="text-xl font-bold text-ink dark:text-neutral-100">Ready for Activation</h3>
+          <p className="mt-2 text-sm text-neutral-500">Your custom voice template setup is complete.</p>
+          <div className="my-6 p-12 border-2 border-dashed border-ink/10 rounded-md text-center text-neutral-400">
+            Pipeline deployment status diagnostics verify operational conditions are ideal.
+          </div>
+          <div className="flex justify-between items-center border-t pt-4">
+            <button type="button" onClick={() => setActiveStep(2)} className="text-sm font-bold text-ink dark:text-neutral-300 hover:underline">
+              ← Back to Settings
+            </button>
+            <button type="button" onClick={onReady} className="rounded-md bg-black px-5 py-2 font-bold text-white dark:bg-glow dark:text-black">
+              Complete Setup & Go to Call
             </button>
           </div>
         </section>

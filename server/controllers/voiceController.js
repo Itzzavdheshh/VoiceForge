@@ -21,8 +21,45 @@ function sanitizeFilename(filename) {
     .substring(0, 100);
 }
 
-async function readElevenLabsError(response) {
-  const text = await response.text();
+function withTimeout(promise, ms, label, abortSignal = null) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    
+    if (abortSignal) {
+      if (abortSignal.aborted) {
+        clearTimeout(timeoutId);
+        reject(new Error("Request aborted by client"));
+      } else {
+        abortSignal.addEventListener("abort", () => {
+          clearTimeout(timeoutId);
+          reject(new Error("Request aborted by client"));
+        });
+      }
+    }
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+}
+
+function encryptToken(payload) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+
+  let encrypted = cipher.update(JSON.stringify(payload), "utf8", "base64");
+  encrypted += cipher.final("base64");
+
+  const authTag = cipher.getAuthTag().toString("base64");
+
+  const tokenData = {
+    iv: iv.toString("base64"),
+    tag: authTag,
+    data: encrypted
+  };
+
+  return Buffer.from(JSON.stringify(tokenData)).toString("base64url");
+}
+
+function decryptToken(token) {
   try {
     const rawJson = Buffer.from(token, "base64url").toString("utf8");
     const { iv, tag, data } = JSON.parse(rawJson);
@@ -104,7 +141,7 @@ async function generateClonedVoice(
   targetText,
   languageCode = "en",
   voiceSettings = {},
-  abortSignal = null,
+  abortSignal = null
 ) {
   const normalizedVoiceSettings =
     voiceSettings && typeof voiceSettings === "object" ? voiceSettings : {};
@@ -432,11 +469,17 @@ export async function speak(request, response, next) {
     // Do not keep the event loop alive solely for this cleanup timer.
     timeout.unref?.();
 
-    pendingStreams.set(speechId, { text, voiceId, apiKey, mergedSettings, modelId: model_id, timeout });
-
-    response.json({
+    if (getIsMock()) {
+      console.warn(`[VoiceForge] MOCK_CHATTERBOX: speak enqueued mock stream for speechId=${speechId}`);
+    }
+    const expiresAt = Date.now() + 60000;
+    const token = encryptToken({
       speechId,
-      audioUrl: `/api/voice/speak/stream/${speechId}`
+      text: trimmedText,
+      voiceId: trimmedVoiceId,
+      language_code,
+      voice_settings: mergedSettings,
+      expiresAt
     });
   } catch (error) {
     next(error);
@@ -581,8 +624,12 @@ export async function streamSpeech(request, response, next) {
  */
 export async function streamSpeech(request, response, next) {
   try {
-    const { speechId } = request.params;
-    const requestApiKey = request.get("X-ElevenLabs-Api-Key")?.trim();
+    const token = request.query.t;
+    if (!token) {
+      response.status(400).json({ error: "Missing stream token." });
+      return;
+    }
+    const { speechId, text, voiceId, language_code, voice_settings } = decryptToken(token);
 
     const streamData = pendingStreams.get(speechId);
 
@@ -656,7 +703,7 @@ export async function streamSpeech(request, response, next) {
         text,
         chatterboxLanguage,
         voice_settings,
-        generateController.signal,
+        generateController.signal
       );
     } catch (error) {
       if (error.message === "Request aborted by client") {
