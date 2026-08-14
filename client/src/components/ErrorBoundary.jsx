@@ -14,6 +14,13 @@ export class ErrorBoundary extends React.Component {
     console.error("ErrorBoundary caught an error", error, errorInfo);
   }
 
+  handleReset = () => {
+    if (typeof this.props.onReset === "function") {
+      this.props.onReset();
+    }
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
@@ -23,12 +30,20 @@ export class ErrorBoundary extends React.Component {
             <p className="text-sm opacity-80 mb-4 font-mono overflow-auto max-h-32">
               {this.state.error?.toString()}
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-            >
-              Reload Page
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={this.handleReset}
+                className="px-4 py-2 bg-moss text-white rounded hover:bg-moss/90 dark:bg-glow dark:text-black dark:hover:bg-glow/90 transition text-sm font-semibold"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 transition text-sm font-medium"
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       );
