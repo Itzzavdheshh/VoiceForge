@@ -1,9 +1,7 @@
 // Implements Chatterbox Multilingual TTS voice cloning and speech proxy handlers.
 // Uses the Hugging Face Gradio client to call ResembleAI/Chatterbox-Multilingual-TTS.
 import crypto from "crypto";
-import { isValidAudioBuffer } from "../middleware/upload.js";
 import { getIsMock } from "../utils/mock.js";
-import { isValidLanguageCode } from "../utils/languages.js";
 
 // Maximum characters allowed per TTS request. ElevenLabs bills by character
 // count, so a hard cap prevents a single request from draining the monthly quota.
