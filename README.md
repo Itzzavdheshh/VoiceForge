@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat:[perf]: throttle face detection and audio state updates to reduce main-thread blocking (#422)
+# TODO: [bug] : missing auto-recloning recovery on backend session expiry (#432)
