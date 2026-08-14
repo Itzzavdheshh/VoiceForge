@@ -49,32 +49,6 @@ export class AudioProcessor {
     // We map the node to the element's lifecycle using a direct property.
     if (audioElement._audioSourceNode) {
       this.source = audioElement._audioSourceNode;
-      try {
-        this.analyzer = Meyda.createMeydaAnalyzer({
-          audioContext: this.audioContext,
-          source: this.source,
-          bufferSize: 512,
-          featureExtractors: ["melSpectrogram", "rms"],
-          callback: (features) => {
-            if (features) {
-              if (features.melSpectrogram) {
-                this.currentMelSpectrogram = features.melSpectrogram;
-                if (!this.melHistory) this.melHistory = [];
-                this.melHistory.push(features.melSpectrogram);
-                if (this.melHistory.length > 16) {
-                  this.melHistory.shift();
-                }
-              }
-              if (features.rms !== undefined) {
-                this.currentVolume = features.rms;
-              }
-            }
-          },
-        });
-        this.analyzer.start();
-      } catch {
-        // Meyda initialization fallback
-      }
     } else {
       this.source = this.audioContext.createMediaElementSource(audioElement);
       // Connect to destination so we can still hear it
@@ -86,24 +60,33 @@ export class AudioProcessor {
     this.melHistory = [];
 
     // Configure Meyda to extract the melSpectrogram with 80 bands
-    this.analyzer = Meyda.createMeydaAnalyzer({
-      audioContext: this.audioContext,
-      source: this.source,
-      bufferSize: 512, // Must be a power of 2
-      featureExtractors: ["melSpectrogram", "rms"],
-      callback: (features) => {
-        if (features) {
-          if (features.melSpectrogram) {
-            this.currentMelSpectrogram = features.melSpectrogram;
+    try {
+      this.analyzer = Meyda.createMeydaAnalyzer({
+        audioContext: this.audioContext,
+        source: this.source,
+        bufferSize: 512, // Must be a power of 2
+        featureExtractors: ["melSpectrogram", "rms"],
+        callback: (features) => {
+          if (features) {
+            if (features.melSpectrogram) {
+              this.currentMelSpectrogram = features.melSpectrogram;
+              if (!this.melHistory) this.melHistory = [];
+              this.melHistory.push(features.melSpectrogram);
+              if (this.melHistory.length > 16) {
+                this.melHistory.shift();
+              }
+            }
+            if (features.rms !== undefined) {
+              this.currentVolume = features.rms;
+            }
           }
-          if (features.rms !== undefined) {
-            this.currentVolume = features.rms;
-          }
-        }
-      },
-    });
+        },
+      });
 
-    this.analyzer.start();
+      this.analyzer.start();
+    } catch (err) {
+      // Meyda initialization fallback
+    }
   }
 
   /**
