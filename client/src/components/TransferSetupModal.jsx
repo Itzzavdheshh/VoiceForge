@@ -75,7 +75,7 @@ export function TransferSetupModal({ onClose }) {
             <div className="flex flex-col items-center justify-center py-10">
               <Loader2 size={36} className="animate-spin text-moss dark:text-glow" />
               <p className="mt-3 text-sm font-medium text-ink/70 dark:text-muted">
-                Packaging voice profiles &amp; settings...
+                Packaging voice profiles &amp; settings... (100%)
               </p>
             </div>
           ) : error ? (
