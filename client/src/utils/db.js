@@ -156,3 +156,55 @@ export async function clearStorage() {
     };
   });
 }
+
+export async function saveTranscriptItem(entry) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(TRANSCRIPT_STORE, "readwrite");
+    const store = transaction.objectStore(TRANSCRIPT_STORE);
+    const item = { ...entry, timestamp: entry.timestamp || new Date().toISOString() };
+    const request = store.add(item);
+
+    request.onsuccess = (event) => {
+      resolve({ ...item, id: event.target.result });
+    };
+
+    request.onerror = (event) => {
+      reject(new Error("Failed to save transcript: " + (event.target.error?.message || "Unknown error")));
+    };
+  });
+}
+
+export async function getAllTranscripts() {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(TRANSCRIPT_STORE, "readonly");
+    const store = transaction.objectStore(TRANSCRIPT_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result || []);
+    };
+
+    request.onerror = (event) => {
+      reject(new Error("Failed to retrieve transcripts: " + (event.target.error?.message || "Unknown error")));
+    };
+  });
+}
+
+export async function clearAllTranscripts() {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(TRANSCRIPT_STORE, "readwrite");
+    const store = transaction.objectStore(TRANSCRIPT_STORE);
+    const request = store.clear();
+
+    request.onsuccess = () => {
+      resolve(true);
+    };
+
+    request.onerror = (event) => {
+      reject(new Error("Failed to clear transcripts: " + (event.target.error?.message || "Unknown error")));
+    };
+  });
+}
