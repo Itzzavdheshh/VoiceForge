@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] missing canvas audio waveform visualizer (#453)
+# TODO: [bug] missing global keyboard shortcuts for a11y (#454)
