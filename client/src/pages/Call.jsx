@@ -4,6 +4,8 @@ import { Camera, CircleAlert, Sliders, ChevronDown, RotateCcw, Clock, Pin, Play,
 import TextToSpeech from "../components/TextToSpeech.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
 import VirtualCamera from "../components/VirtualCamera.jsx";
+import LiveTranscription from "../components/LiveTranscription.jsx";
+import { AACSymbolBoard } from "../components/AACSymbolBoard.jsx";
 import { LanguageSelector } from "../components/LanguageSelector.jsx";
 import useTTS from "../hooks/useTTS.js";
 import useVirtualCamera from "../hooks/useVirtualCamera.js";
@@ -647,6 +649,78 @@ export default function Call() {
 
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr_0.9fr]">
         {/* Webcam panel */}
+        <div className="space-y-5">
+          <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
+            <div className="mb-4 flex items-center gap-2">
+              <Camera
+                size={19}
+                aria-hidden="true"
+                className="dark:text-neutral-300"
+              />
+              <h2 className="text-lg font-bold dark:text-neutral-100">
+                Live webcam
+              </h2>
+            </div>
+            {/* Video element: bg-black already looks fine in dark mode */}
+            <video
+              ref={localVideoRef}
+              autoPlay
+              muted
+              playsInline
+              className="aspect-video w-full rounded-md bg-black object-cover"
+            />
+            {cameraError && (
+              <p className="mt-3 text-sm font-semibold text-coral">
+                {cameraError}
+              </p>
+            )}
+          </section>
+
+          {/* Sound Board & Chimes Board */}
+          <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
+            <div className="mb-3 flex items-center gap-2">
+              <Sliders size={18} className="text-moss dark:text-glow" />
+              <h2 className="text-lg font-bold dark:text-neutral-100">
+                Sound Board &amp; Chimes
+              </h2>
+            </div>
+            <p className="text-xs text-ink/65 dark:text-muted mb-4">
+              Play quick alerts and expressions to other call participants.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => playSoundEffect("ping")}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:bg-neutral-900"
+              >
+                🔔 Ping Attention
+              </button>
+              <button
+                type="button"
+                onClick={() => playSoundEffect("chime")}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:bg-neutral-900"
+              >
+                🚪 Doorbell Chime
+              </button>
+              <button
+                type="button"
+                onClick={() => playSoundEffect("alert")}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:bg-neutral-900"
+              >
+                ⚠️ Warning Beep
+              </button>
+              <button
+                type="button"
+                onClick={() => playSoundEffect("applaud")}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:bg-neutral-900"
+              >
+                👏 Applaud Tone
+              </button>
+            </div>
+          </section>
+
+          <LiveTranscription />
+        </div>
         <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
           <div className="mb-4 flex items-center gap-2">
             <Camera
@@ -824,18 +898,12 @@ export default function Call() {
           onSpeakingChange={setIsSpeaking}
           calibration={calibration}
           isCalibrating={isCalibrationOpen}
-          captionText={captionText}
-          captionEnabled={captionEnabled}
-          captionPosition={captionPosition}
-          captionFontSize={captionFontSize}
-        />
-        <CaptionOverlay
-          isEnabled={captionEnabled}
-          position={captionPosition}
-          fontSize={captionFontSize}
-          onToggle={toggleEnabled}
-          onPositionChange={updatePosition}
-          onFontSizeChange={updateFontSize}
+          avatarImage={avatarImage}
+          subtitlesEnabled={subtitlesEnabled}
+          subtitleFontSize={subtitleFontSize}
+          subtitleBgOpacity={subtitleBgOpacity}
+          activeText={activeText}
+          status={status}
         />
       </div>
 

@@ -5,10 +5,20 @@ import { useEffect, useRef } from "react";
 import { AudioProcessor } from "../utils/audioProcessor";
 import { FaceProcessor } from "../utils/faceProcessor";
 
-export default React.forwardRef(function VideoPreview(
-  { webcamStream, audioUrl, isSpeaking },
-  ref,
-) {
+export default React.forwardRef(function VideoPreview({
+  webcamStream,
+  audioUrl,
+  isSpeaking,
+  onSpeakingChange,
+  calibration = { xOffset: 0, yOffset: 0, scale: 1.0 },
+  isCalibrating = false,
+  avatarImage = null,
+  subtitlesEnabled = true,
+  subtitleFontSize = "medium",
+  subtitleBgOpacity = 0.6,
+  activeText = "",
+  status = "idle",
+}, ref) {
   const videoRef = React.useRef(null);
   const animationRef = React.useRef(null);
   const audioRef = useRef(null);   
@@ -63,6 +73,7 @@ export default React.forwardRef(function VideoPreview(
   React.useEffect(() => { activeTextRef.current = activeText; }, [activeText]);
 
   React.useEffect(() => {
+    let isSegmenterMounted = true;
     async function initSegmenter() {
       try {
         const { SelfieSegmentation } = await import("@mediapipe/selfie_segmentation");
@@ -100,12 +111,28 @@ export default React.forwardRef(function VideoPreview(
         
         // Pre-initialize
         await segmenter.initialize();
-        segmenterRef.current = segmenter;
+        if (isSegmenterMounted) {
+          segmenterRef.current = segmenter;
+        } else {
+          segmenter.close();
+        }
       } catch (err) {
         console.error("Failed to load MediaPipe segmenter", err);
       }
     }
     initSegmenter();
+
+    return () => {
+      isSegmenterMounted = false;
+      if (segmenterRef.current) {
+        try {
+          segmenterRef.current.close();
+        } catch {
+          /* ignore closing errors */
+        }
+        segmenterRef.current = null;
+      }
+    };
   }, []);
 
   React.useEffect(() => {
@@ -143,6 +170,7 @@ export default React.forwardRef(function VideoPreview(
   }, [audioUrl]);
 
   React.useEffect(() => {
+    let isModelMounted = true;
     async function loadModel() {
       try {
         const modelResponse = await fetch("/models/wav2lip.onnx");
@@ -152,19 +180,48 @@ export default React.forwardRef(function VideoPreview(
         }
 
         // Initialize processors
-        audioProcessorRef.current = new AudioProcessor();
-        faceProcessorRef.current = new FaceProcessor();
-        await faceProcessorRef.current.initialize();
+        const audioProc = new AudioProcessor();
+        const faceProc = new FaceProcessor();
+        await faceProc.initialize();
 
         const ort = await import("onnxruntime-web");
-        await ort.InferenceSession.create(modelBytes);
+        const session = await ort.InferenceSession.create(modelBytes);
+
+        if (!isModelMounted) {
+          audioProc.dispose();
+          faceProc.dispose();
+          session.release();
+          return;
+        }
+
+        audioProcessorRef.current = audioProc;
+        faceProcessorRef.current = faceProc;
+        ortSessionRef.current = session;
         setModelStatus("ONNX Wav2Lip model loaded");
-      } catch {
-        setModelStatus("Fallback mouth animation active");
-        // TODO: Replace fallback canvas mouth animation with real browser Wav2Lip ONNX inference.
+      } catch (err) {
+        if (isModelMounted) {
+          console.warn("Wav2Lip initialization skipped:", err.message);
+          setModelStatus("Audio-driven animation active");
+        }
       }
     }
     loadModel();
+
+    return () => {
+      isModelMounted = false;
+      if (audioProcessorRef.current) {
+        audioProcessorRef.current.dispose();
+        audioProcessorRef.current = null;
+      }
+      if (faceProcessorRef.current) {
+        faceProcessorRef.current.dispose();
+        faceProcessorRef.current = null;
+      }
+      if (ortSessionRef.current) {
+        ortSessionRef.current.release();
+        ortSessionRef.current = null;
+      }
+    };
   }, []);
 
   React.useEffect(() => {
@@ -258,8 +315,7 @@ export default React.forwardRef(function VideoPreview(
     }
 
     function draw(now, metadata) {
-      if (isUnmounted) return;
-      const timestamp = metadata ? metadata.mediaTime * 1000 : now;
+      const timestamp = now;
       context.fillStyle = bgColor;
       context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -466,12 +522,29 @@ export default React.forwardRef(function VideoPreview(
         context.restore();
       }
 
+      if (video && video.requestVideoFrameCallback && !avatarImage) {
+        animationRef.current = video.requestVideoFrameCallback(draw);
+      } else {
+        animationRef.current = requestAnimationFrame(draw);
+      }
+    }
+
+    const videoElement = videoRef.current;
+    if (videoElement && videoElement.requestVideoFrameCallback && !avatarImage) {
+      animationRef.current = videoElement.requestVideoFrameCallback(draw);
+    } else {
       animationRef.current = requestAnimationFrame(draw);
     }
 
-    animationRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [ref, isSpeaking, theme, captionText, captionEnabled, captionPosition, captionFontSize]);
+    return () => {
+      const vid = videoRef.current;
+      if (vid && vid.cancelVideoFrameCallback && !avatarImage) {
+        vid.cancelVideoFrameCallback(animationRef.current);
+      } else {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [ref, isSpeaking, theme, avatarImage]);
 
   return (
     <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
@@ -491,12 +564,30 @@ export default React.forwardRef(function VideoPreview(
         )}
       </div>
       <video ref={videoRef} autoPlay muted playsInline className="hidden" />
-      <canvas
-        ref={ref}
-        width="960"
-        height="540"
-        className="aspect-video w-full rounded-md bg-black object-cover"
-      />
+      <video ref={pipVideoRef} autoPlay muted playsInline className="hidden" />
+      <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
+        <canvas
+          ref={ref}
+          width="960"
+          height="540"
+          role="img"
+          aria-label="Lip-synced video output preview"
+          className="h-full w-full object-cover"
+        />
+        {status === "speaking" && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300">
+            <div className="flex flex-col items-center space-y-4 rounded-xl bg-ink/90 px-8 py-6 text-white shadow-2xl backdrop-blur-md dark:bg-black/90">
+              <div className="relative flex h-12 w-12 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75"></span>
+                <span className="relative inline-flex h-8 w-8 rounded-full bg-coral"></span>
+              </div>
+              <p className="animate-pulse text-sm font-bold tracking-widest text-neutral-100 uppercase">
+                Generating Speech
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
       {audioUrl && (
         <audio className="mt-4 w-full" controls src={audioUrl} autoPlay>
           <track kind="captions" />
