@@ -18,6 +18,7 @@ export default React.forwardRef(function VideoPreview({
   subtitleFontSize = "medium",
   subtitleBgOpacity = 0.6,
   activeText = "",
+  status = "idle",
 }, ref) {
   const videoRef = React.useRef(null);
   const animationRef = React.useRef(null);
@@ -534,14 +535,29 @@ export default React.forwardRef(function VideoPreview({
       </div>
       <video ref={videoRef} autoPlay muted playsInline className="hidden" />
       <video ref={pipVideoRef} autoPlay muted playsInline className="hidden" />
-      <canvas
-        ref={ref}
-        width="960"
-        height="540"
-        role="img"
-        aria-label="Lip-synced video output preview"
-        className="aspect-video w-full rounded-md bg-black object-cover"
-      />
+      <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
+        <canvas
+          ref={ref}
+          width="960"
+          height="540"
+          role="img"
+          aria-label="Lip-synced video output preview"
+          className="h-full w-full object-cover"
+        />
+        {status === "speaking" && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300">
+            <div className="flex flex-col items-center space-y-4 rounded-xl bg-ink/90 px-8 py-6 text-white shadow-2xl backdrop-blur-md dark:bg-black/90">
+              <div className="relative flex h-12 w-12 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75"></span>
+                <span className="relative inline-flex h-8 w-8 rounded-full bg-coral"></span>
+              </div>
+              <p className="animate-pulse text-sm font-bold tracking-widest text-neutral-100 uppercase">
+                Generating Speech
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
       {audioUrl && (
         <audio
           ref={audioRef}

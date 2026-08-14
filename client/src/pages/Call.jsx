@@ -937,6 +937,7 @@ export default function Call() {
           subtitleFontSize={subtitleFontSize}
           subtitleBgOpacity={subtitleBgOpacity}
           activeText={activeText}
+          status={status}
         />
       </div>
 

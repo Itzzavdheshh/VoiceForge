@@ -1,6 +1,6 @@
 // Provides the large in-call typing surface and Speak command for generated speech.
 import React from "react";
-import { SendHorizontal, Eraser } from "lucide-react";
+import { SendHorizontal, Eraser, Loader2 } from "lucide-react";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
 import { useUnsavedChanges } from "../hooks/useUnsavedChanges.js";
 
@@ -255,8 +255,17 @@ if (estimatedDuration > 30) {
         disabled={disabled || !trimmedText || status === "speaking" || characterCount > MAX_CHARS}
         className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <SendHorizontal size={18} aria-hidden="true" />
-        {status === "speaking" ? "Generating..." : "Speak"}
+        {status === "speaking" ? (
+          <>
+            <Loader2 className="animate-spin" size={18} aria-hidden="true" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <SendHorizontal size={18} aria-hidden="true" />
+            Speak
+          </>
+        )}
       </button>
     </section>
   );
