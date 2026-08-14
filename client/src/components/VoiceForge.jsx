@@ -47,24 +47,46 @@ export default function VoiceForge() {
 }, [clearHistory]);
 
   const speak = useCallback((text) => {
-    if (!text.trim()) return;
+    return new Promise((resolve, reject) => {
+      if (!text.trim()) return reject(new Error("empty text"));
 
-    if (!("speechSynthesis" in window)) {
-      showToast("Speech synthesis is not supported in this browser", "error");
-      return;
-    }
-  }, [showToast]);
+      if (!("speechSynthesis" in window)) {
+        showToast("Speech synthesis is not supported in this browser", "error");
+        return reject(new Error("speech synthesis not supported"));
+      }
 
-  const handleSpeak = useCallback(() => {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = language;
+      utterance.rate = 0.95;
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        resolve();
+      };
+      utterance.onerror = (event) => {
+        setIsSpeaking(false);
+        showToast("Speech playback failed", "error");
+        reject(new Error(event.error || "speech failed"));
+      };
+      window.speechSynthesis.speak(utterance);
+    });
+  }, [showToast, language]);
+
+  const handleSpeak = useCallback(async () => {
     const text = inputText.trim();
     if (!text) {
       showToast("Please type a message first", "error");
       textareaRef.current?.focus();
       return;
     }
-    speak(text);
-    addMessage(text);
-    showToast("Saved to history", "success");
+    try {
+      await speak(text);
+      addMessage(text);
+      showToast("Saved to history", "success");
+    } catch {
+      // speech failed — don't save to history
+    }
   }, [inputText, speak, addMessage, showToast]);
 
   const handleReplay = useCallback((text) => {
