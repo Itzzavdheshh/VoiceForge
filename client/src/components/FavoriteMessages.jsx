@@ -5,8 +5,16 @@ const FEW_SHOWN = 5;
 
 export function FavoriteMessages({ history, favorites, onReuse, onUnpin }) {
   const [expanded, setExpanded] = useState(false);
+  const [sortBy, setSortBy] = useState("recent");
 
-  const pinned = history.filter((message) => favorites.has(message.id));
+  const pinned = React.useMemo(() => {
+    const items = history.filter((message) => favorites.has(message.id));
+    if (sortBy === "alpha") {
+      return [...items].sort((a, b) => a.text.localeCompare(b.text));
+    }
+    return items;
+  }, [history, favorites, sortBy]);
+
   if (pinned.length === 0) return null;
 
   const displayed = expanded ? pinned : pinned.slice(0, FEW_SHOWN);
