@@ -330,11 +330,31 @@ export function AudioTrimmer({ audioBlob, onTrimComplete }) {
           ref={canvasRef}
           width={600}
           height={110}
+          tabIndex={0}
+          role="slider"
+          aria-label="Audio Trimmer Selection"
+          aria-valuenow={(endRatio - startRatio) * duration}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          className="h-28 w-full cursor-ew-resize rounded-md border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-inner"
+          onKeyDown={(e) => {
+            const step = 0.02;
+            if (e.key === "ArrowLeft") {
+              if (e.shiftKey) {
+                setStartRatio((prev) => Math.max(0, prev - step));
+              } else {
+                setEndRatio((prev) => Math.max(startRatio + 0.05, prev - step));
+              }
+            } else if (e.key === "ArrowRight") {
+              if (e.shiftKey) {
+                setStartRatio((prev) => Math.min(endRatio - 0.05, prev + step));
+              } else {
+                setEndRatio((prev) => Math.min(1.0, prev + step));
+              }
+            }
+          }}
+          className="h-28 w-full cursor-ew-resize rounded-md border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-inner focus:outline-none focus:ring-2 focus:ring-coral"
         />
       </div>
 
