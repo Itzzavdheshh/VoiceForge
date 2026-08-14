@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #422: feat:[perf]: Throttle face detection and audio state updates to reduce main-thre
+<!-- fix: docs: Add OBS Virtual Camera Setup Screenshots to README (#412) -->
