@@ -18,6 +18,7 @@ export function QuickReplies({ onSelect, showToast }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved === null) return DEFAULT_QUICK_REPLIES;
       const parsed = JSON.parse(saved);
+<<<<<<< HEAD
       if (
         Array.isArray(parsed) &&
         parsed.every(
@@ -34,6 +35,16 @@ export function QuickReplies({ onSelect, showToast }) {
         }));
       }
       return DEFAULT_QUICK_REPLIES;
+=======
+      return Array.isArray(parsed) && parsed.every(
+        (item) =>
+          item &&
+          typeof item.label === "string" &&
+          typeof item.phrase === "string"
+      )
+        ? parsed
+        : DEFAULT_QUICK_REPLIES;
+>>>>>>> 89f8c2c (Update client/src/components/QuickReplies.jsx)
     } catch {
       return DEFAULT_QUICK_REPLIES;
     }
@@ -85,6 +96,11 @@ export function QuickReplies({ onSelect, showToast }) {
     e.preventDefault();
     const cleanPhrase = newPhrase.trim();
     
+
+    if (cleanPhrase.length > 120) {
+      showToast("Phrase is too long (max 120 characters)", "error");
+      return;
+    }
 
     if (cleanPhrase.length > 120) {
       showToast("Phrase is too long (max 120 characters)", "error");

@@ -1,62 +1,35 @@
 const techStack = [
-  {
-    name: "React 18",
-    color: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-  },
-  {
-    name: "Vite 5",
-    color: "bg-purple-500/10 text-purple-400 border border-purple-500/20",
-  },
-  {
-    name: "Tailwind CSS 3",
-    color: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20",
-  },
-  {
-    name: "Node.js + Express",
-    color: "bg-green-500/10 text-green-400 border border-green-500/20",
-  },
-  {
-    name: "Chatterbox TTS",
-    color: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-  },
-  {
-    name: "ONNX Runtime Web",
-    color: "bg-orange-500/10 text-orange-400 border border-orange-500/20",
-  },
-  {
-    name: "IndexedDB",
-    color: "bg-pink-500/10 text-pink-400 border border-pink-500/20",
-  },
-  {
-    name: "WebRTC",
-    color: "bg-red-500/10 text-red-400 border border-red-500/20",
-  },
+  { name: "React 18", color: "bg-blue-500/10 text-blue-400 border border-blue-500/20" },
+  { name: "Vite 5", color: "bg-purple-500/10 text-purple-400 border border-purple-500/20" },
+  { name: "Tailwind CSS 3", color: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" },
+  { name: "Node.js + Express", color: "bg-green-500/10 text-green-400 border border-green-500/20" },
+  { name: "ElevenLabs TTS", color: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20" },
+  { name: "ONNX Runtime Web", color: "bg-orange-500/10 text-orange-400 border border-orange-500/20" },
+  { name: "IndexedDB", color: "bg-pink-500/10 text-pink-400 border border-pink-500/20" },
+  { name: "WebRTC", color: "bg-red-500/10 text-red-400 border border-red-500/20" },
 ];
 
 const steps = [
   {
     number: "01",
     title: "Record Your Voice",
-    description:
-      "Record a short 10-second consent-based reference clip. VoiceForge sends it via Chatterbox on Hugging Face to create a unique voice profile stored locally in your browser.",
+    description: "Record a short 10-second consent-based reference clip. VoiceForge sends it to ElevenLabs to create a unique voice profile stored locally in your browser.",
   },
   {
     number: "02",
     title: "Type What You Want to Say",
-    description:
-      "On the Compose or Call tab, type any phrase. VoiceForge converts it to speech using your cloned voice in real time.",
+    description: "On the Compose or Call tab, type any phrase. VoiceForge converts it to speech using your cloned voice in real time.",
   },
   {
     number: "03",
     title: "Join Your Call Naturally",
-    description:
-      "Go Live to expose the lip-synced canvas stream. Use OBS Virtual Camera to route it into Zoom, Google Meet, or Microsoft Teams as your camera feed.",
+    description: "Go Live to expose the lip-synced canvas stream. Use OBS Virtual Camera to route it into Zoom, Google Meet, or Microsoft Teams as your camera feed.",
   },
 ];
 
 export default function About({ onNavigate }) {
   return (
-    <div className="min-h-dvh bg-background text-foreground px-4 py-12 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background text-foreground px-4 py-12 max-w-4xl mx-auto">
 
       <section className="mb-16 text-center">
         <h1 className="text-4xl font-bold mb-4">About VoiceForge</h1>
@@ -83,25 +56,10 @@ export default function About({ onNavigate }) {
         <h2 className="text-2xl font-semibold mb-8">How It Works</h2>
         <div className="grid gap-6 sm:grid-cols-3">
           {steps.map((step) => (
-            <div
-              key={step.number}
-              className="
-                rounded-xl border border-border bg-card p-6
-                transition-all duration-300 ease-out
-                hover:-translate-y-2
-                hover:shadow-xl
-                hover:border-primary
-                hover:bg-accent/20
-                cursor-pointer
-              "
-            >
-              <span className="text-3xl font-bold text-primary opacity-40">
-                {step.number}
-              </span>
+            <div key={step.number} className="rounded-xl border border-border bg-card p-6">
+              <span className="text-3xl font-bold text-primary opacity-40">{step.number}</span>
               <h3 className="mt-2 text-lg font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {step.description}
-              </p>
+              <p className="mt-2 text-sm text-muted-foreground">{step.description}</p>
             </div>
           ))}
         </div>
@@ -111,10 +69,7 @@ export default function About({ onNavigate }) {
         <h2 className="text-2xl font-semibold mb-6">Tech Stack</h2>
         <div className="flex flex-wrap gap-3">
           {techStack.map((tech) => (
-            <span
-              key={tech.name}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium ${tech.color}`}
-            >
+            <span key={tech.name} className={`rounded-full px-4 py-1.5 text-sm font-medium ${tech.color}`}>
               {tech.name}
             </span>
           ))}
@@ -122,9 +77,7 @@ export default function About({ onNavigate }) {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-8 text-center">
-        <h2 className="text-2xl font-semibold mb-3">
-          Open Source and Community
-        </h2>
+        <h2 className="text-2xl font-semibold mb-3">Open Source and Community</h2>
         <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
           VoiceForge is built in the open under the MIT license. Whether you are
           fixing a bug, suggesting a feature, or improving accessibility, all
@@ -147,6 +100,7 @@ export default function About({ onNavigate }) {
           </button>
         </div>
       </section>
+
     </div>
   );
 }
