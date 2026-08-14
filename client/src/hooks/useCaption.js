@@ -1,6 +1,9 @@
 // Manages live caption state and timing for the video overlay
 import { useState, useCallback, useRef } from "react";
 
+/** Maximum number of characters retained in captionText to prevent memory growth. */
+const MAX_CAPTION_CHARS = 500;
+
 export default function useCaption() {
   const [captionText, setCaptionText] = useState("");
   const [isEnabled, setIsEnabled] = useState(() => {
@@ -27,7 +30,13 @@ export default function useCaption() {
   const fadeTimerRef = useRef(null);
 
   const updateCaption = useCallback((text) => {
-    setCaptionText(text);
+    setCaptionText((prev) => {
+      const combined = prev ? `${prev} ${text}` : text;
+      // Trim from the front if accumulated text exceeds the max length
+      return combined.length > MAX_CAPTION_CHARS
+        ? combined.slice(combined.length - MAX_CAPTION_CHARS)
+        : combined;
+    });
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
   }, []);
 
