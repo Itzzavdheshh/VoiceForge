@@ -50,19 +50,23 @@ export function ThemeProvider({ children }) {
       }
     }
 
-    function handleCustomEvent(event) {
-      const newTheme = event.detail?.theme;
-      if (newTheme === "dark" || newTheme === "light") {
-        setTheme(newTheme);
-      }
+    function handleSystemThemeChange(e) {
+      // Only auto-switch if user hasn't explicitly stored a manual theme preference
+      try {
+        if (!localStorage.getItem("voiceforge:theme")) {
+          setTheme(e.matches ? "dark" : "light");
+        }
+      } catch {}
     }
 
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleStorage);
-      window.addEventListener("voiceforge:themeChanged", handleCustomEvent);
+      const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+      mediaQuery?.addEventListener?.("change", handleSystemThemeChange);
+
       return () => {
         window.removeEventListener("storage", handleStorage);
-        window.removeEventListener("voiceforge:themeChanged", handleCustomEvent);
+        mediaQuery?.removeEventListener?.("change", handleSystemThemeChange);
       };
     }
   }, []);
