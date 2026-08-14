@@ -362,16 +362,30 @@ export async function cloneVoice(request, response, next) {
 // Each entry stores an ElevenLabs API key and request parameters for up
 // to 60 seconds. Without a cap a burst of requests can exhaust heap memory.
 // When the cap is reached the oldest entry is evicted to make room.
-const PENDING_STREAMS_MAX = 500;
 const pendingStreams = new Map();
 
-function addPendingStream(id, value) {
+function deletePendingStream(id) {
+  const entry = pendingStreams.get(id);
+  if (entry) {
+    if (entry.timeoutId) clearTimeout(entry.timeoutId);
+    pendingStreams.delete(id);
+  }
+  return entry;
+}
+
+function addPendingStream(id, value, ttlMs = 60000) {
   if (pendingStreams.size >= PENDING_STREAMS_MAX) {
     // Evict the oldest entry (Map iteration order is insertion order).
     const oldestKey = pendingStreams.keys().next().value;
-    pendingStreams.delete(oldestKey);
+    deletePendingStream(oldestKey);
   }
-  pendingStreams.set(id, value);
+
+  const timeoutId = setTimeout(() => {
+    deletePendingStream(id);
+  }, ttlMs);
+  timeoutId.unref?.();
+
+  pendingStreams.set(id, { ...value, timeoutId });
 }
 
 export async function speak(request, response, next) {
