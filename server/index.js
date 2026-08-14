@@ -39,17 +39,32 @@ const port = process.env.PORT || 3001;
 const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 const isDev = process.env.NODE_ENV !== "production";
 
+// Enable trust proxy so rate limiters can identify real client IPs correctly
+app.set("trust proxy", 1);
+
 app.use(
   helmet({
-    crossOriginEmbedderPolicy: true,
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+    crossOriginEmbedderPolicy: { policy: "require-corp" },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", ...(isDev ? ["'unsafe-inline'", "'unsafe-eval'"] : [])],
         styleSrc: ["'self'", ...(isDev ? ["'unsafe-inline'"] : [])],
         imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'", clientUrl, "https://api-inference.huggingface.co", "https://api.github.com", "https://cdn.jsdelivr.net", "https://storage.googleapis.com", ...(isDev ? ["ws://localhost:5173", "http://localhost:5173"] : [])],
+        mediaSrc: ["'self'", "blob:"],
         workerSrc: ["'self'", "blob:"],
+        connectSrc: [
+          "'self'",
+          clientUrl,
+          "https://api-inference.huggingface.co",
+          "https://huggingface.co",
+          "https://*.hf.space",
+          "https://api.github.com",
+          "https://cdn.jsdelivr.net",
+          "https://storage.googleapis.com",
+          ...(isDev ? ["ws://localhost:5173", "http://localhost:5173", "ws://localhost:*", "ws://127.0.0.1:*"] : []),
+        ],
       },
     },
   })
@@ -58,36 +73,8 @@ app.use(
 app.use((_req, res, next) => {
   res.setHeader(
     "Permissions-Policy",
-    "camera=(), microphone=(self), geolocation=(), interest-cohort=()"
+    "microphone=(self), camera=(self), geolocation=(), interest-cohort=()"
   );
-  next();
-});
-
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: [
-        "'self'",
-        clientUrl,
-        "https://huggingface.co",
-        "https://*.hf.space",
-        "ws://localhost:*",
-        "ws://127.0.0.1:*"
-      ],
-      mediaSrc: ["'self'", "blob:"],
-      workerSrc: ["'self'", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:"],
-    }
-  },
-  crossOriginOpenerPolicy: { policy: "same-origin" },
-  crossOriginEmbedderPolicy: { policy: "require-corp" }
-}));
-
-app.use((req, res, next) => {
-  res.setHeader("Permissions-Policy", "microphone=(self), camera=(self)");
   next();
 });
 
@@ -101,8 +88,6 @@ const globalLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-// Enable trust proxy so rate limiters can identify real client IPs
-app.set("trust proxy", 1);
 
 // AFTER — restricted CORS with explicit origin and credentials
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
