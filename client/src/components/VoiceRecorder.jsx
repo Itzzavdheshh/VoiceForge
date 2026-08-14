@@ -225,6 +225,13 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
       );
       if (!confirmStop) return;
     }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (e) {}
+      });
+    }
     recorderRef.current?.stop();
   }
 
