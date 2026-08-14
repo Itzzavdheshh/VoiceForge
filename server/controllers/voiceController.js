@@ -10,9 +10,23 @@ import { isValidLanguageCode, toChatterboxLanguageCode } from "../utils/language
 // ---------------------------------------------------------------------------
 export const voiceStore = new Map();
 
-function parseBoundedNumber(rawValue, fallback, min) {
-  const numeric = Number(rawValue);
-  return Number.isFinite(numeric) ? Math.max(min, numeric) : fallback;
+// Maximum number of pending speech streams allowed in memory to prevent heap exhaustion.
+// When exceeded, the oldest entry is evicted. Configurable via MAX_PENDING_STREAMS.
+const MAX_PENDING_STREAMS = parseInt(process.env.MAX_PENDING_STREAMS, 10) || 200;
+
+// Callers must supply their own ElevenLabs key via the X-ElevenLabs-Api-Key
+// request header. The server no longer falls back to its own environment key
+// so anonymous requests cannot charge the server operator's account.
+function requireApiKey(request) {
+  const apiKey = request.get("X-ElevenLabs-Api-Key")?.trim();
+  if (!apiKey) {
+    const error = new Error(
+      "An ElevenLabs API key is required. Add it via the X-ElevenLabs-Api-Key header."
+    );
+    error.status = 401;
+    throw error;
+  }
+  return apiKey;
 }
 
 const MAX_STORED_VOICES = parseBoundedNumber(process.env.VOICE_STORE_MAX, 20, 1);
@@ -617,37 +631,17 @@ export async function speak(request, response, next) {
 }
     const mergedSettings = { ...defaultVoiceSettings, ...sanitizedSettings };
 
-    // Cryptographically secure, 128-bit identifier. Unlike Math.random(), this
-    // cannot be reproduced from a seed or enumerated by a co-located process,
-    // so the stored API key cannot be retrieved by guessing the stream key.
-    const speechId = crypto.randomUUID();
-
-    const timeout = setTimeout(() => {
-      deletePendingStream(speechId);
-    }, PENDING_STREAM_TTL_MS);
-    // Do not keep the event loop alive solely for this cleanup timer.
-    timeout.unref?.();
-
-    pendingStreams.set(speechId, {
-      text: trimmedText,
-      voiceId: trimmedVoiceId,
-      mergedSettings,
-      timeout,
-    });
-
-    if (getIsMock()) {
-      console.warn(`[VoiceForge] MOCK_CHATTERBOX: speak enqueued mock stream for speechId=${speechId}`);
+    // Enforce maximum pending streams limit to prevent memory exhaustion.
+    // If limit is exceeded, evict the oldest entry (first in iteration order).
+    if (pendingStreams.size > MAX_PENDING_STREAMS) {
+      const oldestKey = pendingStreams.keys().next().value;
+      pendingStreams.delete(oldestKey);
     }
 
-    const expiresAt = Date.now() + 60000;
-    const token = encryptToken({
-      speechId,
-      text: trimmedText,
-      voiceId: trimmedVoiceId,
-      language_code,
-      voice_settings: mergedSettings,
-      expiresAt,
-    });
+    // Set a timeout to clean up if the stream is never requested within 60s
+    setTimeout(() => {
+      pendingStreams.delete(speechId);
+    }, 60000);
 
     response.json({
       speechId: token,
