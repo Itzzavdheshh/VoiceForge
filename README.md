@@ -165,4 +165,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #649: [BUG] : Voice Session Loss Auto-Recovery (Self-healing re-cloning)
+# TODO: issue #327
