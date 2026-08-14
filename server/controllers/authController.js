@@ -19,10 +19,18 @@ export async function register(req, res, next) {
       return res.status(400).json({ error: "Username and password must be valid strings" });
     }
 
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 30) {
+      return res.status(400).json({ error: "Username must be between 3 and 30 characters" });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters long" });
+    }
+
     const db = await getDatabase();
     
     // Check if user already exists
-    const existingUser = await db.get("SELECT id FROM users WHERE username = ?", [username]);
+    const existingUser = await db.get("SELECT id FROM users WHERE username = ?", [trimmedUsername]);
     if (existingUser) {
       return res.status(400).json({ error: "Username is already taken" });
     }
@@ -34,7 +42,7 @@ export async function register(req, res, next) {
     try {
       await db.run(
         "INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)",
-        [id, username, password_hash, created_at]
+        [id, trimmedUsername, password_hash, created_at]
       );
     } catch (dbErr) {
       // Gracefully handle SQLite unique constraint violations (e.g., race conditions)
