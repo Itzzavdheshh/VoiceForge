@@ -5,36 +5,19 @@ import { isValidAudioBuffer } from "../middleware/upload.js";
 import { getIsMock } from "../utils/mock.js";
 import { isValidLanguageCode } from "../utils/languages.js";
 
-// ---------------------------------------------------------------------------
-// In-memory voice store: maps voice_id to { name, audioBuffer, mimeType, expiresAt }
-// In production you would persist this to a database or object store.
-// ---------------------------------------------------------------------------
-export const voiceStore = new Map();
+// Maximum characters allowed per TTS request. ElevenLabs bills by character
+// count, so a hard cap prevents a single request from draining the monthly quota.
+const SPEAK_TEXT_MAX_LENGTH = 2000;
 
-// Maximum number of pending speech streams allowed in memory to prevent heap exhaustion.
-// When exceeded, the oldest entry is evicted. Configurable via MAX_PENDING_STREAMS.
-const MAX_PENDING_STREAMS = parseInt(process.env.MAX_PENDING_STREAMS, 10) || 200;
-
-// Maximum number of pending speech streams allowed in memory to prevent heap exhaustion.
-// When exceeded, the oldest entry is evicted. Configurable via MAX_PENDING_STREAMS.
-const MAX_PENDING_STREAMS = parseInt(process.env.MAX_PENDING_STREAMS, 10) || 200;
-
-// Sanitizes a filename by removing path traversal characters and special characters.
-function sanitizeFilename(filename) {
-  return (filename || "reference.webm")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .replace(/\.{2,}/g, "_")
-    .substring(0, 100);
-}
-
-// Callers must supply their own ElevenLabs key via the X-ElevenLabs-Api-Key
-// request header. The server no longer falls back to its own environment key
-// so anonymous requests cannot charge the server operator's account.
+// The caller must supply their own key via the X-ElevenLabs-Api-Key header.
+// Falling back to the server's environment key is intentionally removed: doing
+// so would let any unauthenticated caller charge requests to the server
+// operator's ElevenLabs account.
 function requireApiKey(request) {
-  const apiKey = request.get("X-ElevenLabs-Api-Key")?.trim();
+  const apiKey = request.get("X-ElevenLabs-Api-Key");
   if (!apiKey) {
     const error = new Error(
-      "An ElevenLabs API key is required. Add it via the X-ElevenLabs-Api-Key header."
+      "An ElevenLabs API key is required. Provide it via the X-ElevenLabs-Api-Key header."
     );
     error.status = 401;
     throw error;
@@ -399,36 +382,36 @@ export async function speak(request, response, next) {
       return;
     }
 
-    // Fix (IDOR): verify the caller actually owns this voice_id before
-    // queuing any synthesis work. Skipped in mock mode since cloneVoice
-    // never persists a real voiceStore entry (or owner token) there.
-    if (!getIsMock()) {
-      pruneVoiceStore();
-      const voiceEntry = voiceStore.get(trimmedVoiceId);
-      if (!voiceEntry) {
-        response.status(404).json({
-          error: "Voice profile not found. Please re-clone your voice.",
-        });
-        return;
-      }
-      const trimmedOwnerToken =
-        typeof ownerToken === "string" ? ownerToken.trim() : "";
-      const providedHash = trimmedOwnerToken
-        ? crypto.createHash("sha256").update(trimmedOwnerToken).digest("hex")
-        : null;
-      const isAuthorized =
-        !!providedHash &&
-        providedHash.length === voiceEntry.ownerTokenHash.length &&
-        crypto.timingSafeEqual(
-          Buffer.from(providedHash),
-          Buffer.from(voiceEntry.ownerTokenHash),
-        );
-      if (!isAuthorized) {
-        response
-          .status(403)
-          .json({ error: "Invalid or missing owner_token for this voice_id." });
-        return;
-      }
+    if (text.length > SPEAK_TEXT_MAX_LENGTH) {
+      response
+        .status(400)
+        .json({ error: `Text must not exceed ${SPEAK_TEXT_MAX_LENGTH} characters.` });
+      return;
+    }
+
+    const elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": apiKey,
+        Accept: "audio/mpeg"
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.45,
+          similarity_boost: 0.8,
+          style: 0.2,
+          use_speaker_boost: true
+        }
+      })
+    });
+
+    if (!elevenResponse.ok) {
+      const error = new Error(await readElevenLabsError(elevenResponse));
+      error.status = elevenResponse.status;
+      throw error;
     }
 
     const defaultVoiceSettings = {
