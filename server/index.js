@@ -151,7 +151,8 @@ app.get("/api/health", (_request, response) => {
   response.json({ ok: true, service: "voiceforge-api" });
 });
 
-app.use("/api/voice", voiceRateLimiter, voiceRoutes);
+app.use("/api/voice", voiceRoutes);
+app.use("/api/voices", voiceRoutes);
 
 app.use((error, _request, response, _next) => {
   console.error(error);
