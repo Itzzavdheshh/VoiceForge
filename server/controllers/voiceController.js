@@ -320,46 +320,22 @@ export async function cloneVoice(request, response, next) {
   }
 }
 
-// Maps speechId -> { text, voiceId, apiKey, mergedSettings, timeout }.
-// Keys are unguessable UUIDs (see speak) and entries are single-use.
+// Hard cap on the number of pending stream entries kept in memory.
+// Each entry stores an ElevenLabs API key and request parameters for up
+// to 60 seconds. Without a cap a burst of requests can exhaust heap memory.
+// When the cap is reached the oldest entry is evicted to make room.
+const PENDING_STREAMS_MAX = 500;
 const pendingStreams = new Map();
 
-/**
- * Clears and removes a pending speech stream.
- *
- * @param {string} speechId The ID of the pending speech stream to clean up.
- * @returns {object|undefined} The deleted stream entry if found, otherwise undefined.
- */
-function deletePendingStream(speechId) {
-  const entry = pendingStreams.get(speechId);
-  if (!entry) {
-    return undefined;
-  }
-  clearTimeout(entry.timeout);
-  pendingStreams.delete(speechId);
-  return entry;
-}
-
-// Drop the oldest entries until the store is below its configured cap. Map
-// preserves insertion order, so the first key is always the oldest.
-function evictOldestPendingStreams() {
-  while (pendingStreams.size >= PENDING_STREAMS_MAX) {
+function addPendingStream(id, value) {
+  if (pendingStreams.size >= PENDING_STREAMS_MAX) {
+    // Evict the oldest entry (Map iteration order is insertion order).
     const oldestKey = pendingStreams.keys().next().value;
-    if (oldestKey === undefined) {
-      break;
-    }
-    deletePendingStream(oldestKey);
+    pendingStreams.delete(oldestKey);
   }
+  pendingStreams.set(id, value);
 }
 
-/**
- * Express handler to initiate a speech request.
- * Validates parameters and returns a signed token with a streaming audio URL.
- *
- * @param {object} request Express request object.
- * @param {object} response Express response object.
- * @param {function} next Express next middleware callback.
- */
 export async function speak(request, response, next) {
   try {
     const {
@@ -527,20 +503,8 @@ export async function speak(request, response, next) {
   }
 }
     const mergedSettings = { ...defaultVoiceSettings, ...sanitizedSettings };
-
-    // Enforce maximum pending streams limit to prevent memory exhaustion.
-    // If limit is exceeded, evict the oldest entry (first in iteration order).
-    if (pendingStreams.size > MAX_PENDING_STREAMS) {
-      const oldestKey = pendingStreams.keys().next().value;
-      pendingStreams.delete(oldestKey);
-    }
-
-    // Enforce maximum pending streams limit to prevent memory exhaustion.
-    // If limit is exceeded, evict the oldest entry (first in iteration order).
-    if (pendingStreams.size > MAX_PENDING_STREAMS) {
-      const oldestKey = pendingStreams.keys().next().value;
-      pendingStreams.delete(oldestKey);
-    }
+    const speechId = Math.random().toString(36).substring(2, 15);
+    addPendingStream(speechId, { text, voiceId, apiKey, mergedSettings });
 
     // Set a timeout to clean up if the stream is never requested within 60s
     setTimeout(() => {
