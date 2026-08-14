@@ -1,6 +1,5 @@
 // Renders the main call workspace for webcam preview, typed speech, output video, and virtual camera controls.
 import React from "react";
-import { Camera } from "lucide-react";
 import {
   Camera,
   CircleAlert,
@@ -9,7 +8,6 @@ import {
   RotateCcw,
   Download,
 } from "lucide-react";
-import { Camera, CircleAlert, Sliders, ChevronDown, RotateCcw } from "lucide-react";
 import TextToSpeech from "../components/TextToSpeech.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
 import VirtualCamera from "../components/VirtualCamera.jsx";
