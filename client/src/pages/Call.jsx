@@ -12,6 +12,7 @@ import TextToSpeech from "../components/TextToSpeech.jsx";
 import DeviceSelector from "../components/DeviceSelector.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
 import VirtualCamera from "../components/VirtualCamera.jsx";
+import LiveTranscription from "../components/LiveTranscription.jsx";
 import { AACSymbolBoard } from "../components/AACSymbolBoard.jsx";
 import { LanguageSelector } from "../components/LanguageSelector.jsx";
 import { COLOR_TAGS, AVATAR_ICONS } from "../components/ProfileCard.jsx";
@@ -825,6 +826,8 @@ export default function Call() {
               </button>
             </div>
           </section>
+
+          <LiveTranscription />
         </div>
         <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
           {privacyMode ? (
