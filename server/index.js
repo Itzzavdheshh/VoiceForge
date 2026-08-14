@@ -2,7 +2,7 @@
 import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
-import { rateLimit } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import voiceRoutes from "./routes/voice.js";
 import authRoutes from "./routes/authRoutes.js";
 import dbRoutes from "./routes/dbRoutes.js";
@@ -124,12 +124,31 @@ app.use(
 );
 app.use(express.json({ limit: "1mb" }));
 
+// Rate limiter for voice API endpoints to prevent quota abuse.
+// Limits requests per IP address per minute to prevent billing attacks.
+const voiceRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many voice requests. Please try again in a minute." }
+});
+
+// Stricter limiter for /clone endpoint since it requires file upload and is more expensive.
+const cloneRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many voice clone requests. Please try again in a minute." }
+});
+
 app.get("/api/health", (_request, response) => {
   response.json({ ok: true, service: "voiceforge-api" });
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api/voice", voiceRoutes);
+// Apply rate limiting to voice API routes
+app.use("/api/voice", voiceRateLimiter, voiceRoutes);
 
 // Serve the React client in production so CSP headers apply to it
 if (!isDev) {
