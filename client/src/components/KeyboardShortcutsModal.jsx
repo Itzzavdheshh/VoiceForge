@@ -108,11 +108,13 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby={HEADING_ID}
+      aria-describedby="keyboard-shortcuts-desc"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
       <div
         className="absolute inset-0 bg-black/50 dark:bg-black/70"
         onClick={onClose}
+        role="presentation"
         aria-hidden="true"
       />
       <div
@@ -175,7 +177,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
           ))}
         </div>
         <div className="flex items-center justify-between border-t border-ink/10 px-6 py-3 dark:border-border">
-          <p className="text-xs text-ink/40 dark:text-neutral-400">
+          <p id="keyboard-shortcuts-desc" className="text-xs text-ink/40 dark:text-neutral-500">
             Press{" "}
             <kbd className="rounded border border-ink/15 bg-ink/5 px-1 font-mono text-[10px] dark:border-border dark:bg-white/5">
               ?
