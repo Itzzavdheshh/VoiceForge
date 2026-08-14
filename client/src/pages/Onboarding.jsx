@@ -344,6 +344,16 @@ export default function Onboarding({ onReady }) {
   }
 
   async function handleClone() {
+    // 1. Strict validation guards: recording and a valid name are required.
+    if (!hasKey || !recording) return;
+    if (recordingDuration < 10) return;
+    if (nameError) return; // block on empty / whitespace / over-limit name
+
+  function handleRecordingReady(blob, payload) {
+    setRecording(normalizeRecordingResult(blob, payload));
+  }
+
+  async function handleClone() {
     if (!recording || !recording.isValid) return;
     const profile = await cloneVoice(recording.blob, voiceName);
     setSuccessProfile(profile);
