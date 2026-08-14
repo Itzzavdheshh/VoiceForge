@@ -9,20 +9,9 @@ import { isValidLanguageCode } from "../utils/languages.js";
 // count, so a hard cap prevents a single request from draining the monthly quota.
 const SPEAK_TEXT_MAX_LENGTH = 2000;
 
-// The caller must supply their own key via the X-ElevenLabs-Api-Key header.
-// Falling back to the server's environment key is intentionally removed: doing
-// so would let any unauthenticated caller charge requests to the server
-// operator's ElevenLabs account.
-function requireApiKey(request) {
-  const apiKey = request.get("X-ElevenLabs-Api-Key");
-  if (!apiKey) {
-    const error = new Error(
-      "An ElevenLabs API key is required. Provide it via the X-ElevenLabs-Api-Key header."
-    );
-    error.status = 401;
-    throw error;
-  }
-  return apiKey;
+export function parseBoundedNumber(rawValue, fallback, min) {
+  const numeric = Number(rawValue);
+  return Number.isFinite(numeric) ? Math.max(min, numeric) : fallback;
 }
 
 // Sanitizes a filename by removing path traversal sequences and special characters.
@@ -194,7 +183,7 @@ async function generateClonedVoice(
   }
 }
 
-function clampNumber(value, min, max, fallback) {
+export function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
     return fallback;
@@ -225,14 +214,22 @@ function tryAcquireCloneLock(lockId) {
     }
   }
 
-  activeCloneRequests.set(lockId, { timestamp: Date.now() });
-  return true;
+  while (voiceStore.size > MAX_STORED_VOICES) {
+    const oldestVoiceId = voiceStore.keys().next().value;
+    if (!oldestVoiceId) break;
+    voiceStore.delete(oldestVoiceId);
+  }
 }
 
-// Release a lock for a clone request.
-function releaseCloneLock(lockId) {
-  activeCloneRequests.delete(lockId);
+// Test-only hook: exposes store size so tests can assert on eviction/TTL
+// behavior without reaching into the module-private Map directly.
+export function __getVoiceStoreSize() {
+  return voiceStore.size;
 }
+
+// ---------------------------------------------------------------------------
+// Route handlers
+// ---------------------------------------------------------------------------
 
 export async function cloneVoice(request, response, next) {
   const lockId = getRequestLockId(request);
@@ -255,16 +252,24 @@ export async function cloneVoice(request, response, next) {
 
     // --- mock mode: return a deterministic fixture voice_id ---
     if (getIsMock()) {
-      console.warn("[VoiceForge] MOCK_ELEVENLABS: skipping real voice clone, returning fixture.");
-      releaseCloneLock(lockId);
-      response.json({
-        voice_id: request.body.voice_id || "mock-voice-id-00000000",
+      const voiceId = crypto.randomUUID();
+      voiceStore.set(voiceId, {
         name: request.body.name || "VoiceForge Voice (mock)",
+        audioBuffer: Buffer.from("mock"),
+        mimeType: "audio/webm",
+        expiresAt: Date.now() + VOICE_STORE_TTL_MS
+      });
+      pruneVoiceStore();
+      
+      response.json({
+        voice_id: voiceId,
+        name: request.body.name || "VoiceForge Voice (mock)"
       });
       return;
     }
 
     // Store the audio buffer server-side so it can be used during speak/stream.
+    
     const voiceId = crypto.randomUUID();
 
     // Fix (IDOR): voice_id alone used to be sufficient to use someone else's
@@ -286,6 +291,7 @@ export async function cloneVoice(request, response, next) {
       ownerTokenHash,
       expiresAt: Date.now() + VOICE_STORE_TTL_MS
     });
+    pruneVoiceStore();
 
     if (!elevenResponse.ok) {
       const error = new Error(await readElevenLabsError(elevenResponse));
