@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] selected language does not generate native multilingual speech (#510)
+# TODO: [bug] token expiresat hardcoded to 60s ignores configurable pending_stream_ttl_ms (#512)
