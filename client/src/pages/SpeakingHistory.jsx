@@ -77,11 +77,27 @@ export default function SpeakingHistory() {
     );
   };
 
+  const clearAllHistory = () => {
+    if (!window.confirm("Are you sure you want to clear all speaking history?")) return;
+    setHistory([]);
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
-      <h1 className="text-3xl font-bold mb-2">
-        Speaking History Timeline
-      </h1>
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-3xl font-bold">
+          Speaking History Timeline
+        </h1>
+        {history.length > 0 && (
+          <button
+            onClick={clearAllHistory}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
+          >
+            <Trash2 size={16} />
+            Clear All
+          </button>
+        )}
+      </div>
 
       <p className="text-gray-500 mb-8">
         View, replay and manage your previously spoken phrases.
