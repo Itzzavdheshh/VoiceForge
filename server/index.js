@@ -131,10 +131,14 @@ const voiceRateLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many voice requests. Please try again in a minute." }
+  message: { error: "Too many voice requests. Please try again in a minute." },
+  skip: (request) => {
+    // Skip rate limiting for /health endpoint
+    return request.path === "/health";
+  }
 });
 
-// Stricter limiter for /clone endpoint since it requires file upload and is more expensive.
+// Stricter limiter for /clone endpoint since it requires file upload.
 const cloneRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
@@ -147,15 +151,7 @@ app.get("/api/health", (_request, response) => {
   response.json({ ok: true, service: "voiceforge-api" });
 });
 
-// Apply rate limiting to voice API routes
 app.use("/api/voice", voiceRateLimiter, voiceRoutes);
-
-// Serve the React client in production so CSP headers apply to it
-if (!isDev) {
-  const clientDistPath = path.resolve(__dirname, "../client/dist");
-  app.use(express.static(clientDistPath));
-  app.get("/{*splat}", (_req, res) => res.sendFile(path.join(clientDistPath, "index.html")));
-}
 
 app.use((error, _request, response, _next) => {
   console.error(error);

@@ -2,15 +2,6 @@
 import multer from "multer";
 import { fileTypeFromBuffer } from "file-type";
 
-const ALLOWED_MIME_TYPES = [
-  "audio/webm",
-  "audio/wav",
-  "audio/mpeg",
-  "audio/mp4",
-  "audio/ogg",
-  "audio/flac",
-];
-
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {

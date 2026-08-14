@@ -14,6 +14,18 @@ export const voiceStore = new Map();
 // When exceeded, the oldest entry is evicted. Configurable via MAX_PENDING_STREAMS.
 const MAX_PENDING_STREAMS = parseInt(process.env.MAX_PENDING_STREAMS, 10) || 200;
 
+// Maximum number of pending speech streams allowed in memory to prevent heap exhaustion.
+// When exceeded, the oldest entry is evicted. Configurable via MAX_PENDING_STREAMS.
+const MAX_PENDING_STREAMS = parseInt(process.env.MAX_PENDING_STREAMS, 10) || 200;
+
+// Sanitizes a filename by removing path traversal characters and special characters.
+function sanitizeFilename(filename) {
+  return (filename || "reference.webm")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/\.{2,}/g, "_")
+    .substring(0, 100);
+}
+
 // Callers must supply their own ElevenLabs key via the X-ElevenLabs-Api-Key
 // request header. The server no longer falls back to its own environment key
 // so anonymous requests cannot charge the server operator's account.
@@ -523,6 +535,13 @@ export async function speak(request, response, next) {
       pendingStreams.delete(oldestKey);
     }
 
+    // Enforce maximum pending streams limit to prevent memory exhaustion.
+    // If limit is exceeded, evict the oldest entry (first in iteration order).
+    if (pendingStreams.size > MAX_PENDING_STREAMS) {
+      const oldestKey = pendingStreams.keys().next().value;
+      pendingStreams.delete(oldestKey);
+    }
+
     // Set a timeout to clean up if the stream is never requested within 60s
     setTimeout(() => {
       pendingStreams.delete(speechId);
@@ -573,6 +592,13 @@ export async function streamSpeech(request, response, next) {
         error:
           "This speech token has already been used or has expired. Please request a new one.",
       });
+      return;
+    }
+
+    // Verify the caller's API key matches the key used to create the speech stream.
+    // This prevents unauthorized callers from using another user's speechId to consume their quota.
+    if (requestApiKey !== streamData.apiKey) {
+      response.status(403).json({ error: "Unauthorized. The API key provided does not match the speech request." });
       return;
     }
 
