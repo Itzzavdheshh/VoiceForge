@@ -5,19 +5,12 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { saveTranscript } from "../utils/db.js";
 
 const HISTORY_KEY = "vf_history";
 const FAVS_KEY = "vf_favorites";
 const TRANSCRIPT_KEY = "vf_transcript";
 const MAX_HISTORY = 25;
-const MAX_ANALYTICS = 2000;
-
-function generateUUID() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-}
 
 /**
  * Safely reads a JSON value from localStorage.
@@ -83,18 +76,11 @@ function readSessionStorage(key, fallback) {
 
 export function useSpeechHistory() {
   // ── State ────────────────────────────────────────────────────────────────
-  const [history, setHistory] = useState(() => {
-    const raw = readStorage(HISTORY_KEY, []);
-    return raw.map((item) => ({
-      ...item,
-      tags: Array.isArray(item.tags) ? item.tags : [],
-    }));
-  });
+  const [history, setHistory] = useState(() => readStorage(HISTORY_KEY, []));
   const [favorites, setFavorites] = useState(
     () => new Set(readStorage(FAVS_KEY, []))
   );
   const [sessionTranscript, setSessionTranscript] = useState(() => readSessionStorage(TRANSCRIPT_KEY, []));
-  const [analyticsHistory, setAnalyticsHistory] = useState(() => readStorage(ANALYTICS_KEY, []));
 
   // ── Persistence ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -121,14 +107,6 @@ export function useSpeechHistory() {
     }
   }, [favorites]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(ANALYTICS_KEY, JSON.stringify(analyticsHistory));
-    } catch {
-      /* storage quota exceeded — silently skip */
-    }
-  }, [analyticsHistory]);
-
   // ── Actions ──────────────────────────────────────────────────────────────
 
   /**
@@ -141,50 +119,40 @@ export function useSpeechHistory() {
  * - moves duplicate entries to top
  * - enforces MAX_HISTORY limit
  *
-   * @param {string} text - Message text to store
-   * @param {string} lang - Language code
-   */
-  const addMessage = useCallback((text, lang = "en-US") => {
-    const trimmed = text.trim();
+ * @param {string} text - Message text to store
+ */
+const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
+  const trimmed = text.trim();
 
   if (!trimmed) return;
 
   const timestamp = Date.now();
 
   setSessionTranscript((prev) => [
-  ...prev,
-  {
+    ...prev,
+    { text: trimmed, timestamp },
+  ]);
+
+  // Save to IndexedDB transcripts store for Phase 3 & 4
+  saveTranscript({
     text: trimmed,
-    timestamp,
-    status: "success",
-    language: lang,
-  },
-]);
+    voice_id: voiceId,
+    session_id: sessionId,
+    timestamp
+  }).catch((err) => console.error("Error saving transcript to IndexedDB:", err));
 
-  setAnalyticsHistory((prev) => {
-    const newEntry = { id: generateUUID(), text: trimmed, timestamp, language: lang };
-    const updated = [newEntry, ...prev];
-    return updated.slice(0, MAX_ANALYTICS);
-  });
+  setHistory((prev) => {
+    const existing = prev.find((m) => m.text === trimmed);
 
-    setHistory((prev) => {
-      // Check existing message
-      const existing = prev.find((m) => m.text === trimmed);
+    // Fixed duplicate declaration syntax error
+    const entry = existing
+      ? { ...existing, timestamp }
+      : { id: crypto.randomUUID(), text: trimmed, timestamp };
 
-    // Preserve existing ID if duplicate found, but update timestamp
-    // so re-spoken messages sort correctly after a page reload.
-    const uuid = (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
-      ? crypto.randomUUID()
-      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const updatedEntry = existing
-      ? { ...existing, timestamp: Date.now() }
-      : { id: uuid, text: trimmed, timestamp: Date.now() };
-
-      // Move duplicate to top instead of recreating
-      const updated = [
-        updatedEntry,
-        ...prev.filter((m) => m.id !== updatedEntry.id),
-      ];
+    const updated = [
+      entry,
+      ...prev.filter((m) => m.id !== entry.id),
+    ];
 
     return updated.slice(0, MAX_HISTORY);
   });
@@ -222,79 +190,13 @@ export function useSpeechHistory() {
     setSessionTranscript([]);
   }, []);
 
-  /**
-   * Imports a history and favorites backup.
-   * Merges imported items with the existing setup, preventing text duplicates
-   * and updating favorite relationships.
-   */
-  const importBackup = useCallback(
-    (importedHistory, importedFavorites) => {
-      const mergedMap = new Map();
-      // Add existing history
-      history.forEach((m) => mergedMap.set(m.text, m));
-
-      const favIdsToAdd = [];
-      importedHistory.forEach((impMsg) => {
-        const isImportedFav = importedFavorites.includes(impMsg.id);
-        if (mergedMap.has(impMsg.text)) {
-          const existingMsg = mergedMap.get(impMsg.text);
-          if (isImportedFav) {
-            favIdsToAdd.push(existingMsg.id);
-          }
-        } else {
-          mergedMap.set(impMsg.text, impMsg);
-          if (isImportedFav) {
-            favIdsToAdd.push(impMsg.id);
-          }
-        }
-      });
-
-      const mergedList = Array.from(mergedMap.values());
-      mergedList.sort((a, b) => b.timestamp - a.timestamp);
-      const finalHistory = mergedList.slice(0, MAX_HISTORY);
-
-      const nextFavorites = new Set(favorites);
-      favIdsToAdd.forEach((id) => nextFavorites.add(id));
-
-      // Clean up favorites: only keep favorites whose IDs are in the finalHistory
-      const finalHistoryIds = new Set(finalHistory.map((m) => m.id));
-      const cleanedFavorites = new Set();
-      nextFavorites.forEach((id) => {
-        if (finalHistoryIds.has(id)) {
-          cleanedFavorites.add(id);
-        }
-      });
-
-    const mergedList = Array.from(mergedMap.values());
-    mergedList.sort((a, b) => b.timestamp - a.timestamp);
-    const finalHistory = mergedList.slice(0, MAX_HISTORY);
-
-    const nextFavorites = new Set(favorites);
-    favIdsToAdd.forEach(id => nextFavorites.add(id));
-
-    // Clean up favorites: only keep favorites whose IDs are in the finalHistory
-    const finalHistoryIds = new Set(finalHistory.map(m => m.id));
-    const cleanedFavorites = new Set();
-    nextFavorites.forEach(id => {
-      if (finalHistoryIds.has(id)) {
-        cleanedFavorites.add(id);
-      }
-    });
-
-    setHistory(finalHistory);
-    setFavorites(cleanedFavorites);
-  }, [history, favorites]);
-
   return {
     history,
     favorites,
     sessionTranscript,
-    analyticsHistory,
     addMessage,
     removeMessage,
     toggleFavorite,
     clearHistory,
-    archiveOldHistory,
-    importBackup,
   };
 }

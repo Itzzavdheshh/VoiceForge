@@ -2,7 +2,11 @@
 
 const DB_NAME = "voiceforge_db";
 const STORE_NAME = "profiles";
-const DB_VERSION = 1;
+const TRANSCRIPT_STORE = "transcripts";
+const SESSION_STORE = "sessions";
+const COLLECTION_STORE = "collections";
+const AUDIO_STORE_NAME = "audio_cache";
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -47,6 +51,18 @@ function getDB() {
         const db = event.target.result;
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME, { keyPath: "voice_id" });
+        }
+        if (!db.objectStoreNames.contains(TRANSCRIPT_STORE)) {
+          db.createObjectStore(TRANSCRIPT_STORE, { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains(SESSION_STORE)) {
+          db.createObjectStore(SESSION_STORE, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(COLLECTION_STORE)) {
+          db.createObjectStore(COLLECTION_STORE, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
+          db.createObjectStore(AUDIO_STORE_NAME, { keyPath: "id" });
         }
       };
     } catch (err) {

@@ -9,7 +9,7 @@ import {
 /**
  * A single labelled range slider row.
  */
-function SliderRow({ id, label, description, value, onChange, min = 0, max = 1 }) {
+function SliderRow({ id, label, description, value, formattedValue, onChange, min = 0, max = 1, step = 0.01 }) {
   return (
     <div className="space-y-1">
       <label
