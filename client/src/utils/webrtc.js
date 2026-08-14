@@ -77,3 +77,35 @@ export function receiveDataInChunks(dataChannel, onComplete) {
     }
   };
 }
+
+export function waitForICEConnection(peerConnection, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    if (
+      peerConnection.iceConnectionState === "connected" ||
+      peerConnection.iceConnectionState === "completed"
+    ) {
+      resolve();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      peerConnection.removeEventListener("iceconnectionstatechange", onChange);
+      reject(new Error("WebRTC ICE negotiation timed out — check network firewall settings."));
+    }, timeoutMs);
+
+    function onChange() {
+      const state = peerConnection.iceConnectionState;
+      if (state === "connected" || state === "completed") {
+        clearTimeout(timer);
+        peerConnection.removeEventListener("iceconnectionstatechange", onChange);
+        resolve();
+      } else if (state === "failed" || state === "closed") {
+        clearTimeout(timer);
+        peerConnection.removeEventListener("iceconnectionstatechange", onChange);
+        reject(new Error(`WebRTC ICE connection failed with state: ${state}`));
+      }
+    }
+
+    peerConnection.addEventListener("iceconnectionstatechange", onChange);
+  });
+}
