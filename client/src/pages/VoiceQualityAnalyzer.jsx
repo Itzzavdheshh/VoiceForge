@@ -3,6 +3,8 @@ import { Mic2, Upload, CheckCircle, AlertTriangle } from "lucide-react";
 
 export default function VoiceQualityAnalyzer() {
   const [file, setFile] = useState(null);
+  const [snrDb, setSnrDb] = useState(null);
+  const [snrRating, setSnrRating] = useState("");
 
   const [metrics, setMetrics] = useState({
     noise: 0,
@@ -14,11 +16,37 @@ export default function VoiceQualityAnalyzer() {
 
   const [qualityScore, setQualityScore] = useState(0);
 
-  const handleUpload = (e) => {
+  /**
+   * Estimate SNR by computing RMS of the loudest 20% frames (signal)
+   * vs the quietest 20% frames (noise floor).
+   */
+  async function estimateSNR(audioFile) {
+    try {
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const audioCtx = new OfflineAudioContext(1, 1, 44100);
+      const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+      const data = decoded.getChannelData(0);
+      const frameSize = 512;
+      const frames = [];
+      for (let i = 0; i < data.length - frameSize; i += frameSize) {
+        let sumSq = 0;
+        for (let j = 0; j < frameSize; j++) sumSq += data[i + j] ** 2;
+        frames.push(Math.sqrt(sumSq / frameSize));
+      }
+      frames.sort((a, b) => a - b);
+      const topIdx = Math.floor(frames.length * 0.8);
+      const signalRms = frames.slice(topIdx).reduce((s, v) => s + v, 0) / (frames.length - topIdx);
+      const noiseRms = frames.slice(0, Math.floor(frames.length * 0.2)).reduce((s, v) => s + v, 0) / Math.floor(frames.length * 0.2) || 1e-10;
+      const snr = 20 * Math.log10(signalRms / noiseRms);
+      return Math.round(snr * 10) / 10;
+    } catch {
+      return null;
+    }
+  }
+
+  const handleUpload = async (e) => {
     const audio = e.target.files[0];
-
     if (!audio) return;
-
     setFile(audio);
 
     // Demo quality analysis (replace with backend/API later)
@@ -27,20 +55,23 @@ export default function VoiceQualityAnalyzer() {
     const loudness = Math.floor(Math.random() * 20) + 80;
     const clarity = Math.floor(Math.random() * 25) + 70;
     const completeness = Math.floor(Math.random() * 20) + 80;
+    const total = Math.round((noise + duration + loudness + clarity + completeness) / 5);
 
-    const total = Math.round(
-      (noise + duration + loudness + clarity + completeness) / 5
-    );
-
-    setMetrics({
-      noise,
-      duration,
-      loudness,
-      clarity,
-      completeness,
-    });
-
+    setMetrics({ noise, duration, loudness, clarity, completeness });
     setQualityScore(total);
+
+    // Compute real SNR from decoded audio samples
+    const snr = await estimateSNR(audio);
+    setSnrDb(snr);
+    if (snr === null) {
+      setSnrRating("Unknown");
+    } else if (snr >= 20) {
+      setSnrRating("Good");
+    } else if (snr >= 10) {
+      setSnrRating("Fair");
+    } else {
+      setSnrRating("Poor");
+    }
   };
 
   const Progress = ({ title, value }) => (
@@ -108,21 +139,29 @@ export default function VoiceQualityAnalyzer() {
             />
 
             <div className="mt-8 text-center">
-              <h3 className="text-xl font-bold">
-                Quality Score
-              </h3>
-
+              <h3 className="text-xl font-bold">Quality Score</h3>
               <div
                 className={`text-6xl font-extrabold mt-3 ${
-                  qualityScore >= 80
-                    ? "text-green-500"
-                    : qualityScore >= 60
-                    ? "text-yellow-500"
-                    : "text-red-500"
+                  qualityScore >= 80 ? "text-green-500" : qualityScore >= 60 ? "text-yellow-500" : "text-red-500"
                 }`}
               >
                 {qualityScore}%
               </div>
+              {snrDb !== null && (
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <span className="text-sm font-semibold text-neutral-500">SNR: {snrDb} dB</span>
+                  <span
+                    className={`rounded-full px-3 py-0.5 text-xs font-bold ${
+                      snrRating === "Good" ? "bg-green-100 text-green-700" :
+                      snrRating === "Fair" ? "bg-yellow-100 text-yellow-700" :
+                      "bg-red-100 text-red-700"
+                    }`}
+                    aria-label={`Recording environment: ${snrRating}`}
+                  >
+                    {snrRating} environment
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="mt-8">
