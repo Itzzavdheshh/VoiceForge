@@ -91,6 +91,10 @@ export class FileVoiceStore {
     return true;
   }
 
+  get size() {
+    return this.metadata.size;
+  }
+
   async prune(now = Date.now()) {
     await this.initPromise;
     let changed = false;
@@ -107,7 +111,7 @@ export class FileVoiceStore {
     }
 
     // Enforce max size
-    while (this.metadata.size >= this.maxVoices) {
+    while (this.metadata.size > this.maxVoices) {
       const oldestVoiceId = this.metadata.keys().next().value;
       if (!oldestVoiceId) break;
       this.metadata.delete(oldestVoiceId);

@@ -58,27 +58,23 @@ export function QuickReplies({ onSelect, showToast }) {
   }, [replies]);
 
   useEffect(() => {
-    function handleSync() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
+    function handleStorage(event) {
+      if (event.key === STORAGE_KEY && event.newValue) {
+        try {
+          const parsed = JSON.parse(event.newValue);
           if (Array.isArray(parsed)) {
             setReplies(parsed);
           }
+        } catch {
+          /* ignore invalid JSON payload */
         }
-      } catch (err) {
-        console.error("Failed to sync quick replies:", err);
       }
     }
 
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("voiceforge:quickRepliesChanged", handleSync);
-
-    return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("voiceforge:quickRepliesChanged", handleSync);
-    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleStorage);
+      return () => window.removeEventListener("storage", handleStorage);
+    }
   }, []);
 
   const handleAdd = (e) => {
