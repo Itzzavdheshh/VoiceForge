@@ -33,6 +33,7 @@ export default React.forwardRef(function VideoPreview({
   const maskCanvasRef = React.useRef(null);
 
   React.useEffect(() => {
+    let isSegmenterMounted = true;
     async function initSegmenter() {
       try {
         const { SelfieSegmentation } = await import("@mediapipe/selfie_segmentation");
@@ -70,12 +71,28 @@ export default React.forwardRef(function VideoPreview({
         
         // Pre-initialize
         await segmenter.initialize();
-        segmenterRef.current = segmenter;
+        if (isSegmenterMounted) {
+          segmenterRef.current = segmenter;
+        } else {
+          segmenter.close();
+        }
       } catch (err) {
         console.error("Failed to load MediaPipe segmenter", err);
       }
     }
     initSegmenter();
+
+    return () => {
+      isSegmenterMounted = false;
+      if (segmenterRef.current) {
+        try {
+          segmenterRef.current.close();
+        } catch {
+          /* ignore closing errors */
+        }
+        segmenterRef.current = null;
+      }
+    };
   }, []);
 
   React.useEffect(() => {
@@ -105,6 +122,7 @@ export default React.forwardRef(function VideoPreview({
   }, [audioUrl]);
 
   React.useEffect(() => {
+    let isModelMounted = true;
     async function loadModel() {
       try {
         const modelResponse = await fetch("/models/wav2lip.onnx");
@@ -114,30 +132,46 @@ export default React.forwardRef(function VideoPreview({
         }
         
         // Initialize processors
-        audioProcessorRef.current = new AudioProcessor();
-        faceProcessorRef.current = new FaceProcessor();
-        await faceProcessorRef.current.initialize();
+        const audioProc = new AudioProcessor();
+        const faceProc = new FaceProcessor();
+        await faceProc.initialize();
 
         const ort = await import("onnxruntime-web");
-        ortSessionRef.current = await ort.InferenceSession.create(modelBytes);
+        const session = await ort.InferenceSession.create(modelBytes);
+
+        if (!isModelMounted) {
+          audioProc.dispose();
+          faceProc.dispose();
+          session.release();
+          return;
+        }
+
+        audioProcessorRef.current = audioProc;
+        faceProcessorRef.current = faceProc;
+        ortSessionRef.current = session;
         setModelStatus("ONNX Wav2Lip model loaded");
       } catch (err) {
-        console.warn("Wav2Lip initialization skipped:", err.message);
-        setModelStatus("Audio-driven animation active");
-        // TODO: Replace audio-driven mouth animation with real browser Wav2Lip ONNX inference.
+        if (isModelMounted) {
+          console.warn("Wav2Lip initialization skipped:", err.message);
+          setModelStatus("Audio-driven animation active");
+        }
       }
     }
     loadModel();
 
     return () => {
+      isModelMounted = false;
       if (audioProcessorRef.current) {
         audioProcessorRef.current.dispose();
+        audioProcessorRef.current = null;
       }
       if (faceProcessorRef.current) {
         faceProcessorRef.current.dispose();
+        faceProcessorRef.current = null;
       }
       if (ortSessionRef.current) {
         ortSessionRef.current.release();
+        ortSessionRef.current = null;
       }
     };
   }, []);
