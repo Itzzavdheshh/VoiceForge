@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat: automatically generate and persist stream_secret (#449)
+# TODO: [bug] mediastream track memory leak (#450)
