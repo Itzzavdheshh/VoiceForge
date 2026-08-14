@@ -149,26 +149,10 @@ textarea {
 .animate-fade-in-up {
   animation: fade-in-up 0.2s ease-out;
 }
-
-/* Custom scrollbar to match VoiceForge color palette */
-::-webkit-scrollbar {
-  width: 6px;
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-::-webkit-scrollbar-track {
-  background: var(--bg-page);
-}
-::-webkit-scrollbar-thumb {
-  background: #22c55e;
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #16a34a;
-}
-
-/* Firefox fallback (only when WebKit scrollbar is not supported) */
-@supports not selector(::-webkit-scrollbar) {
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #22c55e var(--bg-page);
-  }
+.animate-fade-in-down {
+  animation: fade-in-down 0.2s ease-out;
 }

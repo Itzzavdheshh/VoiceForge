@@ -10,7 +10,7 @@ export function LanguageSelector({ value, onChange, id = "lang-selector", compac
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [focusIndex, setFocusIndex] = useState(-1);
-  const [panelStyle, setPanelStyle] = useState(null);
+  const [dropdownUp, setDropdownUp] = useState(false);
 
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
@@ -60,7 +60,15 @@ export function LanguageSelector({ value, onChange, id = "lang-selector", compac
     setIsOpen(true);
     setSearch("");
     setFocusIndex(-1);
-    requestAnimationFrame(() => searchRef.current?.focus());
+    // Check if dropdown should open upward to avoid viewport clipping
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const dropdownHeight = 460; // max panel height (~420 + padding)
+        setDropdownUp(rect.bottom + dropdownHeight > window.innerHeight);
+      }
+      searchRef.current?.focus();
+    });
   }, []);
 
   const closeDropdown = useCallback((refocus = false) => {
@@ -154,8 +162,14 @@ export function LanguageSelector({ value, onChange, id = "lang-selector", compac
       {isOpen && (
         <div
           role="dialog"
-          className="absolute z-50 mt-2 flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg animate-fade-in-up"
-          style={{ maxHeight: "420px", right: compact ? 0 : "auto", left: compact ? "auto" : 0, minWidth: "320px" }}
+          aria-label="Language selection"
+          className={[
+            "absolute z-50 flex flex-col overflow-hidden rounded-xl border shadow-lg",
+            "border-neutral-200/80 bg-white dark:border-border dark:bg-surface",
+            dropdownUp ? "bottom-full mb-2 animate-fade-in-down" : "mt-2 animate-fade-in-up",
+            compact ? "right-0 w-72" : "left-0 right-0 min-w-[320px] sm:w-96",
+          ].join(" ")}
+          style={{ maxHeight: "420px" }}
         >
           <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2.5">
             <Search size={15} className="text-neutral-400" />
