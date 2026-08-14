@@ -11,6 +11,7 @@ import { QuickReplies } from "./QuickReplies";
 import { SpeechHistory } from "./SpeechHistory";
 import { ToastContainer, useToast } from "./useToast.jsx";
 import { useSpeechHistory } from "../hooks/useSpeechHistory";
+import useTTS from "../hooks/useTTS.js";
 import { LanguageSelector } from "./LanguageSelector.jsx";
 import { loadLanguage, persistLanguage } from "../utils/languages.js";
 
@@ -26,6 +27,8 @@ export default function VoiceForge() {
   const [announcement, setAnnouncement] = useState("");
   const textareaRef = useRef(null);
 
+  const { speak: ttsSpeak } = useTTS();
+
   const {
     history,
     favorites,
@@ -38,26 +41,22 @@ export default function VoiceForge() {
 
   const { toasts, showToast } = useToast();
 
-  const speak = useCallback((text) => {
+  const speak = useCallback(async (text) => {
     if (!text.trim()) return;
 
-    if (!("speechSynthesis" in window)) {
-      showToast("Speech synthesis is not supported in this browser", "error");
-      return;
-    }
+    setIsSpeaking(true);
+    setAnnouncement("Speech synthesis started.");
 
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language;
-    utterance.rate = 0.95;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => {
+    try {
+      await ttsSpeak({ text, language_code: language });
+      setAnnouncement("Speech playback completed.");
+    } catch (err) {
+      showToast(err?.message || "Speech playback failed", "error");
+      setAnnouncement("Speech playback failed.");
+    } finally {
       setIsSpeaking(false);
-      showToast("Speech playback failed", "error");
-    };
-    window.speechSynthesis.speak(utterance);
-  }, [showToast, language]);
+    }
+  }, [ttsSpeak, showToast, language]);
 
   const handleSpeak = useCallback(() => {
     const text = inputText.trim();
@@ -159,6 +158,11 @@ export default function VoiceForge() {
 
   return (
     <div className="relative flex h-[calc(100vh-57px)] overflow-hidden bg-white font-sans antialiased dark:bg-black sm:h-[calc(100vh-65px)]">
+      {/* Screen reader live announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
+
       {/* Mobile history drawer overlay */}
       {historyOpen && (
         <div
