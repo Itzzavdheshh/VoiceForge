@@ -2,8 +2,7 @@
 import React from "react";
 import { getApiKey } from "../utils/apiKeyStorage.js";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
-import { getSavedProfiles, saveVoiceProfile } from "./useVoiceClone.js";
-import { authFetch } from "../utils/auth.js";
+import { API_BASE_URL } from "../utils/apiConfig.js";
 
 export default function useTTS() {
   const [status, setStatus] = React.useState("idle");
@@ -98,14 +97,7 @@ export default function useTTS() {
     try {
       const voiceSettings = loadVoiceSettings();
 
-      // Fix (Broken Voice Synthesis): the server now requires owner_token to
-      // authorize use of voice_id (403 otherwise). Use the explicitly
-      // passed token if given, else resolve it from the saved profile.
-      let activeVoiceId = voiceId;
-      let resolvedOwnerToken =
-        ownerToken || (await findProfileByVoiceId(voiceId))?.ownerToken || null;
-
-      let response = await fetch("/api/voice/speak", {
+      const response = await fetch(`${API_BASE_URL}/api/voice/speak`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

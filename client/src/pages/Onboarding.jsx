@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, CircleAlert, ArrowRight, RotateCcw } from "lucid
 import VoiceRecorder from "../components/VoiceRecorder.jsx";
 import useVoiceClone from "../hooks/useVoiceClone.js";
 import { useToast, ToastContainer } from "../components/useToast.jsx";
+import { API_BASE_URL } from "../utils/apiConfig.js";
 
 import {
   DEFAULT_VOICE_SETTINGS,
@@ -212,41 +213,63 @@ export default function Onboarding({ onReady }) {
 
   const recordingDuration = recording?.duration || 0;
 
+const MIN_NAME_LENGTH = 3;
+const MAX_NAME_LENGTH = 100;
+
+export default function Onboarding({ onReady }) {
+  const [recording, setRecording] = React.useState(null);
+  const [recordingDuration, setRecordingDuration] = React.useState(0);
+
+  function handleRecordingReady(blob, duration = 0) {
+    setRecording(blob);
+    setRecordingDuration(duration);
+  }
+
+  const [voiceName, setVoiceName] = React.useState("VoiceForge Voice");
+  const [successProfile, setSuccessProfile] = React.useState(null);
+  const { cloneVoice, status, error: apiError } = useVoiceClone();
+  const { toasts, showToast } = useToast();
+  const isCloning = status === "cloning";
+  const [serverStatus, setServerStatus] = React.useState({ isMock: false, space: "" });
+
   React.useEffect(() => {
-    fetch("/api/voice/status")
-      .then((res) => res.json())
-      .then((data) => setServerStatus(data))
-      .catch((err) => console.error("Failed to fetch server status:", err));
-  }, []);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5-second timeout
 
-  // Track the active onboarding step interface (1, 2, or 3) restored from storage
-  const [activeStep, setActiveStep] = useState(() => {
-    const savedStep = localStorage.getItem("voiceforge:onboardingStep");
-    const savedMax = localStorage.getItem("voiceforge:maxUnlockedStep");
+  fetch(`${API_BASE_URL}/api/voice/status`, { signal: controller.signal })
+    .then(async (res) => {
+      clearTimeout(timeoutId);
 
-    const parsedStep = savedStep ? parseInt(savedStep, 10) : 1;
-    const parsedMax = savedMax ? parseInt(savedMax, 10) : 1;
-    
-    return Math.min(parsedStep, parsedMax);
-  });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
 
-  // Refs for auto-focus
-  const voiceNameInputRef = useRef(null);
-  const step2FirstInputRef = useRef(null);
-  const step3FirstInputRef = useRef(null);
+      const contentType = res.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
+      }
 
-  // Voice settings state
-  const [voiceSettings, setVoiceSettings] = useState(() => loadVoiceSettings());
+      return res.json();
+    })
+    .then((data) => {
+      setServerStatus(data);
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        console.error("Failed to fetch server status (timeout or cancelled):", err);
+      } else {
+        console.error("Failed to fetch server status:", err);
+      }
+      // Do NOT call setServerStatus here — leave previous/default state intact
+    });
 
-  useEffect(() => {
-    fetch("/api/voice/status")
-      .then((res) => res.json())
-      .then((data) => setServerStatus(data))
-      .catch((err) => console.error("Failed to fetch server status:", err));
-  }, []);
-
-  const hasKey = useMemo(() => {
-    return hasApiKey() || serverStatus.isMock || serverStatus.hasServerKey;
+  return () => {
+    clearTimeout(timeoutId);
+    controller.abort();
+  };
+}, []);
+  const hasKey = React.useMemo(() => {
+    return serverStatus.isMock || Boolean(serverStatus.space);
   }, [serverStatus]);
   
   const nameError = React.useMemo(() => {
