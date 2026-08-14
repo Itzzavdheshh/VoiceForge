@@ -30,6 +30,18 @@ export class FileVoiceStore {
           logger.error({ err }, "Failed to read db.json");
         }
       }
+
+      // Cleanup orphan audio files missing from metadata DB
+      try {
+        const files = await fs.readdir(this.voicesDir);
+        for (const file of files) {
+          if (!this.metadata.has(file)) {
+            await fs.unlink(path.join(this.voicesDir, file)).catch(() => {});
+          }
+        }
+      } catch (err) {
+        logger.error({ err }, "Failed to prune orphan voice files on init");
+      }
     } catch (err) {
       logger.error({ err }, "Failed to initialize FileVoiceStore");
     }
