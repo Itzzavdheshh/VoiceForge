@@ -44,6 +44,16 @@ const isDev = process.env.NODE_ENV !== "production";
 // Enable trust proxy so rate limiters can identify real client IPs correctly
 app.set("trust proxy", 1);
 
+// 30-second HTTP request timeout middleware
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(408).json({ error: "Request Timeout: operation exceeded 30 seconds" });
+    }
+  });
+  next();
+});
+
 app.use(
   helmet({
     crossOriginOpenerPolicy: { policy: "same-origin" },
