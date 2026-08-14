@@ -55,6 +55,26 @@ export function QuickReplies({ onSelect, showToast }) {
     }
   }, [replies]);
 
+  useEffect(() => {
+    function handleStorage(event) {
+      if (event.key === STORAGE_KEY && event.newValue) {
+        try {
+          const parsed = JSON.parse(event.newValue);
+          if (Array.isArray(parsed)) {
+            setReplies(parsed);
+          }
+        } catch {
+          /* ignore invalid JSON payload */
+        }
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleStorage);
+      return () => window.removeEventListener("storage", handleStorage);
+    }
+  }, []);
+
   const handleAdd = (e) => {
     e.preventDefault();
     const cleanPhrase = newPhrase.trim();

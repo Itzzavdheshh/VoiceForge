@@ -117,6 +117,24 @@ export function useSpeechHistory() {
     }
   }, [analyticsHistory]);
 
+  // ── Cross-Tab Synchronization ─────────────────────────────────────────────
+  useEffect(() => {
+    function handleStorage(event) {
+      if (event.key === HISTORY_KEY) {
+        setHistory(readStorage(HISTORY_KEY, []));
+      } else if (event.key === FAVS_KEY) {
+        setFavorites(new Set(readStorage(FAVS_KEY, [])));
+      } else if (event.key === ANALYTICS_KEY) {
+        setAnalyticsHistory(readStorage(ANALYTICS_KEY, []));
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleStorage);
+      return () => window.removeEventListener("storage", handleStorage);
+    }
+  }, []);
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   /**
