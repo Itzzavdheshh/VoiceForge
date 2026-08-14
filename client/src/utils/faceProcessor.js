@@ -120,11 +120,19 @@ export class FaceProcessor {
     let x = Math.floor((centerX - cropSize / 2) * srcW);
     let y = Math.floor((centerY - cropSize / 2) * srcH);
 
-    // Clamp coordinates to stay within canvas boundaries
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
+    // Clamp coordinates and scale crop dimensions to stay within canvas boundaries
+    if (x < 0) {
+      w += x;
+      x = 0;
+    }
+    if (y < 0) {
+      h += y;
+      y = 0;
+    }
     if (x + w > srcW) w = srcW - x;
     if (y + h > srcH) h = srcH - y;
+    w = Math.max(1, w);
+    h = Math.max(1, h);
 
     const ctx = targetCanvas.getContext("2d");
     if (!ctx) return null;
