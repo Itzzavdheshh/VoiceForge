@@ -1,3 +1,6 @@
+/** Target sample rate required by speech models (Hz). */
+const TARGET_SAMPLE_RATE = 16000;
+
 export async function extractAudioFromFile(file) {
   // If it's already an audio file, just return it along with its duration
   if (file.type.startsWith("audio/")) {
@@ -9,13 +12,23 @@ export async function extractAudioFromFile(file) {
   if (file.type.startsWith("video/")) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) throw new Error("Web Audio API not supported in this browser.");
-    
+
     const ctx = new AudioContextClass();
     const arrayBuffer = await file.arrayBuffer();
-    
+
     try {
       const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      const wavBlob = audioBufferToWav(audioBuffer);
+
+      // Resample to TARGET_SAMPLE_RATE via OfflineAudioContext to avoid model mismatch
+      const numFrames = Math.ceil(audioBuffer.duration * TARGET_SAMPLE_RATE);
+      const offlineCtx = new OfflineAudioContext(1, numFrames, TARGET_SAMPLE_RATE);
+      const source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(offlineCtx.destination);
+      source.start(0);
+      const resampled = await offlineCtx.startRendering();
+
+      const wavBlob = audioBufferToWav(resampled);
       return { blob: wavBlob, duration: Math.round(audioBuffer.duration) };
     } catch (err) {
       throw new Error("Failed to extract audio track from video. " + err.message);
