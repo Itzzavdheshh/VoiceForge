@@ -41,6 +41,19 @@ export function ThemeProvider({ children }) {
     storeTheme(theme);
   }, [theme]);
 
+  React.useEffect(() => {
+    function handleStorage(event) {
+      if (event.key === "voiceforge:theme" && (event.newValue === "dark" || event.newValue === "light")) {
+        setTheme(event.newValue);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleStorage);
+      return () => window.removeEventListener("storage", handleStorage);
+    }
+  }, []);
+
   function toggleTheme() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   }
