@@ -165,4 +165,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #647: feat: Progress Bar & 10-second Quality Guard
+# TODO: add test - feat: Wav2Lip ONNX Web Inference Integration (#648)
