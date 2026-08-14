@@ -3,6 +3,8 @@ import React from "react";
 import { Mic, Square, Upload, CircleAlert, Loader2, FileUp } from "lucide-react";
 import { extractAudioFromFile } from "../utils/audioExtractor.js";
 
+const MAX_RECORDING_SECONDS = 300; // 5 minute max recording cap
+
 export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [isInitializing, setIsInitializing] = React.useState(false);
