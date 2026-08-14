@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat: add "clear text" eraser button to call page tts composer (#407)
+# TODO: docs: add obs virtual camera setup screenshots to readme (#412)
