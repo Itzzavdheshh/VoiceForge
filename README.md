@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat:  voice setting presets (#478)
+# TODO: [bug] selected language does not generate native multilingual speech (#510)
