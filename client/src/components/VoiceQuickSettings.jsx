@@ -232,6 +232,17 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             onChange={updateSetting("pitch")}
           />
 
+          <SliderRow
+            id="vqs-volume-gain"
+            label="Master Volume Gain"
+            description="Adjust master audio output gain multiplier (0% to 200%)."
+            value={settings.volumeGain ?? 1.0}
+            formattedValue={`${Math.round((settings.volumeGain ?? 1.0) * 100)}%`}
+            min={0.0}
+            max={2.0}
+            step={0.05}
+            onChange={updateSetting("volumeGain")}
+          />
           <details className="group border-t border-neutral-100 pt-3 dark:border-neutral-800">
             <summary className="flex cursor-pointer items-center justify-between text-xs font-bold text-neutral-600 dark:text-neutral-400 focus:outline-none">
               <span>Graphic Equalizer (EQ)</span>
