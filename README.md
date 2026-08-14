@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-<!-- fix: docs: add "Development Workflow & Local-First Architecture"  (#523) -->
+# TODO: fix for #515: [BUG] Incorrect native language names for non-Latin scripts in LanguageSelector 
