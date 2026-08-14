@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: docs: add obs virtual camera setup screenshots to readme (#412)
+# TODO: feat:[perf]: throttle face detection and audio state updates to reduce main-thread blocking (#422)
