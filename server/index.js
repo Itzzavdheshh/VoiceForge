@@ -164,10 +164,30 @@ app.use((error, _request, response, _next) => {
   });
 });
 
+let server;
 if (process.env.NODE_ENV !== "test") {
-  app.listen(port, () => {
+  server = app.listen(port, () => {
     console.log(`VoiceForge API listening on http://localhost:${port}`);
   });
+
+  const handleShutdown = (signal) => {
+    console.log(`[VoiceForge] Received ${signal}. Shutting down gracefully...`);
+    if (server) {
+      server.close(() => {
+        console.log("[VoiceForge] Closed remaining connections. Exiting process.");
+        process.exit(0);
+      });
+      setTimeout(() => {
+        console.error("[VoiceForge] Forcefully terminating due to shutdown timeout.");
+        process.exit(1);
+      }, 10000).unref();
+    } else {
+      process.exit(0);
+    }
+  };
+
+  process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+  process.on("SIGINT", () => handleShutdown("SIGINT"));
 }
 
 export default app;
