@@ -29,127 +29,17 @@ function requireApiKey(request) {
   return apiKey;
 }
 
-const MAX_STORED_VOICES = parseBoundedNumber(process.env.VOICE_STORE_MAX, 20, 1);
-const VOICE_STORE_TTL_MS = parseBoundedNumber(
-  process.env.VOICE_STORE_TTL_MS,
-  2 * 60 * 60 * 1000,
-  60_000
-);
-
-const PENDING_STREAMS_MAX = parseBoundedNumber(
-  process.env.PENDING_STREAMS_MAX,
-  1000,
-  1
-);
-
-const PENDING_STREAM_TTL_MS = parseBoundedNumber(
-  process.env.PENDING_STREAM_TTL_MS,
-  60_000,
-  1
-);
-
-// Fix: bound the size of reference-audio uploads so a single (or repeated)
-// request cannot exhaust process memory, since uploaded buffers are held
-// in-memory in `voiceStore`. Also restrict to audio MIME types since the
-// buffer is forwarded to the Chatterbox space as a reference recording.
-//
-// This must stay in sync with the multer file-size limit configured on the
-// /api/voice/clone route (12 MB) - otherwise files between the two limits
-// pass multer but get rejected here with a different status/message, which
-// is confusing for callers. If you change the multer limit, change this
-// default too (or vice versa).
-const MAX_VOICE_UPLOAD_BYTES = parseBoundedNumber(
-  process.env.MAX_VOICE_UPLOAD_BYTES,
-  12 * 1024 * 1024, // 12 MB - matches the multer limit on the clone route
-  1
-);
-const ALLOWED_AUDIO_MIME_PREFIX = "audio/";
-
-// In-memory store to prevent duplicate voice clone requests during network latency.
-// Maps session/user IDs to their active clone request state.
-// This prevents duplicate API calls when users retry or interact multiple times
-// before the UI reflects the cloning state (e.g., in slow network conditions).
-const activeCloneRequests = new Map();
-
-const MOCK_AUDIO_MP3 = Buffer.from(
-  "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA" +
-    "//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8A" +
-    "AAABAAAB/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-  "base64",
-);
-
-const STREAM_SECRET = process.env.STREAM_SECRET?.trim() || (() => {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("[VoiceForge] FATAL: STREAM_SECRET must be set in production.");
-  }
-  console.warn(
-    "[VoiceForge] STREAM_SECRET not set - using ephemeral key. " +
-    "All speech tokens will be invalidated on server restart. " +
-    "Set STREAM_SECRET in .env for stability."
-  );
-  return crypto.randomBytes(32).toString("hex");
-})();
-
-const ENCRYPTION_KEY = crypto.scryptSync(
-  STREAM_SECRET,
-  "voiceforge-stream-salt",
-  32,
-);
-const IV_LENGTH = 12;
-const ALGORITHM = "aes-256-gcm";
-
-function createTimeoutSignal(ms = 30000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+// Sanitizes a filename by removing path traversal sequences and special characters.
+// Prevents injection attacks and ensures safe transmission to external APIs.
+function sanitizeFilename(filename) {
+  return (filename || "reference.webm")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/\.{2,}/g, "_")
+    .substring(0, 100);
 }
 
-function withTimeout(promise, ms, label, abortSignal = null) {
-  let timeoutId;
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(
-      () => reject(new Error(`${label} timed out after ${ms}ms`)),
-      ms,
-    );
-
-    if (abortSignal) {
-      if (abortSignal.aborted) {
-        clearTimeout(timeoutId);
-        reject(new Error("Request aborted by client"));
-      } else {
-        abortSignal.addEventListener("abort", () => {
-          clearTimeout(timeoutId);
-          reject(new Error("Request aborted by client"));
-        });
-      }
-    }
-  });
-  return Promise.race([promise, timeoutPromise]).finally(() =>
-    clearTimeout(timeoutId),
-  );
-}
-
-function encryptToken(payload) {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
-
-  let encrypted = cipher.update(JSON.stringify(payload), "utf8", "base64");
-  encrypted += cipher.final("base64");
-
-  const authTag = cipher.getAuthTag().toString("base64");
-
-  const tokenData = {
-    iv: iv.toString("base64"),
-    tag: authTag,
-    data: encrypted,
-  };
-
-  return Buffer.from(JSON.stringify(tokenData)).toString("base64url");
-}
-
-function decryptToken(token) {
+async function readElevenLabsError(response) {
+  const text = await response.text();
   try {
     const rawJson = Buffer.from(token, "base64url").toString("utf8");
     const { iv, tag, data } = JSON.parse(rawJson);
@@ -359,16 +249,11 @@ export async function cloneVoice(request, response, next) {
       return;
     }
 
-    // Prevent duplicate clone requests during slow network conditions.
-    // tryAcquireCloneLock atomically checks and acquires the lock so there is
-    // no window between the check and the acquire where a concurrent request
-    // could slip through.
-    if (!tryAcquireCloneLock(lockId)) {
-      response.status(429).json({
-        error: "A voice clone request is already in progress. Please wait for it to complete before requesting another clone."
-      });
-      return;
-    }
+    const formData = new FormData();
+    formData.append("name", request.body.name || "VoiceForge Voice");
+    formData.append("description", "Voice profile created locally by VoiceForge.");
+    const safeName = sanitizeFilename(audioFile.originalname);
+    formData.append("files", new Blob([audioFile.buffer], { type: audioFile.mimetype }), safeName);
 
     // --- mock mode: return a deterministic fixture voice_id ---
     if (getIsMock()) {
