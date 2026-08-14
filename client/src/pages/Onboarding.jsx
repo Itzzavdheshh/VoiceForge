@@ -390,10 +390,18 @@ export default function Onboarding({ onReady }) {
               voice ID in this browser.
             </p>
           </div>
-          <div
-            className="grid w-full max-w-sm grid-cols-3 gap-2"
-            aria-label="Onboarding progress"
-          >
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onReady}
+              className="text-xs font-semibold text-white/70 hover:text-white underline transition"
+            >
+              Skip Onboarding →
+            </button>
+            <div
+              className="grid w-full max-w-sm grid-cols-3 gap-2"
+              aria-label="Onboarding progress"
+            >
             {["Record", "Clone", "Call"].map((step, index) => (
               <div
                 key={step}
