@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #453: [BUG] Missing Canvas Audio Waveform Visualizer
+# TODO: fix for #450: [BUG] MediaStream Track Memory Leak
