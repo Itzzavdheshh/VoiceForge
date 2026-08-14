@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat: add live captions overlay on the lip-synced video preview (#392)
+# TODO: [bug] speak() always saves to history, even on failed speech synthesis or silent browser fallback (#398)
