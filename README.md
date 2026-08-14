@@ -164,5 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-
-# TODO: issue #649
+# TODO: feat: automatically generate and persist stream_secret (#449)
