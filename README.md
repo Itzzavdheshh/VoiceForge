@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat: add github actions for automated playwright testing (#445)
+# TODO: feat: add a camera mirror/flip toggle (#446)
