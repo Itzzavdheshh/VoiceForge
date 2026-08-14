@@ -6,43 +6,30 @@ import { isValidLanguageCode, toChatterboxLanguageCode } from "../utils/language
 import { logger } from "../utils/logger.js";
 import { FileVoiceStore } from "../utils/FileVoiceStore.js";
 
+export function parseBoundedNumber(rawValue, fallback, min) {
+  const numeric = Number(rawValue);
+  return Number.isFinite(numeric) ? Math.max(min, numeric) : fallback;
+}
+
+const VOICE_STORE_MAX = parseBoundedNumber(process.env.VOICE_STORE_MAX, 50, 1);
+const VOICE_STORE_TTL_MS = parseBoundedNumber(process.env.VOICE_STORE_TTL_MS, 3600000, 1000);
+const PENDING_STREAMS_MAX = parseBoundedNumber(process.env.PENDING_STREAMS_MAX, 500, 10);
+const PENDING_STREAM_TTL_MS = parseBoundedNumber(process.env.PENDING_STREAM_TTL_MS, 60000, 1000);
+const MAX_VOICE_UPLOAD_BYTES = parseBoundedNumber(process.env.MAX_VOICE_UPLOAD_BYTES, 10485760, 1024);
+
 // ---------------------------------------------------------------------------
 // Disk-backed voice store: persists voice profiles to local filesystem
 // ---------------------------------------------------------------------------
 export const voiceStore = new FileVoiceStore(
   process.env.VOICE_DATA_DIR,
-  env.VOICE_STORE_MAX
+  VOICE_STORE_MAX
 );
 
-const getMaxStoredVoices = () => env.VOICE_STORE_MAX;
-const getVoiceStoreTtlMs = () => env.VOICE_STORE_TTL_MS;
-const getPendingStreamsMax = () => env.PENDING_STREAMS_MAX;
-const getPendingStreamTtlMs = () => env.PENDING_STREAM_TTL_MS;
-const getMaxVoiceUploadBytes = () => env.MAX_VOICE_UPLOAD_BYTES;
-const ALLOWED_AUDIO_MIME_PREFIX = "audio/";
-
-const MOCK_AUDIO_MP3 = Buffer.from(
-  "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA" +
-  "//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8A" +
-  "AAABAAAB/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-  "base64"
-);
-
-const STREAM_SECRET = process.env.STREAM_SECRET ?? (() => {
-  logger.warn(
-    "STREAM_SECRET not set - using ephemeral key. " +
-    "All speech tokens will be invalidated on server restart. " +
-    "Set STREAM_SECRET in .env for stability."
-  );
-  return crypto.randomBytes(32).toString("hex");
-})();
-
-export function parseBoundedNumber(rawValue, fallback, min) {
-  const numeric = Number(rawValue);
-  return Number.isFinite(numeric) ? Math.max(min, numeric) : fallback;
-}
+const getMaxStoredVoices = () => VOICE_STORE_MAX;
+const getVoiceStoreTtlMs = () => VOICE_STORE_TTL_MS;
+const getPendingStreamsMax = () => PENDING_STREAMS_MAX;
+const getPendingStreamTtlMs = () => PENDING_STREAM_TTL_MS;
+const getMaxVoiceUploadBytes = () => MAX_VOICE_UPLOAD_BYTES;
 
 // Sanitizes a filename by removing path traversal sequences and special characters.
 // Prevents injection attacks and ensures safe transmission to external APIs.
