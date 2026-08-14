@@ -104,7 +104,24 @@ app.use(globalLimiter);
 // Enable trust proxy so rate limiters can identify real client IPs
 app.set("trust proxy", 1);
 
-app.use(cors({ origin: clientUrl, credentials: true }));
+// AFTER — restricted CORS with explicit origin and credentials
+const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (e.g. server-to-server, curl) in dev
+      if (!origin || origin === allowedOrigin) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/health", (_request, response) => {

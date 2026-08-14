@@ -86,55 +86,11 @@ npm run dev
 
 ## Environment Variables
 
-All variables live in your local `.env` file (copy from `.env.example`). **None of them require a paid account or API key.**
-
-| Variable             | Default                 | Description                                                                                     |
-| -------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `VOICE_ENGINE_SPACE` | _(commented out)_       | The Hugging Face Gradio space used for voice synthesis. See the dual-mode setup below.          |
-| `MOCK_CHATTERBOX`    | `true`                  | Controls whether the live AI or an offline test stub is used. See below.                        |
-| `PORT`               | `3001`                  | Express API port.                                                                               |
-| `CLIENT_URL`         | `http://localhost:5173` | Allowed CORS origin for the Vite dev server.                                                    |
-| `STREAM_SECRET`      | _(auto-generated)_      | AES-256-GCM signing key for speech stream tokens. Set a fixed value to survive server restarts. |
-
-### Dual-Mode Voice Engine Setup
-
-VoiceForge ships with two engine routing modes that you control entirely from `.env`:
-
-#### Offline mock mode - local default
-
-The checked-in `.env.example` uses mock mode by default:
-
-```bash
-MOCK_CHATTERBOX=true
-```
-
-This skips all Hugging Face network calls. The server returns a fixture `voice_id` instantly on clone and streams a short silent audio file on speak. This is ideal for contributors working on UI changes, automated CI pipelines, or offline environments.
-
-> **Safety:** `MOCK_CHATTERBOX=true` has **no effect** when `NODE_ENV=production`. The server logs a yellow warning at startup whenever mock mode is active so it can never be silently enabled.
-
-#### Live AI mode - official production engine
-
-Leave `VOICE_ENGINE_SPACE` commented out with a `#`. The server will automatically route all synthesis requests to the official, lightning-fast production space:
-
-```bash
-# VOICE_ENGINE_SPACE=ResembleAI/Chatterbox-Multilingual-TTS
-MOCK_CHATTERBOX=false
-```
-
-This is the recommended setting for end-users and deployed environments.
-
-#### Live AI mode - independent backup mirror
-
-If the official space is temporarily busy or you prefer to route through an independent mirror, uncomment the line and point it at the community-maintained backup:
-
-```bash
-VOICE_ENGINE_SPACE=itzzavdheshh/voiceforge-engine
-MOCK_CHATTERBOX=false
-```
-
-This mirror runs the same Chatterbox Multilingual model. Useful when the primary space is under heavy load or during extended development sessions.
-
----
+| Variable | Required | Description |
+| --- | --- | --- |
+| `ELEVENLABS_API_KEY` | Yes | Server-side API key used for voice cloning and TTS requests. |
+| `PORT` | No | Express API port. Defaults to `3001`. |
+| `CLIENT_URL` | No | Trusted frontend origin for the CORS policy. In production, set this to your deployed frontend URL (e.g. `https://voice-forge-client.vercel.app`). Defaults to `http://localhost:5173`. Requests from any other origin will be rejected. |
 
 ## Using VoiceForge In A Call
 
