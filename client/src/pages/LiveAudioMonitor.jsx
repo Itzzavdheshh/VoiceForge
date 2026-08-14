@@ -12,6 +12,7 @@ export default function LiveAudioMonitor() {
   const [level, setLevel] = useState(0);
   const [peak, setPeak] = useState(0);
   const [warning, setWarning] = useState("");
+  const [a11yAnnouncement, setA11yAnnouncement] = useState("");
 
   const intervalRef = useRef(null);
 
@@ -25,12 +26,17 @@ export default function LiveAudioMonitor() {
 
         setPeak((prev) => (current > prev ? current : prev));
 
-        if (current > 90) {
+        if (current > 95) {
+          setWarning("⚠ Clipping detected! Lower microphone input.");
+          setA11yAnnouncement("Audio clipping detected. Lower your microphone input volume.");
+        } else if (current > 90) {
           setWarning("⚠ Clipping detected! Lower microphone input.");
         } else if (current < 15) {
           setWarning("🔇 Silence detected.");
+          setA11yAnnouncement("");
         } else {
           setWarning("✅ Recording level is good.");
+          setA11yAnnouncement("");
         }
       }, 200);
     } else {
@@ -144,16 +150,24 @@ export default function LiveAudioMonitor() {
               : "bg-green-100 text-green-700"
           }`}
         >
-          {warning.includes("Clipping") ||
-          warning.includes("Silence") ? (
+          {warning.includes("Clipping") || warning.includes("Silence") ? (
             <AlertTriangle />
           ) : (
             <Activity />
           )}
-
           <span className="font-medium">
             {warning || "Press Start Recording"}
           </span>
+        </div>
+
+        {/* Accessible live region for screen readers */}
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {a11yAnnouncement}
         </div>
 
         <div className="mt-8 grid md:grid-cols-3 gap-5">
