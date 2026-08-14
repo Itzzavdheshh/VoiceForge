@@ -107,24 +107,14 @@ if (estimatedDuration > 30) {
           <p className="mt-1 text-sm text-ink/65 dark:text-muted">Press Enter to speak. Shift + Enter adds a new line.</p>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div>
-          <p aria-live="polite" className="text-xs text-ink/60 dark:text-muted">
-            Est. Duration: {estimatedDuration}s ({durationCategory})
-          </p>
-        </div>
-        <span className="rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold text-ink/65 dark:border-border dark:text-muted">
-          {characterCount} characters
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-        {phrases.map((p) => (
-          <button key={p.label} disabled={disabled || status === "speaking"} onClick={() => onSpeak(p.text)}
-            className={`px-3 py-2 text-sm font-semibold rounded-md transition ${p.urgent ? "bg-red-500 text-white animate-pulse" : "bg-moss/10 hover:bg-moss/20 dark:bg-white/5 dark:hover:bg-white/10"}`}>
-            {p.label}
-          </button>
-        ))}
+      <div
+        role="status"
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {status === "speaking" && "Synthesizing and playing speech audio..."}
+        {status === "error" && "Speech synthesis encountered an error."}
       </div>
 
       <textarea
@@ -132,7 +122,14 @@ if (estimatedDuration > 30) {
         onChange={(event) => { setText(event.target.value); onTextChange?.(event.target.value); }}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        className="min-h-64 flex-1 resize-none rounded-md border border-ink/15 bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:border-moss focus:ring-4 focus:ring-mint disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
+        aria-label="Text to synthesize"
+        aria-invalid={charsLeft < 0}
+        aria-describedby="tts-char-hint"
+        className={["min-h-64 flex-1 resize-none rounded-md border bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500",
+          charsLeft < 0
+            ? "border-red-400 focus:border-red-400 focus:ring-red-100 dark:border-red-700 dark:focus:ring-red-900/30"
+            : "border-ink/15 focus:border-moss focus:ring-mint dark:border-border dark:focus:border-glow dark:focus:ring-glow/25"
+        ].join(" ")}
         placeholder="Type what you want to say..."
         title="Type your message here and press Enter to speak"
         aria-label="Text input for speech synthesis"
