@@ -663,13 +663,10 @@ export async function speak(request, response, next) {
  */
 export async function streamSpeech(request, response, next) {
   try {
-    const token = request.query.t;
-    if (!token) {
-      response.status(400).json({ error: "Missing stream token." });
-      return;
-    }
-    const { speechId, text, voiceId, language_code, voice_settings } =
-      decryptToken(token);
+    const { speechId } = request.params;
+    const requestApiKey = request.get("X-ElevenLabs-Api-Key")?.trim();
+
+    const streamData = pendingStreams.get(speechId);
 
     // Fix (replay protection): decryptToken only checks that the token is
     // authentic and not expired - it does not check that it hasn't already
@@ -694,14 +691,15 @@ export async function streamSpeech(request, response, next) {
       return;
     }
 
-    if (getIsMock()) {
-      console.warn("[VoiceForge] MOCK_CHATTERBOX: streaming mock audio");
-      deletePendingStream(speechId);
-      response.setHeader("Content-Type", "audio/mpeg");
-      response.setHeader("Content-Length", String(MOCK_AUDIO_MP3.length));
-      response.end(MOCK_AUDIO_MP3);
+    // Verify the caller's API key matches the key used to create the speech stream.
+    // This prevents unauthorized callers from using another user's speechId to consume their quota.
+    if (requestApiKey !== streamData.apiKey) {
+      response.status(403).json({ error: "Unauthorized. The API key provided does not match the speech request." });
       return;
     }
+
+    // Clean up immediately after retrieving parameters to prevent memory leaks
+    pendingStreams.delete(speechId);
 
     // Resolve the stored reference audio for this voice profile.
     const db = await getDb();
