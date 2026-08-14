@@ -9,6 +9,7 @@ import dbRoutes from "./routes/dbRoutes.js";
 import { getDatabase } from "./utils/db.js";
 import { getIsMock } from "./utils/mock.js";
 import helmet from "helmet";
+import { requestId } from "./middleware/requestId.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -35,6 +36,7 @@ if (getIsMock()) {
 }
 
 const app = express();
+app.use(requestId);
 const port = process.env.PORT || 3001;
 const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 const isDev = process.env.NODE_ENV !== "production";
