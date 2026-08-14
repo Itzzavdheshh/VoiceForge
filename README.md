@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] : `voiceforge.jsx` uses `window.speechsynthesis` directly instead of `usetts`, silently ignoring the cloned voice profile on the main page (#387)
+# TODO: feat: add live captions overlay on the lip-synced video preview (#392)
