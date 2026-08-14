@@ -104,15 +104,18 @@ export async function importSetupPayload(compressedString) {
   // Restore voice profiles to IndexedDB
   if (Array.isArray(data.profiles)) {
     for (const p of data.profiles) {
-      if (p && p.voice_id) {
+      if (p && typeof p === "object" && typeof p.voice_id === "string" && p.voice_id.trim()) {
+        const safeVoiceId = p.voice_id.trim();
+        const safeName = typeof p.name === "string" && p.name.trim() ? p.name.trim() : "Imported Voice";
         try {
           await saveProfile({
-            id: p.voice_id,
-            voice_id: p.voice_id,
-            name: p.name || "Imported Voice",
-            colorTag: p.colorTag || "emerald",
-            avatarIcon: p.avatarIcon || "user",
-            createdAt: p.createdAt || new Date().toISOString(),
+            id: safeVoiceId,
+            voice_id: safeVoiceId,
+            name: safeName,
+            colorTag: typeof p.colorTag === "string" ? p.colorTag : "emerald",
+            avatarIcon: typeof p.avatarIcon === "string" ? p.avatarIcon : "user",
+            ownerToken: typeof p.ownerToken === "string" ? p.ownerToken : null,
+            createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
             audioBlob: null,
           });
         } catch (err) {
