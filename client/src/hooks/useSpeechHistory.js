@@ -107,6 +107,7 @@ export function useSpeechHistory() {
     }
   }, [favorites]);
 
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   /**
@@ -120,44 +121,25 @@ export function useSpeechHistory() {
  * - enforces MAX_HISTORY limit
  *
  * @param {string} text - Message text to store
+ * @param {string} [id] - Optional stable id to assign to this entry
  */
-const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
+  const addMessage = useCallback((text, id) => {
   const trimmed = text.trim();
-
   if (!trimmed) return;
 
-  const timestamp = Date.now();
-
-  setSessionTranscript((prev) => [
-    ...prev,
-    { text: trimmed, timestamp },
-  ]);
-
-  // Save to IndexedDB transcripts store for Phase 3 & 4
-  saveTranscript({
-    text: trimmed,
-    voice_id: voiceId,
-    session_id: sessionId,
-    timestamp
-  }).catch((err) => console.error("Error saving transcript to IndexedDB:", err));
+  const entryId = id || crypto.randomUUID();
+  const existing = history.find((m) => m.text === trimmed);
+  const resolvedId = existing ? existing.id : entryId;
 
   setHistory((prev) => {
-    const existing = prev.find((m) => m.text === trimmed);
-
-    // Preserve existing ID if duplicate found, but update timestamp
-    // so re-spoken messages sort correctly after a page reload.
-    const entry = existing
-      ? { ...existing, timestamp }
-      : { id: crypto.randomUUID(), text: trimmed, timestamp };
-
-    const updated = [
-      entry,
-      ...prev.filter((m) => m.id !== entry.id),
-    ];
-
+    const found = prev.find((m) => m.text === trimmed);
+    const entry = found || { id: entryId, text: trimmed, timestamp: Date.now() };
+    const updated = [entry, ...prev.filter((m) => m.id !== entry.id)];
     return updated.slice(0, MAX_HISTORY);
   });
-}, []);
+
+  return resolvedId;
+}, [history]);
 
   /**
    * Removes a message by id and also removes it from favorites.

@@ -6,10 +6,8 @@ import { QuickReplies } from "./QuickReplies.jsx";
 import { SpeechHistory } from "./SpeechHistory.jsx";
 import { ToastContainer, useToast } from "./useToast.jsx";
 import { useSpeechHistory } from "../hooks/useSpeechHistory";
-import { LanguageSelector } from "./LanguageSelector.jsx";
-import { loadLanguage, persistLanguage, subscribeLanguageChange } from "../utils/languages.js";
-import useTTS from "../hooks/useTTS.js";
-import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
+import useTTS from "../hooks/useTTS";
+import { hasApiKey } from "../utils/apiKeyStorage";
 
 const MAX_CHARS = 300;
 
@@ -22,7 +20,15 @@ export default function VoiceForge() {
 
   const [announcement, setAnnouncement] = useState("");
   const textareaRef = useRef(null);
-
+  const audioMapRef = useRef(new Map());
+  const speakCounterRef = useRef(0);
+  const { speak: ttsSpeak } = useTTS();
+  useEffect(() => {
+   return () => {
+     audioMapRef.current.forEach((blobUrl) => URL.revokeObjectURL(blobUrl));
+    audioMapRef.current.clear();
+    };
+   }, []);
   const {
     history,
     favorites,
@@ -36,16 +42,12 @@ export default function VoiceForge() {
   } = useSpeechHistory();
 
   const { toasts, showToast } = useToast();
-  const { speak: ttsSpeak, audioUrl, playbackId } = useTTS();
-  const [activeProfile, setActiveProfile] = useState(null);
-  const [useClonedVoice, setUseClonedVoice] = useState(() => {
-    try {
-      const saved = localStorage.getItem("voiceforge:useClonedVoice");
-      return saved !== "false";
-    } catch {
-      return true;
-    }
-  });
+  const handleClearHistory = useCallback(() => {
+  speakCounterRef.current++;
+  audioMapRef.current.forEach((blobUrl) => URL.revokeObjectURL(blobUrl));
+  audioMapRef.current.clear();
+  clearHistory();
+}, [clearHistory]);
 
   const handleAddToQuickReplies = useCallback(
     (text) => {
@@ -159,40 +161,74 @@ export default function VoiceForge() {
     }
   }, [ttsSpeak, activeProfile, language, useClonedVoice, showToast]);
 
-  const handleSpeak = useCallback(() => {
-    const text = inputText.trim();
-    if (!text) {
-      showToast("Please type a message first", "error");
-      textareaRef.current?.focus();
-      return;
+  const handleSpeak = useCallback(async () => {
+  const text = inputText.trim();
+  if (!text) {
+    showToast("Please type a message first", "error");
+    textareaRef.current?.focus();
+    return;
+  }
+  const tentativeId = crypto.randomUUID();
+  speak(text);
+  const resolvedId = addMessage(text, tentativeId);
+  showToast("Saved to history", "success");
+
+  try {
+    const activeVoiceId = localStorage.getItem("voiceforge:activeVoiceId");
+    if (hasApiKey() && activeVoiceId) {
+      const requestId = ++speakCounterRef.current;
+      const { blobUrl } = await ttsSpeak({ text, voiceId: activeVoiceId });
+      if (blobUrl && requestId === speakCounterRef.current) {
+        const existing = audioMapRef.current.get(resolvedId);
+        if (existing) URL.revokeObjectURL(existing);
+        audioMapRef.current.set(resolvedId, blobUrl);
+      } else if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
     }
-    speak(text);
-    addMessage(text, language);
-    showToast("Saved to history", "success");
-  }, [inputText, speak, addMessage, showToast, language]);
+  } catch {
+    // ElevenLabs unavailable — download button simply won't appear.
+  }
+  }, [inputText, speak, addMessage, showToast, ttsSpeak]);
 
   const handleReplay = useCallback((text) => {
     speak(text);
     showToast("Replaying...", "info");
   }, [speak, showToast]);
 
-      navigator.clipboard
-        .writeText(target)
-        .then(() => showToast("Copied to clipboard", "success"))
-        .catch(() => {
-          const ta = document.createElement("textarea");
-          ta.value = target;
-          ta.style.position = "absolute";
-          ta.style.opacity = "0";
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-          showToast("Copied", "success");
-        });
-    },
-    [inputText, showToast],
-  );
+    const getAudioUrl = useCallback((id) => {
+  return audioMapRef.current.get(id);
+}, []);
+
+const handleDownload = useCallback((id, text) => {
+  const blobUrl = audioMapRef.current.get(id);
+  if (!blobUrl) return;
+  const safeName = text.trim().slice(0, 40).replace(/[^a-z0-9 ]/gi, "").trim().replace(/\s+/g, "_") || "audio";
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}-${String(now.getMinutes()).padStart(2,"0")}-${String(now.getSeconds()).padStart(2,"0")}`;
+  anchor.download = `${safeName}_${timestamp}.mp3`;
+  anchor.style.cssText = "position:absolute;opacity:0;pointer-events:none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+}, []);
+
+const handleDeleteMessage = useCallback((id) => {
+  const blobUrl = audioMapRef.current.get(id);
+  if (blobUrl) {
+    URL.revokeObjectURL(blobUrl);
+    audioMapRef.current.delete(id);
+  }
+  removeMessage(id);
+}, [removeMessage]);
+
+  const handleReuse = useCallback((text) => {
+    setInputText(text);
+    textareaRef.current?.focus();
+    showToast("Loaded into composer", "success");
+  }, [showToast]);
 
   const handleQuickReply = useCallback(
     (phrase) => {
@@ -272,43 +308,19 @@ export default function VoiceForge() {
   }
 
   return (
-    <div className="relative flex h-[calc(100dvh-57px)] overflow-hidden bg-white font-sans antialiased dark:bg-black sm:h-[calc(100dvh-65px)]">
-      {/* Mobile history drawer overlay */}
-      {historyOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
-          onClick={() => setHistoryOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar: always visible on lg+, drawer on mobile */}
-      <div
-        ref={drawerRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal={historyOpen}
-        aria-label="Speech history"
-        className={[
-          "absolute inset-y-0 left-0 z-30 flex flex-col transition-transform duration-200 focus:outline-none",
-          "lg:static lg:z-auto lg:translate-x-0 lg:flex",
-          historyOpen ? "translate-x-0" : "-translate-x-full",
-        ].join(" ")}
-      >
-        <SpeechHistory
-          history={history}
-          favorites={favorites}
-          sessionTranscript={sessionTranscript}
-          onReuse={(text) => { handleReuse(text); setHistoryOpen(false); }}
-          onReplay={handleReplay}
-          onToggleFav={toggleFavorite}
-          onDelete={removeMessage}
-          onClearHistory={clearHistory}
-          onCopy={handleCopy}
-          onImportBackup={importBackup}
-          showToast={showToast}
-        />
-      </div>
+    <div className="flex h-screen overflow-hidden bg-white font-sans antialiased dark:bg-black">
+      <SpeechHistory
+        history={history}
+        favorites={favorites}
+        onReuse={handleReuse}
+        onReplay={handleReplay}
+        onToggleFav={toggleFavorite}
+        onDelete={handleDeleteMessage}
+        onClearHistory={handleClearHistory}
+        onCopy={handleCopy}
+        getAudioUrl={getAudioUrl}
+        onDownload={handleDownload}
+      />
 
       <main className="flex flex-1 flex-col overflow-hidden" aria-label="Speech composer">
         <header className="flex flex-shrink-0 items-center gap-2 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-black sm:px-5 sm:py-3.5">

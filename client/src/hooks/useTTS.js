@@ -8,91 +8,11 @@ export default function useTTS() {
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
   const [audioUrl, setAudioUrl] = React.useState("");
-  const [engine, setEngine] = React.useState("chatterbox");
-  const [playbackId, setPlaybackId] = React.useState(0);
-
-  const abortControllerRef = React.useRef(null);
-
-  /**
-   * Triggers local browser SpeechSynthesis as a fallback engine.
-   *
-   * @param {string} text The text to read.
-   * @param {string} languageCode BCP-47 language tag to use.
-   * @param {AbortSignal} [signal] Optional abort signal to cancel synthesis.
-   * @returns {Promise<void>} Resolves when speech completes.
-   */
-  function browserSpeak(text, languageCode, signal) {
-    return new Promise((resolve, reject) => {
-      if (!("speechSynthesis" in window)) {
-        reject(new Error("Speech synthesis not supported"));
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      if (languageCode) {
-        utterance.lang = languageCode;
-      }
-
-      utterance.onend = resolve;
-      utterance.onerror = reject;
-
-      window.speechSynthesis.speak(utterance);
-    });
-  }
-
-  /**
-   * Resolves the owner_token that authorizes use of a given voice_id, by
-   * looking up the locally saved voice profile that matches voiceId.
-   *
-   * @param {string} voiceId The voice_id to resolve an owner_token for.
-   * @returns {Promise<object|null>} The matching saved profile, or null.
-   */
-  async function findProfileByVoiceId(voiceId) {
-    if (!voiceId) {
-      return null;
-    }
-    const profiles = await getSavedProfiles();
-    return profiles.find((profile) => profile.voice_id === voiceId) || null;
-  }
-
-  /**
-   * Generates cloned speech for the given text using the selected voice profile.
-   * Automatically attempts browser SpeechSynthesis fallback if the server request fails.
-   *
-   * @param {object} params Parameter payload.
-   * @param {string} params.text The text to synthesize.
-   * @param {string} params.voiceId The ID of the cloned voice profile.
-   * @param {string} [params.language_code] Chatterbox/BCP-47 language code.
-   * @param {string} [params.ownerToken] Owner token for voiceId. If omitted,
-   *   it is looked up from the locally saved profile matching voiceId.
-   * @returns {Promise<{audioUrl: string, engine: string}|{fallback: boolean, engine: string}|{aborted: boolean}>} Result of speech synthesis.
-   */
-  async function speak({ text, voiceId, language_code, onSpeakingChange }) {
-    // Cancel any in-flight request before starting a new one.
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    // Stop all currently playing audio sources
-    audioSourcesRef.current.forEach((src) => {
-      try {
-        src.stop();
-      } catch (e) {}
-    });
-    audioSourcesRef.current = [];
-
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
+  const prevBlobRef = React.useRef("");
+  const mountedRef = React.useRef(true);
 
     setError("");
-    setStatus("speaking");
+    setStatus("speaking"); 
 
     try {
       const voiceSettings = loadVoiceSettings();
@@ -262,136 +182,34 @@ export default function useTTS() {
       const payload = await response.json();
       const nextAudioUrl = payload.audioUrl;
 
-      setEngine("chatterbox");
-      setAudioUrl(nextAudioUrl);
-      setStatus("ready");
-
-      // Initialize the worker
-      const worker = new Worker(
-        new URL("../workers/audioDecoder.worker.js", import.meta.url),
-        { type: "module" }
-      );
-      workerRef.current = worker;
-
-      // Initialize the audio context and route it
-      let audioContext;
-      if (audioProcessor) {
-        await audioProcessor.initialize(null);
-        audioContext = audioProcessor.audioContext;
-      } else {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      
-      if (audioContext.state === "suspended") {
-        await audioContext.resume();
-      }
-
-      playbackTimeRef.current = audioContext.currentTime;
-
-      // Start the stream fetch
-      const streamResponse = await fetch(nextAudioUrl, { signal: controller.signal });
-      if (!streamResponse.ok) {
-        const errPayload = await streamResponse.json().catch(() => ({}));
-        throw new Error(errPayload.error || `Stream fetch failed with status ${streamResponse.status}`);
-      }
-
-      const reader = streamResponse.body.getReader();
-      let chunkIndex = 0;
-
-      await new Promise((resolve, reject) => {
-        const cleanupAndReject = (err) => {
-          worker.terminate();
-          audioSourcesRef.current.forEach((src) => {
-            try {
-              src.stop();
-            } catch (e) {}
-          });
-          audioSourcesRef.current = [];
-          reject(err);
-        };
-
-        controller.signal.addEventListener("abort", () => {
-          cleanupAndReject(new DOMException("Aborted", "AbortError"));
-        });
-
-        worker.onmessage = (event) => {
-          const { status: msgStatus, chunkIndex: msgIndex, pcmData, sampleRate, isLast, error } = event.data;
-
-          if (msgStatus === "error") {
-            cleanupAndReject(new Error(error));
-            return;
-          }
-
-          if (msgStatus === "success" && pcmData && pcmData.length > 0) {
-            const audioBuffer = audioContext.createBuffer(1, pcmData.length, sampleRate);
-            audioBuffer.copyToChannel(pcmData, 0);
-
-            const sourceNode = audioContext.createBufferSource();
-            sourceNode.buffer = audioBuffer;
-
-            if (audioProcessor && audioProcessor.inputNode) {
-              sourceNode.connect(audioProcessor.inputNode);
-            } else {
-              sourceNode.connect(audioContext.destination);
-            }
-
-            const now = audioContext.currentTime;
-            if (playbackTimeRef.current < now) {
-              playbackTimeRef.current = now;
-            }
-
-            sourceNode.start(playbackTimeRef.current);
-            playbackTimeRef.current += audioBuffer.duration;
-
-            audioSourcesRef.current.push(sourceNode);
-
-            if (isLast) {
-              sourceNode.onended = () => {
-                worker.terminate();
-                resolve();
-              };
-            }
-          } else if (msgStatus === "success" && isLast) {
-            if (audioSourcesRef.current.length > 0) {
-              const lastSource = audioSourcesRef.current[audioSourcesRef.current.length - 1];
-              lastSource.onended = () => {
-                worker.terminate();
-                resolve();
-              };
-            } else {
-              worker.terminate();
-              resolve();
-            }
-          }
-        };
-
-        async function readStream() {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) {
-                worker.postMessage({ chunk: null, chunkIndex, isLast: true });
-                break;
-              }
-              const arrayBuffer = value.buffer;
-              worker.postMessage({ chunk: arrayBuffer, chunkIndex, isLast: false }, [arrayBuffer]);
-              chunkIndex++;
-            }
-          } catch (err) {
-            if (err.name !== "AbortError") {
-              cleanupAndReject(err);
-            }
-          }
+        if (!nextAudioUrl) {
+          throw new Error("Audio URL missing from server response.");
         }
 
-        readStream();
-      });
+        let blobUrl = "";
+        try {
+        const audioResponse = await fetch(nextAudioUrl);
+        if (audioResponse.ok) {
+          const blob = await audioResponse.blob();
+          const created = URL.createObjectURL(blob);
+          if (!mountedRef.current) {
+            URL.revokeObjectURL(created);   // fix: revoke before bailing
+            return { audioUrl: "", blobUrl: "" };
+          }
+          blobUrl = created;
+        }
+      } catch {
+        // Blob capture failed — download button won't appear.
+      }
 
+      if (!mountedRef.current) return { audioUrl: "", blobUrl: "" };
+
+
+      if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current);
+      prevBlobRef.current = blobUrl;
+      setAudioUrl(blobUrl || nextAudioUrl);
       setStatus("ready");
-      return {
-        audioUrl: nextAudioUrl,
-        engine: "chatterbox",
-      };
+      return { audioUrl: blobUrl || nextAudioUrl, blobUrl };
     } catch (ttsError) {
       // A cancelled request is not an error — a newer speak() call took over.
       if (ttsError?.name === "AbortError") {
@@ -419,13 +237,14 @@ export default function useTTS() {
       }
     }
   }
-
-  return {
-    speak,
-    status,
-    error,
-    audioUrl,
-    engine,
-    playbackId,
-  };
+    React.useEffect(() => {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+        if (prevBlobRef.current) {
+          URL.revokeObjectURL(prevBlobRef.current);
+        }
+      };
+    }, []);
+  return { speak, status, error, audioUrl };
 }

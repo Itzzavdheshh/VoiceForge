@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Copy, Pin, Play, RotateCcw, Trash2, Zap, Plus, X } from "lucide-react";
+import { Copy, Download, Pin, Play, RotateCcw, Trash2 } from "lucide-react";
 import { formatTime } from "../utils/formatTime.js";
 
 function useRelativeTime(timestamp) {
@@ -22,9 +22,8 @@ export function MessageCard({
   onToggleFav,
   onDelete,
   onCopy,
-  onAddTag,
-  onRemoveTag,
-  onAddToQuickReplies,
+  audioUrl,
+  onDownload,
 }) {
   const { id, text, timestamp, tags } = message;
   const timeLabel = useRelativeTime(timestamp);
@@ -145,6 +144,15 @@ export function MessageCard({
           >
             <Copy size={14} aria-hidden="true" />
           </ActionButton>
+          {audioUrl && onDownload && (
+            <ActionButton
+              onClick={() => onDownload(id, text)}
+              aria-label="Download audio for this message"
+              title="Download audio"
+            >
+              <Download size={14} aria-hidden="true" />
+            </ActionButton>
+          )}
           <ActionButton
             onClick={() => onAddToQuickReplies(text)}
             aria-label="Promote to Quick Replies"
