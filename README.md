@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #334: [Phase 8] Emergency Phrase Presets - One-tap accessibility communication
+# TODO: fix for #335: [Phase 9] AAC Symbol Board - Augmentative and Alternative Communication tile gri
