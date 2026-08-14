@@ -319,8 +319,18 @@ export default React.forwardRef(function VideoPreview({
       ctx.restore();
     }
 
+    let lastFrameTime = 0;
+    const fpsInterval = 1000 / 30; // 30 FPS cap
+
     function draw(now, metadata) {
-      const timestamp = now;
+      const timestamp = now || performance.now();
+      const elapsed = timestamp - lastFrameTime;
+
+      if (elapsed < fpsInterval) {
+        animationRef.current = requestAnimationFrame(draw);
+        return;
+      }
+      lastFrameTime = timestamp - (elapsed % fpsInterval);
       context.fillStyle = bgColor;
       context.fillRect(0, 0, canvas.width, canvas.height);
 
