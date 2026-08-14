@@ -9,7 +9,8 @@ import {
 /**
  * A single labelled range slider row.
  */
-function SliderRow({ id, label, description, value, onChange, min = 0, max = 1, step = 0.01 }) {
+function SliderRow({ id, label, description, value, formattedValue, min = 0, max = 1, step = 0.01, onChange }) {
+  const displayVal = formattedValue !== undefined ? formattedValue : value;
   return (
     <div className="space-y-1">
       <label
@@ -18,11 +19,11 @@ function SliderRow({ id, label, description, value, onChange, min = 0, max = 1, 
       >
         <span>{label}</span>
         <span
-          className="tabular-nums text-neutral-500 dark:text-neutral-400"
+          className="tabular-nums text-neutral-500 dark:text-neutral-400 font-mono text-[11px]"
           aria-live="polite"
-          aria-label={`${label} value: ${value}`}
+          aria-label={`${label} value: ${displayVal}`}
         >
-          {value}
+          {displayVal}
         </span>
       </label>
       <input
@@ -46,6 +47,10 @@ function SliderRow({ id, label, description, value, onChange, min = 0, max = 1, 
         }}
         onChange={onChange}
         aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={`${label}: ${displayVal}`}
         aria-describedby={`${id}-desc`}
         className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-neutral-700 dark:accent-blue-400"
       />
