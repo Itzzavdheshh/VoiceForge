@@ -114,6 +114,7 @@ export default function Call() {
   // ---------------- SAFE PROFILE LOAD ----------------
   React.useEffect(() => {
     let isMounted = true;
+    let localStream = null;
 
     async function loadActiveProfile() {
       try {
@@ -121,7 +122,11 @@ export default function Call() {
           video: true,
           audio: false,
         });
-        activeStream = stream;
+        if (!isMounted) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        localStream = stream;
         setWebcamStream(stream);
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       } catch (webcamError) {
@@ -134,8 +139,13 @@ export default function Call() {
     window.addEventListener("storage", loadActiveProfile);
 
     return () => {
+      isMounted = false;
       window.removeEventListener("voiceforge:profileChanged", loadActiveProfile);
       window.removeEventListener("storage", loadActiveProfile);
+      // Stop any open camera tracks on unmount to release the mic/camera indicator
+      if (localStream) {
+        localStream.getTracks().forEach((t) => t.stop());
+      }
     };
   }, []);
 
