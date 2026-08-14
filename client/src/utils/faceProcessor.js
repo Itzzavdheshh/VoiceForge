@@ -16,14 +16,21 @@ export class FaceProcessor {
     if (this.isInitialized) return;
 
     try {
-      // Create the vision task
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
+      const localWasmPath = typeof window !== "undefined" && window.location.origin
+        ? `${window.location.origin}/wasm`
+        : "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
+
+      const vision = await FilesetResolver.forVisionTasks(localWasmPath).catch(() =>
+        FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm")
       );
+
+      const localModelPath = typeof window !== "undefined" && window.location.origin
+        ? `${window.location.origin}/models/face_landmarker.task`
+        : "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
       
       this.faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+          modelAssetPath: localModelPath,
           delegate: "GPU"
         },
         outputFaceBlendshapes: false,
@@ -34,7 +41,7 @@ export class FaceProcessor {
       this.isInitialized = true;
       console.log("FaceLandmarker initialized successfully");
     } catch (error) {
-      console.error("Failed to initialize FaceLandmarker:", error);
+      console.warn("FaceLandmarker initialization skipped (offline fallback mode):", error?.message || error);
     }
   }
 

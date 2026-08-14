@@ -37,7 +37,12 @@ export default React.forwardRef(function VideoPreview({
       try {
         const { SelfieSegmentation } = await import("@mediapipe/selfie_segmentation");
         const segmenter = new SelfieSegmentation({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
+          locateFile: (file) => {
+            if (typeof window !== "undefined" && window.location.origin) {
+              return `${window.location.origin}/wasm/${file}`;
+            }
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+          },
         });
         segmenter.setOptions({
           modelSelection: 1,
