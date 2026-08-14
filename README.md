@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: docs: add "development workflow & local-first architecture" guide (#523)
+# TODO: feat: (#524)
