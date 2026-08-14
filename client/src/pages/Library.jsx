@@ -10,6 +10,12 @@ export default function Library() {
   const [onnxLoaded, setOnnxLoaded] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
+  const isValidLibraryFile = (fileName) => {
+    if (!fileName || typeof fileName !== "string") return false;
+    const allowed = [".wav", ".mp3", ".json", ".ogg", ".webm"];
+    return allowed.some(ext => fileName.toLowerCase().endsWith(ext));
+  };
+
   const loadData = async () => {
     try {
       const cols = await getAllCollections();
