@@ -1,4 +1,6 @@
 // Renders the first-time setup flow for recording and cloning a reference voice.
+import React, { useRef, useEffect } from "react";
+import { CheckCircle2, Loader2, CircleAlert, ArrowRight } from "lucide-react";
 import React from "react";
 import { CheckCircle2, Loader2, CircleAlert, ArrowRight, RotateCcw } from "lucide-react";
 import VoiceRecorder from "../components/VoiceRecorder.jsx";
@@ -207,8 +209,11 @@ export default function Onboarding({ onReady }) {
   const isCloning = status === "cloning";
   const [serverStatus, setServerStatus] = React.useState({ isMock: false, space: "" });
 
-  const handleRecordingReady = React.useCallback((rec) => {
-    setRecording(rec);
+  React.useEffect(() => {
+    fetch("/api/voice/status")
+      .then((res) => res.json())
+      .then((data) => setServerStatus(data))
+      .catch((err) => console.error("Failed to fetch server status:", err));
   }, []);
 
   const recordingDuration = recording?.duration || 0;
