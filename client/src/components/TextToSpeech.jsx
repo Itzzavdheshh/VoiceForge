@@ -134,6 +134,10 @@ if (estimatedDuration > 30) {
         title="Type your message here and press Enter to speak"
         aria-label="Text input for speech synthesis"
       />
+      <div id="tts-char-hint" className="mt-1 flex justify-between text-xs text-neutral-400">
+        <span>{wordCount} words ({characterCount} chars)</span>
+        <span>Est: {estimatedDuration}s ({durationCategory})</span>
+      </div>
       <button
         type="button"
         onClick={submit}
