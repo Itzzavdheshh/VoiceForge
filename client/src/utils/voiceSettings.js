@@ -65,7 +65,11 @@ export function persistVoiceSettings(settings) {
   try {
     localStorage.setItem('voiceforge_voice_settings', JSON.stringify(settings));
   } catch (error) {
-    console.warn('Failed to save voice settings:', error);
+    if (error?.name === "QuotaExceededError" || error?.code === 22) {
+      console.warn("localStorage quota exceeded. Voice settings persisted for current session only.");
+    } else {
+      console.warn('Failed to save voice settings:', error);
+    }
   }
 }
 
