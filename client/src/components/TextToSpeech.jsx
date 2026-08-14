@@ -96,12 +96,14 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
         title="Type your message here and press Enter to speak"
         aria-label="Text input for speech synthesis"
       />
-      <p className="mt-2 text-sm text-ink/65 dark:text-muted" aria-live="polite">
-        Characters: {characterCount}/{MAX_TTS_CHARS}
-      </p>
-      
-      <button type="button" onClick={submit} disabled={disabled || !trimmedText || status === "speaking"}
-        className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50">
+      <button
+        type="button"
+        onClick={submit}
+        disabled={disabled || !text.trim() || status === "speaking"}
+        title={status === "speaking" ? "Generating speech..." : "Speak the typed text"}
+        aria-label={status === "speaking" ? "Generating speech..." : "Speak the typed text"}
+        className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
         <SendHorizontal size={18} aria-hidden="true" />
         {status === "speaking" ? "Generating..." : "Speak"}
       </button>

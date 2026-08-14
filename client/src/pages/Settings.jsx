@@ -582,7 +582,51 @@ export default function Settings() {
           <CircleAlert size={18} aria-hidden="true" />
           <span>Database error: {dbError}</span>
         </div>
-      )}
+
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+
+          <label className="flex-1 text-sm font-bold" htmlFor="api-key">
+            ElevenLabs API key
+            <input
+              id="api-key"
+              type="password"
+              value={apiKey}
+              onChange={(event) => setApiKeyInput(event.target.value)}
+              title="Enter your ElevenLabs API key"
+              aria-label="Enter your ElevenLabs API key"
+              className="mt-2 min-h-11 w-full rounded-md border border-ink/15 bg-cloud px-3 text-ink outline-none focus:border-moss focus:ring-4 focus:ring-mint dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
+              placeholder="sk_..."
+            />
+          </label>
+          <button
+            type="button"
+            onClick={saveApiKey}
+            title="Save your ElevenLabs API key for this session"
+            aria-label="Save your ElevenLabs API key for this session"
+            className="min-h-11 rounded-md bg-moss px-5 font-bold text-white"
+          >
+            Save key
+          </button>
+          <a
+            href="https://elevenlabs.io/"
+            target="_blank"
+            rel="noreferrer"
+            title="Get a free ElevenLabs API key"
+            aria-label="Get a free ElevenLabs API key"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-ink/15 px-4 font-bold text-ink hover:border-moss hover:text-moss dark:border-border dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow"
+          >
+            Free tier
+            <ExternalLink size={16} aria-hidden="true" />
+          </a>
+        </div>
+        <p className="mt-3 text-sm text-ink/65 dark:text-muted">
+          Your key is kept for this browser session only — it is cleared when
+          you close the tab and is not shared with other tabs. You will need to
+          re-enter it each session. The backend reads{" "}
+          <code className="font-mono">.env</code> first; this field is a
+          client-side override.
+        </p>
+      </section>
 
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
         <h2 className="text-xl font-bold">Voice Synthesis Settings</h2>
@@ -629,12 +673,29 @@ export default function Settings() {
               step="0.01"
               value={voiceSettings.stability}
               onChange={(e) => saveVoiceSettings({ ...voiceSettings, stability: parseFloat(e.target.value) })}
+              title="Adjust voice stability - lower values are more expressive, higher values are more consistent"
+              aria-label="Adjust voice stability"
               className="w-full mt-2"
             />
-            <p className="text-xs text-ink/50 mt-1">
-              Lower values are more expressive; higher values are more
-              consistent.
-            </p>
+            <p className="text-xs text-ink/50 mt-1">Lower values are more expressive; higher values are more consistent.</p>
+          </div>
+          
+          <div>
+            <label className="flex justify-between text-sm font-bold" htmlFor="similarity">
+              <span>Similarity Boost</span>
+              <span className="text-ink/65">{voiceSettings.similarity_boost}</span>
+            </label>
+            <input
+              id="similarity"
+              type="range"
+              min="0" max="1" step="0.01"
+              value={voiceSettings.similarity_boost}
+              onChange={(e) => saveVoiceSettings({ ...voiceSettings, similarity_boost: parseFloat(e.target.value) })}
+              title="Adjust similarity to original voice - higher values match closer but may introduce artifacts"
+              aria-label="Adjust similarity boost"
+              className="w-full mt-2"
+            />
+            <p className="text-xs text-ink/50 mt-1">Higher values make the voice closer to the original but may introduce artifacts.</p>
           </div>
 
           <div>
@@ -677,6 +738,8 @@ export default function Settings() {
               min="0" max="2" step="0.01"
               value={voiceSettings.style}
               onChange={(e) => saveVoiceSettings({ ...voiceSettings, style: parseFloat(e.target.value) })}
+              title="Adjust style exaggeration - higher values exaggerate the reference audio style"
+              aria-label="Adjust style exaggeration"
               className="w-full mt-2"
             />
             <p className="text-xs text-ink/50 mt-1">

@@ -233,6 +233,7 @@ function handleExportJson() {
       <div className="flex flex-shrink-0 items-center gap-2 border-b border-neutral-200 px-3 py-3 dark:border-border">
         <button
           onClick={() => setCollapsed((value) => !value)}
+          title={collapsed ? "Expand history panel" : "Collapse history panel"}
           aria-label={collapsed ? "Expand history panel" : "Collapse history panel"}
           aria-expanded={!collapsed}
           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded border border-neutral-200 bg-white text-neutral-500 transition hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-border dark:bg-surface dark:text-neutral-400 dark:hover:bg-neutral-900"
@@ -268,6 +269,8 @@ function handleExportJson() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search messages..."
+                title="Search through your speech history"
+                aria-label="Search through your speech history"
                 className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pl-8 pr-3 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-border dark:bg-surface dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:ring-blue-500/30"
               />
             </div>
@@ -407,37 +410,19 @@ function handleExportJson() {
             )}
           </div>
 
-         {sessionTranscript?.length > 0 && (
-  <div className="flex flex-col gap-2 flex-shrink-0 border-t border-neutral-200 p-2 dark:border-border">
-    <button
-      onClick={handleExportTranscript}
-      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-border dark:text-neutral-300 dark:hover:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
-    >
-      <Download size={13} aria-hidden="true" />
-      Export TXT
-    </button>
-
-    <button
-      onClick={handleExportJson}
-      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-border dark:text-neutral-300 dark:hover:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
-    >
-      <Download size={13} aria-hidden="true" />
-      Export JSON
-    </button>
-  </div>
-)}
-
-{history.length > 0 && (
-  <div className="flex-shrink-0 border-t border-neutral-200 p-2 dark:border-border">
-    <button
-      onClick={handleClearHistory}
-      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-border dark:hover:border-red-800 dark:hover:bg-red-500/15 dark:hover:text-red-400"
-    >
-      <Trash2 size={13} aria-hidden="true" />
-      Clear all history
-    </button>
-  </div>
-)}
+          {history.length > 0 && (
+            <div className="flex-shrink-0 border-t border-neutral-200 p-2 dark:border-border">
+              <button
+                onClick={handleClearHistory}
+                title="Clear all speech history"
+                aria-label="Clear all speech history"
+                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 dark:border-border dark:hover:border-red-800 dark:hover:bg-red-500/15 dark:hover:text-red-400"
+              >
+                <Trash2 size={13} aria-hidden="true" />
+                Clear all history
+              </button>
+            </div>
+          )}
         </>
       )}
     </aside>

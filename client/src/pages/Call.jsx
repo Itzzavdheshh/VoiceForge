@@ -299,6 +299,8 @@ export default function Call() {
           id="toggle-calibration-btn"
           type="button"
           onClick={() => setIsCalibrationOpen(!isCalibrationOpen)}
+          title={isCalibrationOpen ? "Close calibration settings" : "Open calibration settings"}
+          aria-label={isCalibrationOpen ? "Close calibration settings" : "Open calibration settings"}
           className="flex w-full items-center justify-between font-bold text-ink"
         >
           <div className="flex items-center gap-2">
@@ -335,6 +337,8 @@ export default function Call() {
                   step="1"
                   value={calibration.xOffset}
                   onChange={(e) => handleCalibrationChange("xOffset", parseInt(e.target.value, 10))}
+                  title="Adjust horizontal position of the mouth overlay"
+                  aria-label="Horizontal position slider for mouth calibration"
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -355,6 +359,8 @@ export default function Call() {
                   step="1"
                   value={calibration.yOffset}
                   onChange={(e) => handleCalibrationChange("yOffset", parseInt(e.target.value, 10))}
+                  title="Adjust vertical position of the mouth overlay"
+                  aria-label="Vertical position slider for mouth calibration"
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -375,6 +381,8 @@ export default function Call() {
                   step="0.1"
                   value={calibration.scale}
                   onChange={(e) => handleCalibrationChange("scale", parseFloat(e.target.value))}
+                  title="Adjust size of the mouth overlay"
+                  aria-label="Scale slider for mouth calibration"
                   className="w-full h-2 rounded-lg bg-cloud border border-ink/10 appearance-none cursor-pointer accent-moss focus:outline-none"
                 />
               </div>
@@ -384,6 +392,8 @@ export default function Call() {
                 id="reset-calibration-btn"
                 type="button"
                 onClick={handleResetCalibration}
+                title="Reset mouth calibration to default values"
+                aria-label="Reset mouth calibration to default values"
                 className="inline-flex items-center justify-center gap-1.5 rounded-md border border-coral/40 px-3 py-1.5 text-xs font-bold text-coral hover:bg-coral hover:text-white transition"
               >
                 <RotateCcw size={14} aria-hidden="true" />
@@ -405,77 +415,21 @@ export default function Call() {
         <select
           id="output-language"
           value={language}
-          onChange={setLanguage}
-        />
+          onChange={(e) => setLanguage(e.target.value)}
+          title="Select the output language for speech synthesis"
+          aria-label="Select output language for speech synthesis"
+          className="w-full rounded-md border border-ink/15 bg-cloud p-3 dark:border-border dark:bg-black dark:text-neutral-100"
+        >
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="pt">Portuguese</option>
+          <option value="ja">Japanese</option>
+        </select>
       </section>
-      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-base font-bold">Subtitles Overlay Settings</h2>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500">Overlay spoken words on the webcam video preview sent to the virtual camera.</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={subtitlesEnabled}
-              onChange={(e) => {
-                setSubtitlesEnabled(e.target.checked);
-                localStorage.setItem("voiceforge:subtitlesEnabled", e.target.checked.toString());
-              }}
-              className="sr-only peer"
-            />
-            <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-neutral-600 peer-checked:bg-coral"></div>
-            <span className="ml-2 text-sm font-medium text-neutral-600 dark:text-neutral-300">
-              Enabled
-            </span>
-          </label>
-        </div>
-        
-        {subtitlesEnabled && (
-          <div className="grid gap-4 sm:grid-cols-2 pt-3 border-t border-neutral-200 dark:border-neutral-700">
-            <div>
-              <label htmlFor="sub-font-size" className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">
-                Font Size
-              </label>
-              <select
-                id="sub-font-size"
-                value={subtitleFontSize}
-                onChange={(e) => {
-                  setSubtitleFontSize(e.target.value);
-                  localStorage.setItem("voiceforge:subtitleFontSize", e.target.value);
-                }}
-                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral/45 dark:border-border dark:bg-black dark:text-neutral-200"
-              >
-                <option value="small">Small (18px)</option>
-                <option value="medium">Medium (24px)</option>
-                <option value="large">Large (32px)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="sub-bg-opacity" className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">
-                Background Box Opacity
-              </label>
-              <select
-                id="sub-bg-opacity"
-                value={subtitleBgOpacity}
-                onChange={(e) => {
-                  setSubtitleBgOpacity(e.target.value);
-                  localStorage.setItem("voiceforge:subtitleBgOpacity", e.target.value);
-                }}
-                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral/45 dark:border-border dark:bg-black dark:text-neutral-200"
-              >
-                <option value="0">Transparent (0%)</option>
-                <option value="0.3">Light (30%)</option>
-                <option value="0.6">Medium (60%)</option>
-                <option value="0.85">Dark (85%)</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </section>
-      </div> {/* Closes top settings inert wrapper */}
-
+      
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr_0.9fr]">
         {/* Webcam panel */}
         <section inert={isSpeechActive ? "" : undefined} className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:shadow-soft-dk">
