@@ -22,6 +22,12 @@ export default function AuthView({ onAuthSuccess }) {
       return;
     }
 
+    if (!isLogin && password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      setLoading(false);
+      return;
+    }
+
     if (!isLogin && password !== confirmPassword) {
       setError("Passwords do not match.");
       setLoading(false);
