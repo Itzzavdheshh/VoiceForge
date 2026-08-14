@@ -35,7 +35,20 @@ const HEADING_ID = "keyboard-shortcuts-heading";
 
 export default function KeyboardShortcutsModal({ isOpen, onClose }) {
   const modalRef = React.useRef(null);
+  const searchInputRef = React.useRef(null);
   const previousFocusRef = React.useRef(null);
+  const [query, setQuery] = React.useState("");
+
+  const filteredGroups = React.useMemo(() => {
+    if (!query.trim()) return SHORTCUTS;
+    const q = query.toLowerCase();
+    return SHORTCUTS.map(group => ({
+      ...group,
+      shortcuts: group.shortcuts.filter(
+        s => s.description.toLowerCase().includes(q) || s.keys.some(k => k.toLowerCase().includes(q))
+      )
+    })).filter(g => g.shortcuts.length > 0);
+  }, [query]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -146,7 +159,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
           </button>
         </div>
         <div className="divide-y divide-ink/5 px-6 py-2 dark:divide-border">
-          {SHORTCUTS.map((group) => (
+          {filteredGroups.map((group) => (
             <div key={group.context} className="py-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-ink/40 dark:text-neutral-400">
                 {group.context}
