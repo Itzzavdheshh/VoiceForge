@@ -47,8 +47,12 @@ test("MOCK_CHATTERBOX: cloneVoice returns fixture voice_id", async (t) => {
   t.after(restore);
 
   const request = createRequest({ body: { name: "Contributor test voice" } });
+  // Buffer starting with WebM magic bytes (0x1A 0x45 0xDF 0xA3) followed by padding
   request.file = {
-    buffer: Buffer.from("fake-audio"),
+    buffer: Buffer.concat([
+      Buffer.from([0x1a, 0x45, 0xdf, 0xa3]),
+      Buffer.alloc(12)
+    ]),
     mimetype: "audio/webm",
     originalname: "test.webm",
   };
@@ -162,8 +166,12 @@ test("MOCK_CHATTERBOX is ignored in production: cloneVoice still runs (no key re
   t.after(restore);
 
   const request = createRequest({ body: { name: "prod test" } });
+  // Buffer starting with WebM magic bytes (0x1A 0x45 0xDF 0xA3) followed by padding
   request.file = {
-    buffer: Buffer.from("fake-audio"),
+    buffer: Buffer.concat([
+      Buffer.from([0x1a, 0x45, 0xdf, 0xa3]),
+      Buffer.alloc(12)
+    ]),
     mimetype: "audio/webm",
     originalname: "test.webm",
   };

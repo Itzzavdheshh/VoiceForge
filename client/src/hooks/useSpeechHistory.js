@@ -132,9 +132,21 @@ export function useSpeechHistory() {
   const resolvedId = existing ? existing.id : entryId;
 
   setHistory((prev) => {
-    const found = prev.find((m) => m.text === trimmed);
-    const entry = found || { id: entryId, text: trimmed, timestamp: Date.now() };
-    const updated = [entry, ...prev.filter((m) => m.id !== entry.id)];
+    // Check existing message
+    const existing = prev.find((m) => m.text === trimmed);
+
+    // Preserve existing ID if duplicate found, but update timestamp
+    // so re-spoken messages sort correctly after a page reload.
+    const entry = existing
+      ? { ...existing, timestamp: Date.now() }
+      : { id: crypto.randomUUID(), text: trimmed, timestamp: Date.now() };
+
+    // Move duplicate to top instead of recreating
+    const updated = [
+      entry,
+      ...prev.filter((m) => m.id !== entry.id),
+    ];
+
     return updated.slice(0, MAX_HISTORY);
   });
 

@@ -1,8 +1,9 @@
 // Implements Chatterbox Multilingual TTS voice cloning and speech proxy handlers.
 // Uses the Hugging Face Gradio client to call ResembleAI/Chatterbox-Multilingual-TTS.
 import crypto from "crypto";
+import { isValidAudioBuffer } from "../middleware/upload.js";
 import { getIsMock } from "../utils/mock.js";
-import { isValidLanguageCode, toChatterboxLanguageCode } from "../utils/languages.js";
+import { isValidLanguageCode } from "../utils/languages.js";
 
 // ---------------------------------------------------------------------------
 // In-memory voice store: maps voice_id to { name, audioBuffer, mimeType, expiresAt }
@@ -261,11 +262,13 @@ export async function cloneVoice(request, response, next) {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("name", request.body.name || "VoiceForge Voice");
-    formData.append("description", "Voice profile created locally by VoiceForge.");
-    const safeName = sanitizeFilename(audioFile.originalname);
-    formData.append("files", new Blob([audioFile.buffer], { type: audioFile.mimetype }), safeName);
+    // The MIME type checked in upload.js comes from the client and can be
+    // spoofed. Verify the buffer begins with a known audio magic-byte
+    // signature so arbitrary binary data cannot be forwarded to ElevenLabs.
+    if (!isValidAudioBuffer(audioFile.buffer)) {
+      response.status(400).json({ error: "Uploaded file does not appear to be valid audio." });
+      return;
+    }
 
     // --- mock mode: return a deterministic fixture voice_id ---
     if (getIsMock()) {
