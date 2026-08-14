@@ -17,6 +17,31 @@ export default function Settings() {
   const [language, setLanguage] = React.useState(loadLanguage);
   const selectedLangObj = getLanguageByCode(language);
 
+  const [modelId, setModelId] = React.useState(() => {
+    try {
+      return localStorage.getItem("voiceforge:selectedModelId") || "eleven_multilingual_v2";
+    } catch {
+      return "eleven_multilingual_v2";
+    }
+  });
+
+  function saveModelId(newModelId) {
+    setModelId(newModelId);
+    try {
+      localStorage.setItem("voiceforge:selectedModelId", newModelId);
+    } catch {
+      // Storage unavailable
+    }
+  }
+
+  const defaultSettings = { stability: 0.45, similarity_boost: 0.8, style: 0.2 };
+  const [voiceSettings, setVoiceSettings] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("voiceforge:voiceSettings")) || defaultSettings;
+    } catch {
+      return defaultSettings;
+    }
+  });
 
 
   function saveVoiceSettings(newSettings) {
@@ -566,6 +591,81 @@ export default function Settings() {
           The backend reads `.env` first. This local key is available for future
           client-only experiments.
         </p>
+      </section>
+
+      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
+        <h2 className="text-xl font-bold">Voice Synthesis Settings</h2>
+        <p className="mt-1 text-sm text-ink/65 mb-5">Adjust how ElevenLabs generates your cloned speech.</p>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold mb-2 text-ink dark:text-neutral-100" htmlFor="model-select">
+              ElevenLabs Model (Latency & Language)
+            </label>
+            <select
+              id="model-select"
+              value={modelId}
+              onChange={(e) => saveModelId(e.target.value)}
+              className="min-h-11 w-full rounded-md border border-ink/15 bg-cloud px-3 text-ink outline-none focus:border-moss focus:ring-4 focus:ring-mint dark:border-border dark:bg-black dark:text-neutral-100 dark:focus:border-glow dark:focus:ring-glow/25"
+            >
+              <option value="eleven_flash_v2_5">Eleven Flash v2.5 (Ultra-low latency - Recommended for live calls)</option>
+              <option value="eleven_turbo_v2_5">Eleven Turbo v2.5 (Low latency - High quality)</option>
+              <option value="eleven_multilingual_v2">Eleven Multilingual v2 (Standard Multilingual)</option>
+              <option value="eleven_monolingual_v1">Eleven Monolingual v1 (Standard English)</option>
+            </select>
+            <p className="text-xs text-ink/50 mt-1 dark:text-neutral-400">
+              Flash and Turbo models generate audio much faster, reducing conversation delays.
+            </p>
+          </div>
+
+          <div>
+            <label className="flex justify-between text-sm font-bold" htmlFor="stability">
+              <span>Stability</span>
+              <span className="text-ink/65">{voiceSettings.stability}</span>
+            </label>
+            <input
+              id="stability"
+              type="range"
+              min="0" max="1" step="0.01"
+              value={voiceSettings.stability}
+              onChange={(e) => saveVoiceSettings({ ...voiceSettings, stability: parseFloat(e.target.value) })}
+              className="w-full mt-2"
+            />
+            <p className="text-xs text-ink/50 mt-1">Lower values are more expressive; higher values are more consistent.</p>
+          </div>
+          
+          <div>
+            <label className="flex justify-between text-sm font-bold" htmlFor="similarity">
+              <span>Similarity Boost</span>
+              <span className="text-ink/65">{voiceSettings.similarity_boost}</span>
+            </label>
+            <input
+              id="similarity"
+              type="range"
+              min="0" max="1" step="0.01"
+              value={voiceSettings.similarity_boost}
+              onChange={(e) => saveVoiceSettings({ ...voiceSettings, similarity_boost: parseFloat(e.target.value) })}
+              className="w-full mt-2"
+            />
+            <p className="text-xs text-ink/50 mt-1">Higher values make the voice closer to the original but may introduce artifacts.</p>
+          </div>
+
+          <div>
+            <label className="flex justify-between text-sm font-bold" htmlFor="style">
+              <span>Style Exaggeration</span>
+              <span className="text-ink/65">{voiceSettings.style}</span>
+            </label>
+            <input
+              id="style"
+              type="range"
+              min="0" max="1" step="0.01"
+              value={voiceSettings.style}
+              onChange={(e) => saveVoiceSettings({ ...voiceSettings, style: parseFloat(e.target.value) })}
+              className="w-full mt-2"
+            />
+            <p className="text-xs text-ink/50 mt-1">Higher values exaggerate the style of the reference audio.</p>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">

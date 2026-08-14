@@ -209,134 +209,10 @@ export default React.forwardRef(function VideoPreview(
             // 1. Get Audio Features
             const melFeatures = audioProcessorRef.current.getLatestFeatures();
 
-            // 2. Synchronize visual timestamp to the audio master clock to prevent drift
-            let syncTimestamp = timestamp;
-            const audioTime = audioProcessorRef.current.getAudioTime() * 1000;
-            if (audioTime > 0) {
-              if (audioTimeOffset === null) {
-                audioTimeOffset = timestamp - audioTime;
-              }
-              const targetSyncTime = audioTime + audioTimeOffset;
-              // MediaPipe requires strictly increasing timestamps
-              syncTimestamp =
-                targetSyncTime <= lastSyncTime
-                  ? lastSyncTime + 1
-                  : targetSyncTime;
-              lastSyncTime = syncTimestamp;
-            }
-
-            // 3. Get Face Crop
-            const landmarks = faceProcessorRef.current.detectFace(
-              video,
-              syncTimestamp,
-            );
-
-            if (melFeatures && landmarks) {
-              // TODO: Construct Tensors and run inference when real model is available
-              // const audioTensor = new ort.Tensor('float32', melFeatures, [1, 1, 80, 16]);
-              // const videoCrop = faceProcessorRef.current.cropMouthRegion(canvas, landmarks, tempCanvas);
-              // const videoTensor = ... convert videoCrop to tensor ...
-              // const results = await ortSessionRef.current.run({ audio: audioTensor, video: videoTensor });
-              // ... draw results back to canvas ...
-              // inferenceSucceeded = true;
-            }
-          } catch (e) {
-            console.error("Inference loop error:", e);
-          }
-          amplitude = sum / dataArray.length;
-        }
-
-        if (!inferenceSucceeded) {
-          let mouthOpen = 14;
-          if (isSpeaking && audioProcessorRef.current) {
-            const vol = audioProcessorRef.current.getVolume();
-            // Scale RMS volume (usually 0 to 0.3) to mouth height.
-            // vol * 150 provides a responsive map to pixels, capped at 30 extra pixels.
-            const extraOpen = Math.min(30, vol * 150);
-            mouthOpen = 14 + extraOpen;
-          }
-          const currentCalibration = calibrationRef.current || {};
-          const xOffset =
-            typeof currentCalibration.xOffset === "number" &&
-            !isNaN(currentCalibration.xOffset)
-              ? Math.max(-400, Math.min(400, currentCalibration.xOffset))
-              : 0;
-          const yOffset =
-            typeof currentCalibration.yOffset === "number" &&
-            !isNaN(currentCalibration.yOffset)
-              ? Math.max(-250, Math.min(150, currentCalibration.yOffset))
-              : 0;
-          const scale =
-            typeof currentCalibration.scale === "number" &&
-            !isNaN(currentCalibration.scale)
-              ? Math.max(0.5, Math.min(2.5, currentCalibration.scale))
-              : 1.0;
-
-          const centerX = Math.max(
-            0,
-            Math.min(canvas.width, canvas.width / 2 + xOffset),
-          );
-          const centerY = Math.max(
-            0,
-            Math.min(canvas.height, canvas.height * 0.63 + yOffset),
-          );
-          const radiusX = Math.max(0.01, 56 * scale);
-          const radiusY = Math.max(0.01, mouthOpen * scale);
-
-          context.save();
-          context.fillStyle = mouthColor;
-          context.beginPath();
-          context.ellipse(
-            centerX,
-            centerY,
-            radiusX,
-            radiusY,
-            0,
-            0,
-            Math.PI * 2,
-          );
-          context.fill();
-          context.restore();
-        }
-      }
-
-      // Draw live captions
-      if (captionEnabled && captionText && captionText.trim()) {
-        const fontSizeMap = { small: 20, medium: 28, large: 36 };
-        const fs = fontSizeMap[captionFontSize] || 28;
-        context.font = `bold ${fs}px Inter, sans-serif`;
-        context.textAlign = "center";
-
-        const maxWidth = canvas.width - 60;
-        const words = captionText.trim().split(" ");
-        const lines = [];
-        let currentLine = "";
-        for (const word of words) {
-          const testLine = currentLine ? `${currentLine} ${word}` : word;
-          if (context.measureText(testLine).width > maxWidth && currentLine) {
-            lines.push(currentLine);
-            currentLine = word;
-          } else {
-            currentLine = testLine;
-          }
-        }
-        if (currentLine) lines.push(currentLine);
-
-        const lineHeight = fs + 8;
-        const totalHeight = lines.length * lineHeight + 20;
-        const paddingX = 20;
-
-        let startY;
-        if (captionPosition === "top") {
-          startY = 30;
-        } else if (captionPosition === "middle") {
-          startY = (canvas.height - totalHeight) / 2;
-        } else {
-          startY = canvas.height - totalHeight - 20;
-        }
-
-        // Background bar
-        context.fillStyle = "rgba(0, 0, 0, 0.6)";
+        context.save();
+        
+        // 1. Draw inner mouth cavity (dark reddish/maroon shade)
+        context.fillStyle = isDark ? "rgba(69, 10, 10, 0.9)" : "rgba(59, 7, 18, 0.9)";
         context.beginPath();
         context.ellipse(
           canvas.width / 2,
@@ -349,29 +225,49 @@ export default React.forwardRef(function VideoPreview(
         );
         context.fill();
 
-        // Caption text
-        context.fillStyle = isSpeaking ? "#86efac" : "#ffffff";
-        lines.forEach((line, i) => {
-          context.fillText(
-            line,
-            canvas.width / 2,
-            startY + fs + i * lineHeight
-          );
-        });
+        // 2. Draw lips shape outline and fill tint
+        context.strokeStyle = "#f43f5e"; // rose/coral lip color
+        context.fillStyle = "rgba(244, 63, 94, 0.15)"; // subtle soft coral tint
+        context.lineWidth = 5 * scale;
+        context.lineCap = "round";
+        context.lineJoin = "round";
 
-        // Speaking indicator dot
-        if (isSpeaking) {
-          context.beginPath();
-          context.arc(
-            canvas.width - paddingX - 10,
-            startY + totalHeight / 2,
-            6,
-            0,
-            Math.PI * 2
-          );
-          context.fillStyle = "#86efac";
-          context.fill();
-        }
+        // Cupid's bow upper lip curve
+        context.beginPath();
+        context.moveTo(centerX - radiusX, centerY);
+        context.bezierCurveTo(
+          centerX - radiusX / 2, centerY - radiusY - 8 * scale,
+          centerX - radiusX / 4, centerY - radiusY - 10 * scale,
+          centerX, centerY - radiusY / 2
+        );
+        context.bezierCurveTo(
+          centerX + radiusX / 4, centerY - radiusY - 10 * scale,
+          centerX + radiusX / 2, centerY - radiusY - 8 * scale,
+          centerX + radiusX, centerY
+        );
+        // Lower lip bottom curve
+        context.bezierCurveTo(
+          centerX + radiusX / 2, centerY + radiusY + 12 * scale,
+          centerX - radiusX / 2, centerY + radiusY + 12 * scale,
+          centerX - radiusX, centerY
+        );
+        context.closePath();
+        context.fill();
+        context.stroke();
+
+        // 3. Add a soft lip gloss highlight curve on the lower lip
+        context.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        context.lineWidth = 2 * scale;
+        context.beginPath();
+        context.moveTo(centerX - radiusX / 2, centerY + radiusY + 4 * scale);
+        context.bezierCurveTo(
+          centerX - radiusX / 4, centerY + radiusY + 7 * scale,
+          centerX + radiusX / 4, centerY + radiusY + 7 * scale,
+          centerX + radiusX / 2, centerY + radiusY + 4 * scale
+        );
+        context.stroke();
+
+        context.restore();
       }
 
       animationRef.current = requestAnimationFrame(draw);

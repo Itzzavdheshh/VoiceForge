@@ -328,13 +328,8 @@ function addPendingStream(id, value) {
 
 export async function speak(request, response, next) {
   try {
-    const {
-      text,
-      voice_id: voiceId,
-      owner_token: ownerToken,
-      language_code,
-      voice_settings,
-    } = request.body;
+    const apiKey = requireApiKey(request);
+    const { text, voice_id: voiceId, voice_settings, model_id } = request.body;
 
     if (pendingStreams.size >= PENDING_STREAMS_MAX) {
       response.status(503).json({
@@ -386,14 +381,84 @@ export async function speak(request, response, next) {
       return;
     }
 
-    if (text.length > SPEAK_TEXT_MAX_LENGTH) {
-      response
-        .status(400)
-        .json({ error: `Text must not exceed ${SPEAK_TEXT_MAX_LENGTH} characters.` });
+    const defaultVoiceSettings = {
+      stability: 0.45,
+      similarity_boost: 0.8,
+      style: 0.2,
+      use_speaker_boost: true
+    };
+
+    const clamp01 = (v) => Math.min(1, Math.max(0, v));
+    const sanitizedSettings = {};
+    if (voice_settings && typeof voice_settings === "object") {
+      if (
+        typeof voice_settings.stability === "number" &&
+        Number.isFinite(voice_settings.stability)
+      ) {
+        sanitizedSettings.stability = clamp01(voice_settings.stability);
+      }
+      if (
+        typeof voice_settings.similarity_boost === "number" &&
+        Number.isFinite(voice_settings.similarity_boost)
+      ) {
+        sanitizedSettings.similarity_boost = clamp01(
+          voice_settings.similarity_boost
+        );
+      }
+      if (
+        typeof voice_settings.style === "number" &&
+        Number.isFinite(voice_settings.style)
+      ) {
+        sanitizedSettings.style = clamp01(voice_settings.style);
+      }
+      if (typeof voice_settings.use_speaker_boost === "boolean") {
+        sanitizedSettings.use_speaker_boost =
+          voice_settings.use_speaker_boost;
+      }
+    }
+
+    const mergedSettings = { ...defaultVoiceSettings, ...sanitizedSettings };
+
+    // Cryptographically secure, 128-bit identifier. Unlike Math.random(), this
+    // cannot be reproduced from a seed or enumerated by a co-located process,
+    // so the stored API key cannot be retrieved by guessing the stream key.
+    const speechId = randomUUID();
+
+    evictOldestPendingStreams();
+
+    const timeout = setTimeout(() => {
+      deletePendingStream(speechId);
+    }, PENDING_STREAM_TTL_MS);
+    // Do not keep the event loop alive solely for this cleanup timer.
+    timeout.unref?.();
+
+    pendingStreams.set(speechId, { text, voiceId, apiKey, mergedSettings, modelId: model_id, timeout });
+
+    response.json({
+      speechId,
+      audioUrl: `/api/voice/speak/stream/${speechId}`
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function streamSpeech(request, response, next) {
+  try {
+    const { speechId } = request.params;
+    const streamData = pendingStreams.get(speechId);
+
+    if (!streamData) {
+      response.status(404).json({ error: "Speech stream not found or expired." });
       return;
     }
 
-    const elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}`, {
+    // Clean up immediately after retrieving parameters to prevent memory leaks
+    deletePendingStream(speechId);
+
+    const { text, voiceId, apiKey, mergedSettings, modelId } = streamData;
+
+    const elevenResponse = await fetch(`${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -402,13 +467,8 @@ export async function speak(request, response, next) {
       },
       body: JSON.stringify({
         text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.8,
-          style: 0.2,
-          use_speaker_boost: true
-        }
+        model_id: modelId || "eleven_multilingual_v2",
+        voice_settings: mergedSettings
       })
     });
 

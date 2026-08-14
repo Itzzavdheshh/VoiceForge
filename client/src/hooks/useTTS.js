@@ -17,18 +17,20 @@ export default function useTTS() {
     try {
       const voiceSettings = loadVoiceSettings();
 
-      const response = await fetch(`${API_BASE_URL}/api/voice/speak`, {
+      const modelId = localStorage.getItem("voiceforge:selectedModelId") || "eleven_multilingual_v2";
+      const apiKey = localStorage.getItem("voiceforge:elevenlabsApiKey") || "";
+      const response = await fetch("/api/voice/speak", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-ElevenLabs-Api-Key": apiKey,
         },
         body: JSON.stringify({
-  text,
-  voice_id: voiceId,
-  language_code,
-  voice_settings: validVoiceSettings
-})
+          text,
+          voice_id: voiceId,
+          voice_settings: voiceSettings,
+          model_id: modelId
+        })
       });
 
       if (controller.signal.aborted) {
