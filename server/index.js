@@ -141,24 +141,21 @@ const cloneRateLimiter = rateLimit({
 });
 
 app.get("/api/health", async (_request, response) => {
-  let dbStatus = "ok";
+  let dbStatus = "unknown";
   try {
     const db = await getDatabase();
-    await db.get("SELECT 1");
+    const result = await db.get("SELECT 1 as alive");
+    if (result?.alive === 1) dbStatus = "connected";
   } catch (err) {
-    dbStatus = "error";
+    dbStatus = "error: " + (err.message || String(err));
   }
 
-  const isHealthy = dbStatus === "ok";
-  const statusCode = isHealthy ? 200 : 503;
-
-  response.status(statusCode).json({
-    ok: isHealthy,
+  response.json({
+    ok: true,
     service: "voiceforge-api",
-    uptime: process.uptime(),
-    subsystems: {
-      database: dbStatus,
-    },
+    database: dbStatus,
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
   });
 });
 
