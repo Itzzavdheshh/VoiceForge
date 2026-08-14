@@ -331,6 +331,7 @@ const handleEditKeyDown = (e, oldPhrase) => {
         className="mb-3 flex overflow-x-auto gap-1.5 pb-1 no-scrollbar"
         role="tablist"
         aria-label="Quick replies categories"
+        onKeyDown={handleTabKeyDown}
       >
         {["All", ...CATEGORIES].map((cat) => (
           <button
