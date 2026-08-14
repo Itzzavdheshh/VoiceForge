@@ -9,7 +9,7 @@ const DB_VERSION = 2;
 
 let dbPromise = null;
 
-function getDB() {
+function getDB(retried = false) {
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise((resolve, reject) => {
@@ -25,6 +25,9 @@ function getDB() {
 
       request.onerror = (event) => {
         dbPromise = null; // reset so next call retries
+        if (!retried) {
+          return resolve(getDB(true));
+        }
         reject(
           new Error(
             "Failed to open database: " +
@@ -35,6 +38,9 @@ function getDB() {
 
       request.onblocked = () => {
         dbPromise = null; // reset so next call retries
+        if (!retried) {
+          return resolve(getDB(true));
+        }
         reject(
           new Error(
             "Database access is blocked. Please close other open tabs.",
@@ -63,6 +69,9 @@ function getDB() {
       };
     } catch (err) {
       dbPromise = null;
+      if (!retried) {
+        return resolve(getDB(true));
+      }
       reject(
         new Error(
           "Failed to initialize IndexedDB: " + (err?.message || String(err)),
