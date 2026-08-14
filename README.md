@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 1] core voice cloning foundation (#327)
+# TODO: [phase 2] indexeddb schema v2 - transcripts, sessions and collections stores (#328)
