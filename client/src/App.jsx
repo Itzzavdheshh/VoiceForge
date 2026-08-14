@@ -13,8 +13,9 @@ import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
 import Contributors from "./pages/Contributors.jsx";
-import About from "./pages/About.jsx";
-import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
+import About from "./pages/About";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Analytics from "./pages/Analytics.jsx";
 import Library from "./pages/Library.jsx";
 import Healthcare from "./pages/Healthcare.jsx";
 
@@ -262,8 +263,12 @@ export default function App() {
             {activeTab === "analytics"  && <Analytics />}
             {activeTab === "contributors" && <Contributors />}
             {activeTab === "about" && <About onNavigate={selectTab} />}
-            {activeTab === "privacy-policy" && (
-              <PrivacyPolicy onBackHome={() => selectTab("onboarding")} />
+            {activeTab === "analytics" && <Analytics />}
+            {activeTab === "library" && <Library />}
+            {activeTab === "healthcare" && <Healthcare />}
+            {activeTab === "privacy-policy" && (<PrivacyPolicy
+              onBackHome={() => selectTab("onboarding")}
+             />
             )}
             {activeTab === "landing" && <VoiceForgeLanding onNavigate={selectTab} />}
           </div>

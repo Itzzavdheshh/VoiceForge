@@ -9,7 +9,7 @@ import {
 /**
  * A single labelled range slider row.
  */
-function SliderRow({ id, label, description, value, formattedValue, onChange, min = 0, max = 1, step = 0.01 }) {
+function SliderRow({ id, label, description, value, onChange, min = 0, max = 1, step = 0.01 }) {
   return (
     <div className="space-y-1">
       <label
@@ -30,7 +30,7 @@ function SliderRow({ id, label, description, value, formattedValue, onChange, mi
         type="range"
         min={min}
         max={max}
-        step="0.01"
+        step={step}
         value={value}
         tabIndex={0}
         onKeyDown={(e) => {
@@ -205,6 +205,26 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             min={0.5}
             max={2.0}
             step={0.05}
+          />
+          <SliderRow
+            id="vqs-speed"
+            label="Playback Speed"
+            description="Lower → slower delivery. Higher → faster delivery."
+            value={settings.speed ?? 1.0}
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            onChange={updateSetting("speed")}
+          />
+          <SliderRow
+            id="vqs-pitch"
+            label="Simulated Pitch Shift"
+            description="Adjust the synthesized voice pitch tones."
+            value={settings.pitch ?? 0.5}
+            min={0.0}
+            max={1.0}
+            step={0.05}
+            onChange={updateSetting("pitch")}
           />
 
           <details className="group border-t border-neutral-100 pt-3 dark:border-neutral-800">

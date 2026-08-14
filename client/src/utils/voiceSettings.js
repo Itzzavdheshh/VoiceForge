@@ -7,65 +7,6 @@ export const DEFAULT_VOICE_SETTINGS = {
   use_speaker_boost: true,
   speed: 1.0,
   pitch: 0.5,
-  temperature: 0.8,
-  pitchShift: 0, // Transposition in semitones [-12, +12]
-  toneEq: 0.5, // DSP tone clarity multiplier [0, 1]
-  dspPitch: 1.0,
-  dspSpeed: 1.0,
-  dspBass: 0.0,
-  dspMid: 0.0,
-  dspTreble: 0.0,
-};
-
-/**
- * Predefined presets for Voice Synthesis Settings.
- * Each preset defines stability, temperature, and style.
- */
-export const VOICE_PRESETS = {
-  neutral: {
-    name: "Narrator / Neutral",
-    stability: 0.7,
-    temperature: 0.6,
-    style: 0.3,
-    dspPitch: 1.0,
-    dspSpeed: 1.0,
-    dspBass: 0.0,
-    dspMid: 0.0,
-    dspTreble: 0.0,
-  },
-  excited: {
-    name: "Excited / Energetic",
-    stability: 0.4,
-    temperature: 0.95,
-    style: 0.75,
-    dspPitch: 1.1,
-    dspSpeed: 1.15,
-    dspBass: -2.0,
-    dspMid: 1.0,
-    dspTreble: 4.0,
-  },
-  robotic: {
-    name: "Robotic / Flat",
-    stability: 0.95,
-    temperature: 0.1,
-    style: 0.05,
-    dspPitch: 0.9,
-    dspSpeed: 0.95,
-    dspBass: 2.0,
-    dspMid: -3.0,
-    dspTreble: -2.0,
-  },
-  soft: {
-    name: "Soft / Whispering",
-    stability: 0.55,
-    temperature: 0.5,
-    style: 0.2,
-    dspPitch: 1.05,
-    dspSpeed: 0.85,
-    dspBass: -4.0,
-    dspMid: 2.0,
-    dspTreble: 2.0,
-  },
 };
 
 /**
@@ -100,18 +41,6 @@ export function loadVoiceSettings() {
       if (Number.isNaN(coerced)) {
         result[key] = defaultVal;
       } else if (key === "speed") {
-        result[key] = Math.min(2.0, Math.max(0.5, coerced));
-      } else if (["stability", "style", "temperature"].includes(key)) {
-        // Slider range: clamp to [0, 1].
-        result[key] = Math.min(1, Math.max(0, coerced));
-      } else if (["dspBass", "dspMid", "dspTreble"].includes(key)) {
-        // Clamp to [-10, 10]
-        result[key] = Math.min(10, Math.max(-10, coerced));
-      } else if (key === "dspPitch") {
-        // Clamp to [0.5, 1.5]
-        result[key] = Math.min(1.5, Math.max(0.5, coerced));
-      } else if (key === "dspSpeed") {
-        // Clamp to [0.5, 2.0]
         result[key] = Math.min(2.0, Math.max(0.5, coerced));
       } else if (defaultVal >= 0 && defaultVal <= 1) {
         // Slider range: clamp to [0, 1].

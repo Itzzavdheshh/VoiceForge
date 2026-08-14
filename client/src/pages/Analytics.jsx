@@ -133,48 +133,14 @@ export default function Analytics() {
           )}
         </div>
 
-        {/* Most Used Phrases Table */}
-        <div className="bg-white dark:bg-surface border border-neutral-200 dark:border-border rounded-xl p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-ink dark:text-neutral-100 mb-4">
-            Most Used Phrases
+        {/* Languages Usage */}
+        <div className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface">
+          <h3 className="text-lg font-bold flex items-center gap-2 mb-4 dark:text-neutral-100">
+            <TrendingUp size={18} className="text-moss dark:text-glow" />
+            Language Distribution
           </h3>
-
-          {mostUsedPhrases.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-neutral-500 uppercase bg-neutral-50 dark:bg-neutral-900/50 dark:text-neutral-400">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 rounded-tl-lg">
-                      Phrase
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 rounded-tr-lg text-right"
-                    >
-                      Frequency
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mostUsedPhrases.map(([phrase, count], idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-neutral-100 dark:border-neutral-800 last:border-0 hover:bg-neutral-50 dark:hover:bg-neutral-900/30 transition-colors"
-                    >
-                      <td
-                        className="px-4 py-3 font-medium text-ink dark:text-neutral-200 max-w-[200px] truncate"
-                        title={phrase}
-                      >
-                        {phrase}
-                      </td>
-                      <td className="px-4 py-3 text-right text-moss dark:text-glow font-bold">
-                        {count}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {Object.keys(stats.languagesUsed).length === 0 ? (
+            <p className="text-sm text-ink/50 dark:text-muted py-4 text-center">No language data recorded yet.</p>
           ) : (
             <div className="space-y-4">
               {Object.entries(stats.languagesUsed).map(([lang, count]) => {

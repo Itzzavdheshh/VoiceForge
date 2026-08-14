@@ -19,11 +19,11 @@ export default React.forwardRef(function VideoPreview({
 }, ref) {
   const videoRef = React.useRef(null);
   const animationRef = React.useRef(null);
-  const audioRef = useRef(null);
-  const audioProcessorRef = useRef(null);
-  const faceProcessorRef = useRef(null);
-  const ortSessionRef = useRef(null);
-  const waveRef = useRef(null);
+  const audioRef = useRef(null);   
+  const analyserRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const sourceRef = useRef(null);
+
   const [modelStatus, setModelStatus] = React.useState(
     "Fallback animation ready",
   );
@@ -159,23 +159,33 @@ export default React.forwardRef(function VideoPreview({
         audioRef.current.pause();
         audioRef.current.src = "";
       }
-      onSpeakingChangeRef.current?.(false);
+      onSpeakingChange?.(false);
+    };
+  }, [onSpeakingChange]);
+
+  useEffect(() => {
+    if (!audioUrl || !audioRef.current) return;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 32;
+      analyserRef.current = analyser;
+      
+      const source = ctx.createMediaElementSource(audioRef.current);
+      sourceRef.current = source;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+    } catch (err) {
+      console.warn("Web Audio API binding failed:", err);
+    }
+
+    return () => {
       if (audioCtxRef.current) {
         audioCtxRef.current.close().catch(() => {});
       }
     };
-  }, []);
-
-  useEffect(() => {
-    if (
-      audioUrl &&
-      audioRef.current &&
-      audioProcessorRef.current &&
-      !audioRef.current.dataset.audioProcessorInitialized
-    ) {
-      audioProcessorRef.current.initialize(audioRef.current);
-      audioRef.current.dataset.audioProcessorInitialized = "true";
-    }
   }, [audioUrl]);
 
   React.useEffect(() => {
@@ -337,13 +347,29 @@ export default React.forwardRef(function VideoPreview({
 
       const drawMouth = isSpeaking || isCalibratingRef.current;
       if (drawMouth) {
-        let inferenceSucceeded = false;
-        const useONNX =
-          isSpeaking &&
-          ortSessionRef.current &&
-          audioProcessorRef.current &&
-          faceProcessorRef.current &&
-          ortRef.current;
+        let amplitude = 0;
+        if (analyserRef.current && isSpeaking) {
+          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          amplitude = sum / dataArray.length;
+        }
+
+        // Map amplitude (0-255) to mouth height range
+        const mouthOpen = isSpeaking ? 6 + (amplitude * 0.12) : 14;
+        const currentCalibration = calibrationRef.current || {};
+        const xOffset = typeof currentCalibration.xOffset === "number" && !isNaN(currentCalibration.xOffset)
+          ? Math.max(-400, Math.min(400, currentCalibration.xOffset))
+          : 0;
+        const yOffset = typeof currentCalibration.yOffset === "number" && !isNaN(currentCalibration.yOffset)
+          ? Math.max(-250, Math.min(150, currentCalibration.yOffset))
+          : 0;
+        const scale = typeof currentCalibration.scale === "number" && !isNaN(currentCalibration.scale)
+          ? Math.max(0.5, Math.min(2.5, currentCalibration.scale))
+          : 1.0;
 
         // Try ONNX Inference first
         if (
