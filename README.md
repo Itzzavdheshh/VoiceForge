@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: add test - feat:  ONNX Runtime Web Wav2Lip Integration (#477)
+# TODO: fix for #453: [BUG] Missing Canvas Audio Waveform Visualizer
