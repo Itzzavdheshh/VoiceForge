@@ -160,7 +160,11 @@ export class AudioProcessor {
       this.analyzer = null;
     }
     if (this.source) {
-      this.source.disconnect();
+      try {
+        this.source.disconnect();
+      } catch {
+        /* ignore disconnect errors */
+      }
       this.source = null;
     }
     if (this.audioContext && this.audioContext.state !== "closed") {

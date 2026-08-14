@@ -15,6 +15,8 @@ export default function useVirtualCamera(canvasRef) {
   }
 
   async function start() {
+    stop();
+
     const canvas = canvasRef.current;
     if (!canvas) {
       setStatus("Preview canvas unavailable");
