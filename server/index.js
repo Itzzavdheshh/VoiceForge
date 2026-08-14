@@ -138,8 +138,23 @@ const cloneRateLimiter = rateLimit({
   message: { error: "Too many voice clone requests. Please try again in a minute." }
 });
 
-app.get("/api/health", (_request, response) => {
-  response.json({ ok: true, service: "voiceforge-api" });
+app.get("/api/health", async (_request, response) => {
+  let dbStatus = "unknown";
+  try {
+    const db = await getDatabase();
+    const result = await db.get("SELECT 1 as alive");
+    if (result?.alive === 1) dbStatus = "connected";
+  } catch (err) {
+    dbStatus = "error: " + (err.message || String(err));
+  }
+
+  response.json({
+    ok: true,
+    service: "voiceforge-api",
+    database: dbStatus,
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.use("/api/voice", voiceRoutes);
