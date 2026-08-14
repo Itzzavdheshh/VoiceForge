@@ -5,6 +5,9 @@ import { QuickReplies } from "./QuickReplies";
 import { SpeechHistory } from "./SpeechHistory";
 import { ToastContainer, useToast } from "./useToast.jsx";
 import { useSpeechHistory } from "../hooks/useSpeechHistory";
+import useTTS from "../hooks/useTTS.js";
+import { LanguageSelector } from "./LanguageSelector.jsx";
+import { loadLanguage, persistLanguage } from "../utils/languages.js";
 
 const MAX_CHARS = 500;
 
@@ -17,15 +20,9 @@ export default function VoiceForge() {
 
   const [announcement, setAnnouncement] = useState("");
   const textareaRef = useRef(null);
-  const audioMapRef = useRef(new Map());
-  const speakCounterRef = useRef(0);
+
   const { speak: ttsSpeak } = useTTS();
-  useEffect(() => {
-   return () => {
-     audioMapRef.current.forEach((blobUrl) => URL.revokeObjectURL(blobUrl));
-    audioMapRef.current.clear();
-    };
-   }, []);
+
   const {
     history,
     favorites,
@@ -46,32 +43,22 @@ export default function VoiceForge() {
   clearHistory();
 }, [clearHistory]);
 
-  const speak = useCallback((text) => {
-    return new Promise((resolve, reject) => {
-      if (!text.trim()) return reject(new Error("empty text"));
+  const speak = useCallback(async (text) => {
+    if (!text.trim()) return;
 
-      if (!("speechSynthesis" in window)) {
-        showToast("Speech synthesis is not supported in this browser", "error");
-        return reject(new Error("speech synthesis not supported"));
-      }
+    setIsSpeaking(true);
+    setAnnouncement("Speech synthesis started.");
 
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language;
-      utterance.rate = 0.95;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        resolve();
-      };
-      utterance.onerror = (event) => {
-        setIsSpeaking(false);
-        showToast("Speech playback failed", "error");
-        reject(new Error(event.error || "speech failed"));
-      };
-      window.speechSynthesis.speak(utterance);
-    });
-  }, [showToast, language]);
+    try {
+      await ttsSpeak({ text, language_code: language });
+      setAnnouncement("Speech playback completed.");
+    } catch (err) {
+      showToast(err?.message || "Speech playback failed", "error");
+      setAnnouncement("Speech playback failed.");
+    } finally {
+      setIsSpeaking(false);
+    }
+  }, [ttsSpeak, showToast, language]);
 
   const handleSpeak = useCallback(async () => {
     const text = inputText.trim();
@@ -204,19 +191,46 @@ const handleDeleteMessage = useCallback((id) => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white font-sans antialiased dark:bg-black">
-      <SpeechHistory
-        history={history}
-        favorites={favorites}
-        onReuse={handleReuse}
-        onReplay={handleReplay}
-        onToggleFav={toggleFavorite}
-        onDelete={handleDeleteMessage}
-        onClearHistory={handleClearHistory}
-        onCopy={handleCopy}
-        getAudioUrl={getAudioUrl}
-        onDownload={handleDownload}
-      />
+    <div className="relative flex h-[calc(100vh-57px)] overflow-hidden bg-white font-sans antialiased dark:bg-black sm:h-[calc(100vh-65px)]">
+      {/* Screen reader live announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
+
+      {/* Mobile history drawer overlay */}
+      {historyOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
+          onClick={() => setHistoryOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar: always visible on lg+, drawer on mobile */}
+      <div
+        ref={drawerRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal={historyOpen}
+        aria-label="Speech history"
+        className={[
+          "absolute inset-y-0 left-0 z-30 flex flex-col transition-transform duration-200 focus:outline-none",
+          "lg:static lg:z-auto lg:translate-x-0 lg:flex",
+          historyOpen ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
+        <SpeechHistory
+          history={history}
+          favorites={favorites}
+          sessionTranscript={sessionTranscript}
+          onReuse={(text) => { handleReuse(text); setHistoryOpen(false); }}
+          onReplay={handleReplay}
+          onToggleFav={toggleFavorite}
+          onDelete={removeMessage}
+          onClearHistory={clearHistory}
+          onCopy={handleCopy}
+        />
+      </div>
 
       <main className="flex flex-1 flex-col overflow-hidden" aria-label="Speech composer">
         <header className="flex flex-shrink-0 items-center gap-2 border-b border-neutral-200 px-5 py-3.5 dark:border-border dark:bg-black">
