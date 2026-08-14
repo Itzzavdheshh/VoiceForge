@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 13] transcript export - csv and json metadata download from speech history (#339)
+# TODO: [bug] : `voiceforge.jsx` uses `window.speechsynthesis` directly instead of `usetts`, silently ignoring the cloned voice profile on the main page (#387)
