@@ -165,4 +165,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #646: feat: Voice Synthesis Presets Dropdown
+# TODO: fix for #647: feat: Progress Bar & 10-second Quality Guard
