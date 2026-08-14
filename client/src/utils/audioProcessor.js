@@ -95,6 +95,14 @@ export class AudioProcessor {
       this.analyzer.stop();
       this.analyzer = null;
     }
+    if (this.source) {
+      try {
+        this.source.disconnect();
+      } catch {
+        /* ignore disconnect errors */
+      }
+      this.source = null;
+    }
     if (this.audioContext && this.audioContext.state !== "closed") {
       this.audioContext.close();
       this.audioContext = null;
