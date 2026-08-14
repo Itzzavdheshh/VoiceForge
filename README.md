@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] token expiresat hardcoded to 60s ignores configurable pending_stream_ttl_ms (#512)
+# TODO: [bug] missing multer error handlers for limit_part_count, limit_field_key, limit_field_value, limit_field_count return 500 instead of user-friendly message (#513)
