@@ -1,4 +1,5 @@
 <!-- Documents the VoiceForge local development workflow, browser constraints, and MVP roadmap. -->
+
 # VoiceForge
 
 VoiceForge is a browser-based assistive video tool that lets a user type during calls and output cloned speech with a lip-synced face preview.
@@ -18,6 +19,7 @@ VoiceForge is a browser-based assistive video tool that lets a user type during 
 - [API](#api)
 - [Roadmap](#roadmap)
 - [License](#license)
+- [About](#about)
 
 ---
 
@@ -71,7 +73,7 @@ npm install
 cp .env.example .env
 ```
 
-4. *(Optional)* Open `.env` and review the settings. The defaults run in offline mock mode, so no API key or internet access is needed. See [Environment Variables](#environment-variables) for the full reference.
+4. _(Optional)_ Open `.env` and review the settings. The defaults run in offline mock mode, so no API key or internet access is needed. See [Environment Variables](#environment-variables) for the full reference.
 5. Start the client and server together:
 
 ```bash
@@ -80,21 +82,19 @@ npm run dev
 
 6. Open `http://localhost:5173` in Chrome or Edge.
 
-For more details on how to develop locally, including Docker instructions and our mock architecture, see the [Development Workflow & Local-First Architecture Guide](docs/development-workflow.md).
-
 ---
 
 ## Environment Variables
 
 All variables live in your local `.env` file (copy from `.env.example`). **None of them require a paid account or API key.**
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `VOICE_ENGINE_SPACE` | *(commented out)* | The Hugging Face Gradio space used for voice synthesis. See the dual-mode setup below. |
-| `MOCK_CHATTERBOX` | `true` | Controls whether the live AI or an offline test stub is used. See below. |
-| `PORT` | `3001` | Express API port. |
-| `CLIENT_URL` | `http://localhost:5173` | Allowed CORS origin for the Vite dev server. |
-| `STREAM_SECRET` | *(auto-generated)* | AES-256-GCM signing key for speech stream tokens. Set a fixed value to survive server restarts. |
+| Variable             | Default                 | Description                                                                                     |
+| -------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `VOICE_ENGINE_SPACE` | _(commented out)_       | The Hugging Face Gradio space used for voice synthesis. See the dual-mode setup below.          |
+| `MOCK_CHATTERBOX`    | `true`                  | Controls whether the live AI or an offline test stub is used. See below.                        |
+| `PORT`               | `3001`                  | Express API port.                                                                               |
+| `CLIENT_URL`         | `http://localhost:5173` | Allowed CORS origin for the Vite dev server.                                                    |
+| `STREAM_SECRET`      | _(auto-generated)_      | AES-256-GCM signing key for speech stream tokens. Set a fixed value to survive server restarts. |
 
 ### Dual-Mode Voice Engine Setup
 
@@ -183,15 +183,13 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 ## API
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/api/voice/clone` | Upload reference audio. Stores it server-side and returns a `voice_id`. No external API call in mock mode. |
-| `POST` | `/api/voice/speak` | Send text, `voice_id`, and optional voice settings. Returns a signed `speechId` and streaming `audioUrl`. |
-| `GET` | `/api/voice/speak/stream?t=<speechId>` | Stream the Chatterbox-generated audio for a pending signed speech token (`t`). Proxied from the Hugging Face Space. |
-| `GET` | `/api/voice/status` | Returns current engine mode (`isMock`, `space`) for debugging. |
-| `GET` | `/api/health` | Returns local API health status. |
-
-
+| Method | Endpoint                               | Description                                                                                                         |
+| ------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/api/voice/clone`                     | Upload reference audio. Stores it server-side and returns a `voice_id`. No external API call in mock mode.          |
+| `POST` | `/api/voice/speak`                     | Send text, `voice_id`, and optional voice settings. Returns a signed `speechId` and streaming `audioUrl`.           |
+| `GET`  | `/api/voice/speak/stream?t=<speechId>` | Stream the Chatterbox-generated audio for a pending signed speech token (`t`). Proxied from the Hugging Face Space. |
+| `GET`  | `/api/voice/status`                    | Returns current engine mode (`isMock`, `space`) for debugging.                                                      |
+| `GET`  | `/api/health`                          | Returns local API health status.                                                                                    |
 
 ## Roadmap
 
@@ -211,5 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-
-<!-- GSSoC Contribution: Resolves #760 -->
+# TODO: issue #334

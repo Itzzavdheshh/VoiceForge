@@ -3,37 +3,33 @@
 // Used on the Call page, Compose page (compact mode), and Settings page
 // as the unified way to select an output language for Chatterbox TTS.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ChevronDown, Check, Search, Globe, X } from "lucide-react";
-import {
-  SUPPORTED_LANGUAGES,
-  getLanguageByCode,
-  getRegions,
-} from "../utils/languages.js";
+import { SUPPORTED_LANGUAGES, getLanguageByCode, getRegions } from "../utils/languages.js";
 
-/**
- * LanguageSelector — premium dropdown for multilingual voice selection.
- *
- * @param {object}   props
- * @param {string}   props.value     – current language code (e.g. "en") or "" for auto-detect
- * @param {function} props.onChange   – called with the selected language code
- * @param {string}   [props.id]      – HTML id for the trigger button
- * @param {boolean}  [props.compact] – smaller variant for inline/toolbar usage
- */
 export function LanguageSelector({ value, onChange, id, compact = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [focusIndex, setFocusIndex] = useState(-1);
+  const [panelStyle, setPanelStyle] = useState(null);
 
   const containerRef = useRef(null);
-  const searchRef = useRef(null);
-  const listRef = useRef(null);
   const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  const searchRef = useRef(null);
+  const generatedId = useId();
+  const panelId = id ?? generatedId;
+  const listRef = useRef(null);
 
   const selectedLang = getLanguageByCode(value);
   const regions = useMemo(() => getRegions(), []);
 
-  // ── Filtered language list ────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (!search.trim()) return SUPPORTED_LANGUAGES;
     const q = search.toLowerCase().trim();
@@ -41,15 +37,14 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
       (l) =>
         l.name.toLowerCase().includes(q) ||
         l.nativeName.toLowerCase().includes(q) ||
-        l.code.toLowerCase().includes(q)
+        l.code.toLowerCase().includes(q),
     );
   }, [search]);
 
-  // Build flat list: [auto-detect, ...grouped items] for keyboard nav
   const flatItems = useMemo(() => {
     const items = [{ type: "auto", code: "", name: "Auto-detect" }];
     const filteredRegions = regions.filter((r) =>
-      filtered.some((l) => l.region === r)
+      filtered.some((l) => l.region === r),
     );
     for (const region of filteredRegions) {
       items.push({ type: "header", region });
@@ -62,11 +57,12 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
 
   // Only selectable items (skip headers) for keyboard focus
   const selectableIndices = useMemo(
-    () => flatItems.reduce((acc, item, i) => {
-      if (item.type !== "header") acc.push(i);
-      return acc;
-    }, []),
-    [flatItems]
+    () =>
+      flatItems.reduce((acc, item, i) => {
+        if (item.type !== "header") acc.push(i);
+        return acc;
+      }, []),
+    [flatItems],
   );
 
   // ── Open / Close ──────────────────────────────────────────────────────
@@ -82,22 +78,14 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
     setIsOpen(false);
     setSearch("");
     setFocusIndex(-1);
-    // Restore focus to the trigger button
-    requestAnimationFrame(() => triggerRef.current?.focus());
   }, []);
 
-  const toggle = useCallback(() => {
-    if (isOpen) closeDropdown();
-    else openDropdown();
-  }, [isOpen, openDropdown, closeDropdown]);
+  const toggle = useCallback(() => (isOpen ? closeDropdown() : openDropdown()), [isOpen, openDropdown, closeDropdown]);
 
-  // ── Click outside ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     function handleClick(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        closeDropdown();
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target)) closeDropdown();
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -109,7 +97,7 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
       onChange(code);
       closeDropdown();
     },
-    [onChange, closeDropdown]
+    [onChange, closeDropdown],
   );
 
   // ── Keyboard nav ──────────────────────────────────────────────────────
@@ -131,7 +119,10 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
         case "ArrowDown": {
           e.preventDefault();
           const currentSelIdx = selectableIndices.indexOf(focusIndex);
-          const nextSelIdx = Math.min(currentSelIdx + 1, selectableIndices.length - 1);
+          const nextSelIdx = Math.min(
+            currentSelIdx + 1,
+            selectableIndices.length - 1,
+          );
           const next = selectableIndices[nextSelIdx];
           if (next !== undefined) {
             setFocusIndex(next);
@@ -161,40 +152,40 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
           break;
       }
     },
-    [isOpen, focusIndex, flatItems, selectableIndices, openDropdown, closeDropdown, selectLanguage]
+    [
+      isOpen,
+      focusIndex,
+      flatItems,
+      selectableIndices,
+      openDropdown,
+      closeDropdown,
+      selectLanguage,
+    ],
   );
 
   function scrollToItem(index) {
     const list = listRef.current;
     if (!list) return;
     const item = list.querySelector(`[data-index="${index}"]`);
-    if (item) {
-      item.scrollIntoView({ block: "nearest" });
-    }
+    if (item) item.scrollIntoView({ block: "nearest" });
   }
-
-  // ── Trigger button label ──────────────────────────────────────────────
-  const triggerLabel = selectedLang
-    ? `${selectedLang.flag} ${selectedLang.name}`
-    : "🌐 Auto-detect";
 
   return (
     <div ref={containerRef} className="relative" onKeyDown={handleKeyDown}>
       {/* ── Trigger Button ─────────────────────────────────────────────── */}
       <button
-        ref={triggerRef}
         id={id}
+        ref={triggerRef}
         type="button"
         onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label="Select output language"
+        aria-controls={isOpen ? `${panelId}-panel` : undefined}
         className={[
           "group inline-flex items-center gap-2 rounded-lg border font-medium transition-all duration-200",
           "focus:outline-none focus:ring-2 focus:ring-moss/40 dark:focus:ring-glow/40",
-          compact
-            ? "px-3 py-2 text-sm"
-            : "w-full px-4 py-3 text-sm",
+          compact ? "px-3 py-2 text-sm" : "w-full px-4 py-3 text-sm",
           isOpen
             ? "border-moss bg-mint/20 text-ink dark:border-glow dark:bg-glow/10 dark:text-neutral-100"
             : "border-neutral-200 bg-white text-neutral-700 hover:border-moss/50 hover:bg-moss/5 dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow/50 dark:hover:bg-glow/5",
@@ -205,32 +196,35 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
           size={compact ? 14 : 16}
           aria-hidden="true"
           className={[
-            "flex-shrink-0 transition-transform duration-200 text-neutral-400 dark:text-neutral-500",
+            "flex-shrink-0 transition-transform duration-200 text-neutral-400 dark:text-neutral-400",
             isOpen ? "rotate-180" : "",
           ].join(" ")}
         />
       </button>
 
-      {/* ── Dropdown Panel ─────────────────────────────────────────────── */}
       {isOpen && (
         <div
+          ref={panelRef}
+          id={`${panelId}-panel`}
           role="dialog"
           aria-label="Language selection"
           className={[
-            "absolute z-50 mt-2 flex flex-col overflow-hidden rounded-xl border shadow-lg",
+            "flex flex-col overflow-hidden rounded-xl border shadow-lg animate-fade-in-up",
             "border-neutral-200/80 bg-white dark:border-border dark:bg-surface",
             "animate-fade-in-up",
             "max-w-[calc(100vw-2rem)]",
-            compact ? "left-0 w-72" : "left-0 right-0 min-w-0 sm:min-w-[320px] sm:w-96", 
+            compact
+              ? "left-0 w-72"
+              : "left-0 right-0 min-w-0 sm:min-w-[320px] sm:w-96",
           ].join(" ")}
-          style={{ maxHeight: "420px" }}
+          style={panelStyle}
         >
           {/* Search bar */}
           <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2.5 dark:border-border">
             <Search
               size={15}
               aria-hidden="true"
-              className="flex-shrink-0 text-neutral-400 dark:text-neutral-500"
+              className="flex-shrink-0 text-neutral-400 dark:text-neutral-400"
             />
             <input
               ref={searchRef}
@@ -242,14 +236,13 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
               }}
               placeholder="Search languages..."
               aria-label="Search languages"
-              aria-activedescendant={focusIndex >= 0 && flatItems[focusIndex] ? `lang-option-${flatItems[focusIndex].code ?? "auto"}` : undefined}
               className="flex-1 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => { setSearch(""); searchRef.current?.focus(); }}
-                className="rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                className="rounded p-0.5 text-neutral-400 hover:text-neutral-600 dark:text-neutral-400 dark:hover:text-neutral-300"
                 aria-label="Clear search"
               >
                 <X size={14} aria-hidden="true" />
@@ -257,20 +250,18 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
             )}
           </div>
 
-          {/* Scrollable list */}
-          <div
-            ref={listRef}
-            role="listbox"
+          <ul 
+            ref={listRef} 
+            id={id ? `${id}-listbox` : "language-listbox"}
+            role="listbox" 
             aria-label="Available languages"
-            className="overflow-y-auto overscroll-contain"
-            style={{ maxHeight: "360px" }}
+            className="overflow-y-auto overscroll-contain max-h-[360px]"
           >
             {filtered.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-neutral-400 dark:text-neutral-500">
+              <p className="px-4 py-8 text-center text-sm text-neutral-400 dark:text-neutral-400">
                 No languages match "{search}"
               </p>
             )}
-
             {flatItems.map((item, index) => {
               if (item.type === "auto") {
                 const isSelected = !value;
@@ -280,7 +271,6 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
                     key="auto-detect"
                     type="button"
                     role="option"
-                    id="lang-option-auto"
                     aria-selected={isSelected}
                     data-index={index}
                     onClick={() => selectLanguage("")}
@@ -295,13 +285,17 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
                         : "text-neutral-700 dark:text-neutral-300",
                     ].join(" ")}
                   >
-                    <Globe size={18} aria-hidden="true" className="flex-shrink-0 text-neutral-400 dark:text-neutral-500" />
+                    <Globe size={18} aria-hidden="true" className="flex-shrink-0 text-neutral-400 dark:text-neutral-400" />
                     <span className="flex-1">Auto-detect</span>
-                    <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                    <span className="text-[11px] text-neutral-400 dark:text-neutral-400">
                       Let AI detect
                     </span>
                     {isSelected && (
-                      <Check size={15} aria-hidden="true" className="flex-shrink-0 text-moss dark:text-glow" />
+                      <Check
+                        size={15}
+                        aria-hidden="true"
+                        className="flex-shrink-0 text-moss dark:text-glow"
+                      />
                     )}
                   </button>
                 );
@@ -311,7 +305,7 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
                 return (
                   <div
                     key={`region-${item.region}`}
-                    className="sticky top-0 z-10 bg-neutral-50/95 px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-neutral-400 backdrop-blur-sm dark:bg-surface/95 dark:text-neutral-500"
+                    className="sticky top-0 z-10 bg-neutral-50/95 px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-neutral-400 backdrop-blur-sm dark:bg-surface/95 dark:text-neutral-400"
                     role="presentation"
                   >
                     {item.region}
@@ -321,13 +315,13 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
 
               // item.type === "lang"
               const isSelected = value === item.code;
-              const isFocused = focusIndex === index;
+              const optionId = id ? `${id}-option-${index}` : `option-${index}`;
+              
               return (
-                <button
-                  key={item.code}
-                  type="button"
+                <li
+                  key={item.code || "auto"}
+                  id={optionId}
                   role="option"
-                  id={`lang-option-${item.code}`}
                   aria-selected={isSelected}
                   data-index={index}
                   onClick={() => selectLanguage(item.code)}
@@ -342,20 +336,27 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
                       : "text-neutral-700 dark:text-neutral-300",
                   ].join(" ")}
                 >
-                  <span className="flex-shrink-0 text-lg leading-none" aria-hidden="true">
+                  <span
+                    className="flex-shrink-0 text-lg leading-none"
+                    aria-hidden="true"
+                  >
                     {item.flag}
                   </span>
                   <span className="flex-1 truncate">
                     {item.name}
-                    <span className="ml-1.5 text-xs text-neutral-400 dark:text-neutral-500">
+                    <span className="ml-1.5 text-xs text-neutral-400 dark:text-neutral-400">
                       {item.nativeName !== item.name ? item.nativeName : ""}
                     </span>
                   </span>
-                  <span className="flex-shrink-0 font-mono text-[11px] text-neutral-300 dark:text-neutral-600">
+                  <span className="flex-shrink-0 font-mono text-[11px] text-neutral-300 dark:text-neutral-400">
                     {item.code}
                   </span>
                   {isSelected && (
-                    <Check size={15} aria-hidden="true" className="flex-shrink-0 text-moss dark:text-glow" />
+                    <Check
+                      size={15}
+                      aria-hidden="true"
+                      className="flex-shrink-0 text-moss dark:text-glow"
+                    />
                   )}
                 </button>
               );
@@ -364,12 +365,16 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
 
           {/* Footer hint */}
           <div className="border-t border-neutral-100 px-4 py-2 dark:border-border">
-            <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+            <p className="text-[11px] text-neutral-400 dark:text-neutral-400">
               <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">↑↓</kbd>{" "}
               navigate{" · "}
-              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">Enter</kbd>{" "}
+              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">
+                Enter
+              </kbd>{" "}
               select{" · "}
-              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">Esc</kbd>{" "}
+              <kbd className="rounded border border-neutral-200 px-1 font-mono text-[10px] dark:border-border">
+                Esc
+              </kbd>{" "}
               close
             </p>
           </div>

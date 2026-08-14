@@ -1,29 +1,35 @@
-name: Lint & Format
+name: Lint and Format
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
 
 jobs:
-  lint-and-format:
+  lint:
+    name: Run ESLint and Prettier
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm install
-      
-    - name: Run ESLint
-      run: npx eslint . --ext .js,.jsx,.ts,.tsx || true
-      
-    - name: Run Prettier
-      run: npx prettier --check "**/*.{js,jsx,ts,tsx,json,md,css}" || true
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Run Prettier Check
+        run: npm run format:check || npx prettier --check .
