@@ -95,8 +95,8 @@ export function ShareProfileModal({ profile, onClose }) {
         }
 
         const payload = {
-          voice_id: profile.voice_id,
-          name: profile.name,
+          voice_id: String(profile.voice_id || "").trim(),
+          name: String(profile.name || "").trim(),
           createdAt: profile.createdAt,
           audioDataUrl: base64Audio,
         };
