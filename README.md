@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: feat:  onnx runtime web wav2lip integration (#477)
+# TODO: feat:  voice setting presets (#478)
