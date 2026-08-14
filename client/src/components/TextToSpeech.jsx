@@ -1,5 +1,70 @@
 import React from "react";
-import { SendHorizontal, LoaderCircle } from "lucide-react";
+import { SendHorizontal, Eraser, Loader2 } from "lucide-react";
+import { loadVoiceSettings } from "../utils/voiceSettings.js";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges.js";
+
+/**
+ * Emotion presets define prompt engineering text and voice_settings overrides
+ * that are merged on top of the user's saved voice settings at speak-time.
+ *
+ * - promptPrefix: Injected before user text so ElevenLabs interprets tone.
+ * - settingsOverride: Partial voice_settings merged over user defaults.
+ *     • stability ↓  = more expressive / varied delivery
+ *     • style ↑       = stronger stylistic emphasis
+ */
+const EMOTION_PRESETS = [
+  {
+    id: "neutral",
+    label: "Neutral",
+    emoji: "😐",
+    description: "Default balanced tone",
+    promptPrefix: "",
+    settingsOverride: {},
+  },
+  {
+    id: "excited",
+    label: "Excited",
+    emoji: "🤩",
+    description: "High energy and enthusiastic",
+    promptPrefix: "[Excited and enthusiastic tone] ",
+    settingsOverride: { stability: 0.3, style: 0.7 },
+  },
+  {
+    id: "serious",
+    label: "Serious",
+    emoji: "🧐",
+    description: "Calm and authoritative",
+    promptPrefix: "[Serious and authoritative tone] ",
+    settingsOverride: { stability: 0.8, style: 0.15 },
+  },
+  {
+    id: "questioning",
+    label: "Questioning",
+    emoji: "🤔",
+    description: "Curious and inquisitive",
+    promptPrefix: "[Questioning and curious tone] ",
+    settingsOverride: { stability: 0.4, style: 0.5 },
+  },
+  {
+    id: "whispering",
+    label: "Whispering",
+    emoji: "🤫",
+    description: "Soft and intimate",
+    promptPrefix: "[Soft whispering tone] ",
+    settingsOverride: { stability: 0.6, style: 0.35 },
+  },
+  {
+    id: "cheerful",
+    label: "Cheerful",
+    emoji: "😊",
+    description: "Warm and friendly",
+    promptPrefix: "[Cheerful and warm tone] ",
+    settingsOverride: { stability: 0.35, style: 0.6 },
+  },
+];
+
+const MAX_CHARS = 300;
+const DRAFT_KEY = "voiceforge_draft_text";
 
 export default function TextToSpeech({ onSpeak, disabled = false, status = "idle" }) {
   const [text, setText] = React.useState("");
@@ -80,8 +145,17 @@ if (estimatedDuration > 30) {
         aria-label={status === "speaking" ? "Generating speech..." : "Speak the typed text"}
         className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-coral px-5 py-3 font-bold text-white transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <SendHorizontal size={18} aria-hidden="true" />
-        {status === "speaking" ? <><LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> Generating...</> : "Speak"}
+        {status === "speaking" ? (
+          <>
+            <Loader2 className="animate-spin" size={18} aria-hidden="true" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <SendHorizontal size={18} aria-hidden="true" />
+            Speak
+          </>
+        )}
       </button>
     </section>
   );
