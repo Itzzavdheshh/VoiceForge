@@ -144,7 +144,8 @@ const addMessage = useCallback((text, voiceId = "", sessionId = "") => {
   setHistory((prev) => {
     const existing = prev.find((m) => m.text === trimmed);
 
-    // Fixed duplicate declaration syntax error
+    // Preserve existing ID if duplicate found, but update timestamp
+    // so re-spoken messages sort correctly after a page reload.
     const entry = existing
       ? { ...existing, timestamp }
       : { id: crypto.randomUUID(), text: trimmed, timestamp };

@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "npx --prefix .. vitest run --config vitest.config.js"
+    "test": "npx vitest run --config vitest.config.js"
   },
   "dependencies": {
     "lucide-react": "^1.18.0",
