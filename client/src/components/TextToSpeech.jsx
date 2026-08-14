@@ -41,7 +41,16 @@ if (estimatedDuration > 30) {
           <h2 className="text-lg font-bold">Type to speak</h2>
           <p className="mt-1 text-sm text-ink/65 dark:text-muted">Press Enter to speak. Shift + Enter adds a new line.</p>
         </div>
-        <span className="rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold text-ink/65 dark:border-border dark:text-muted">{characterCount}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <p aria-live="polite" className="text-xs text-ink/60 dark:text-muted">
+            Est. Duration: {estimatedDuration}s ({durationCategory})
+          </p>
+        </div>
+        <span className="rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold text-ink/65 dark:border-border dark:text-muted">
+          {characterCount} characters
+        </span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
