@@ -6,14 +6,9 @@ export function LanguageSelector({ value, onChange, id, compact = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [focusIndex, setFocusIndex] = useState(-1);
-  const [panelStyle, setPanelStyle] = useState(null);
 
   const containerRef = useRef(null);
-  const triggerRef = useRef(null);
-  const panelRef = useRef(null);
   const searchRef = useRef(null);
-  const generatedId = useId();
-  const panelId = id ?? generatedId;
   const listRef = useRef(null);
   const triggerRef = useRef(null); // Added for focus restoration
 

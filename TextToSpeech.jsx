@@ -1,16 +1,11 @@
 import React from "react";
 import { SendHorizontal } from "lucide-react";
 
-const MAX_CHARS = 300;
-
 export default function TextToSpeech({ onSpeak, disabled = false, status = "idle" }) {
   // Move the constant here, inside the component scope
   const MAX_TTS_CHARS = 300;
   
   const [text, setText] = React.useState("");
-  const [announcement, setAnnouncement] = React.useState("");
-  const lastSpokenTextRef = React.useRef("");
-  
   const trimmedText = text.trim();
   const characterCount = text.length;
   const wordCount = trimmedText ? trimmedText.split(/\s+/).length : 0;
@@ -29,17 +24,6 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
     { label: "Done", text: "I am done." }, { label: "Wait", text: "Please wait." }
   ];
 
-  // Fix: Define the missing speakPhrase function
-  const speakPhrase = useCallback(async (phraseText) => {
-    if (disabled || status === "speaking" || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await onSpeak(phraseText);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [onSpeak, disabled, status, isSubmitting]);
-  
   async function submit() {
     if (!trimmedText || disabled || status === "speaking") return;
     await onSpeak(trimmedText);
@@ -58,21 +42,7 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">Type to speak</h2>
-          <p className="mt-1 text-sm text-ink/65 dark:text-muted">
-            Press Enter to speak. Shift + Enter adds a new line.
-          </p>
-        </div>
-        <div className="text-right">
-  <span className={["rounded-md border border-ink/10 px-3 py-1 text-sm font-semibold dark:border-border", getCounterColor()].join(" ")}>
-    {characterCount} / {MAX_CHARS}
-  </span>
-
-          <p
-            aria-live="polite"
-            className="mt-2 text-xs text-ink/60 dark:text-muted"
-          >
-            Est. Duration: {estimatedDuration}s ({durationCategory})
-          </p>
+          <p className="mt-1 text-sm text-ink/65 dark:text-muted">Press Enter to speak. Shift + Enter adds a new line.</p>
         </div>
         <p aria-live="polite" className="text-xs text-ink/60 dark:text-muted">
           Est. Duration: {estimatedDuration}s ({durationCategory})
@@ -93,8 +63,6 @@ export default function TextToSpeech({ onSpeak, disabled = false, status = "idle
         value={text} onChange={(e) => setText(e.target.value)} onKeyDown={handleKeyDown} disabled={disabled}
         className="min-h-64 flex-1 resize-none rounded-md border border-ink/15 bg-cloud p-4 text-lg leading-8 text-ink outline-none transition focus:border-moss focus:ring-4 focus:ring-mint disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-black dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-glow dark:focus:ring-glow/25"
         placeholder="Type what you want to say..."
-        title="Type your message here and press Enter to speak"
-        aria-label="Text input for speech synthesis"
       />
       <p className="mt-2 text-sm text-ink/65 dark:text-muted" aria-live="polite">
         Characters: {characterCount}/{MAX_TTS_CHARS}
