@@ -62,12 +62,17 @@ export default function useVirtualCamera(canvasRef) {
     setStatus("Stopped");
   }
 
+  const streamRef = React.useRef(stream);
+  React.useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+
   React.useEffect(() => {
     return () => {
       originalTrackRef.current?.stop();
-      stream?.getTracks().forEach((track) => track.stop());
+      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, [stream]);
+  }, []);
 
   return {
     isLive,
