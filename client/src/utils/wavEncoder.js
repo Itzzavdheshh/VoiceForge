@@ -1,9 +1,11 @@
 // client/src/utils/wavEncoder.js
 // Client-side PCM WAV Encoder for AudioBuffer slices
 
-export function encodeWAV(audioBuffer, startOffset = 0, endOffset = null) {
+export function encodeWAV(audioBuffer, startOffset = 0, endOffset = null, options = {}) {
   const sampleRate = audioBuffer.sampleRate;
-  const numChannels = audioBuffer.numberOfChannels;
+  const originalChannels = audioBuffer.numberOfChannels;
+  const targetChannels = options.targetChannels || originalChannels;
+  const numChannels = Math.min(2, Math.max(1, targetChannels));
 
   const startSample = Math.floor(startOffset * sampleRate);
   const endSample =
@@ -49,22 +51,31 @@ export function encodeWAV(audioBuffer, startOffset = 0, endOffset = null) {
   /* Subchunk2Size */
   view.setUint32(40, numSamples * numChannels * 2, true);
 
-  // Write PCM samples
+  // Prepare channel buffers
   const channelData = [];
-  for (let c = 0; c < numChannels; c++) {
+  for (let c = 0; c < originalChannels; c++) {
     channelData.push(audioBuffer.getChannelData(c));
   }
 
   let offset = 44;
   for (let i = 0; i < numSamples; i++) {
-    for (let c = 0; c < numChannels; c++) {
-      const sample = channelData[c][startSample + i];
-      // Clamp sample to [-1, 1]
-      const clamped = Math.max(-1, Math.min(1, sample));
-      // Convert to 16-bit PCM integer
+    const idx = startSample + i;
+    if (numChannels === 1 && originalChannels > 1) {
+      // Downmix stereo to mono
+      const monoSample = (channelData[0][idx] + channelData[1][idx]) / 2;
+      const clamped = Math.max(-1, Math.min(1, monoSample));
       const pcmSample = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
       view.setInt16(offset, pcmSample, true);
       offset += 2;
+    } else {
+      for (let c = 0; c < numChannels; c++) {
+        const sourceChannel = Math.min(c, originalChannels - 1);
+        const sample = channelData[sourceChannel][idx];
+        const clamped = Math.max(-1, Math.min(1, sample));
+        const pcmSample = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+        view.setInt16(offset, pcmSample, true);
+        offset += 2;
+      }
     }
   }
 
