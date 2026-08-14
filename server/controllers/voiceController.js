@@ -340,27 +340,6 @@ export async function cloneVoice(request, response, next) {
       return;
     }
 
-    // Fix: reject oversized or non-audio uploads before persisting them to
-    // voiceStore. Multer has already buffered the file into memory by this
-    // point, but without this check any client could still push
-    // MAX_STORED_VOICES worth of arbitrarily large files (or non-audio
-    // files) into `voiceStore`, where they'd be retained for VOICE_STORE_TTL_MS.
-    if (
-      !audioFile.mimetype ||
-      !audioFile.mimetype.startsWith(ALLOWED_AUDIO_MIME_PREFIX)
-    ) {
-      response
-        .status(400)
-        .json({ error: "Reference audio must be an audio file." });
-      return;
-    }
-    if (audioFile.buffer.length > MAX_VOICE_UPLOAD_BYTES) {
-      response.status(413).json({
-        error: `Reference audio exceeds maximum allowed size of ${MAX_VOICE_UPLOAD_BYTES} bytes.`
-      });
-      return;
-    }
-
     if (getIsMock()) {
       console.warn("[VoiceForge] MOCK_CHATTERBOX: skipping real voice clone, returning fixture.");
       response.json({
