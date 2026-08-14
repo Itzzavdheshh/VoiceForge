@@ -8,16 +8,7 @@ import VoiceForge from "./components/VoiceForge";
 import Analytics from "./pages/Analytics.jsx";
 import VoiceForge from "./components/VoiceForge.jsx";
 import { useTheme } from "./components/ThemeContext.jsx";
-import Footer from "./components/Footer.jsx";
-import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
-import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
-import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
-import Contributors from "./pages/Contributors.jsx";
-import About from "./pages/About";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Analytics from "./pages/Analytics.jsx";
-import Library from "./pages/Library.jsx";
-import Healthcare from "./pages/Healthcare.jsx";
+import Footer from "./components/Footer";
 
 const tabs = [
   { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
@@ -255,73 +246,15 @@ export default function App() {
       <main className="flex-grow">
         {activeTab === "compose" && <VoiceForge />}
 
-        {activeTab !== "compose" && (
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
-            {activeTab === "call"       && <Call />}
-            {activeTab === "settings"   && <Settings />}
-            {activeTab === "analytics"  && <Analytics />}
-            {activeTab === "contributors" && <Contributors />}
-            {activeTab === "about" && <About onNavigate={selectTab} />}
-            {activeTab === "analytics" && <Analytics />}
-            {activeTab === "library" && <Library />}
-            {activeTab === "healthcare" && <Healthcare />}
-            {activeTab === "privacy-policy" && (<PrivacyPolicy
-              onBackHome={() => selectTab("onboarding")}
-             />
-            )}
-            {activeTab === "landing" && <VoiceForgeLanding onNavigate={selectTab} />}
-          </div>
-        )}
-      </main>
+      {activeTab !== "compose" && (
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
+          {activeTab === "call"       && <Call />}
+          {activeTab === "settings"   && <Settings />}
+        </div>
+      )}
 
-      {isLoggedIn && (
-        <>
-          {/* Mobile Bottom Navigation Bar */}
-          <nav
-            className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-ink/10 bg-white pb-safe sm:hidden dark:border-border dark:bg-surface"
-            aria-label="VoiceForge mobile navigation"
-          >
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const selected = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => selectTab(tab.id)}
-                  aria-current={selected ? "page" : undefined}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:focus-visible:ring-glow ${
-                    selected
-                      ? "text-moss dark:text-glow"
-                      : "text-ink/50 hover:text-ink dark:text-neutral-500 dark:hover:text-neutral-200"
-                  }`}
-                >
-                  <Icon size={22} aria-hidden="true" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex flex-col items-center gap-0.5 px-2 py-3 text-xs font-medium text-red-500 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-            >
-              <LogOut size={22} aria-hidden="true" />
-              <span>Log Out</span>
-            </button>
-          </nav>
-
-      {/* Bottom padding so content isn't hidden behind bottom nav on mobile */}
-      <div className="h-16 sm:hidden" aria-hidden="true" />
-
-      <KeyboardShortcutsModal
-        isOpen={shortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
-      />
-      <ScrollToBottomButton activeTab={activeTab} />
-      <ScrollToTopButton activeTab={activeTab} />
-      <Footer onNavigate={navigateTo} tabs={tabs} onOpenShortcuts={() => setShortcutsOpen(true)} />
-    </div>
+      <Footer />
+    </main>
   );
 }
