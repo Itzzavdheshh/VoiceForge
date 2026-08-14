@@ -139,4 +139,4 @@ textarea {
   animation: fade-in-up 0.2s ease-out;
 }
 
-/* fix: feat: Add an "Interrupt / Stop Speech" Button (#448) */
+/* fix: feat: Add "Clear Text" Eraser Button to Call page TTS Compos (#407) */
