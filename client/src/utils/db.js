@@ -2,7 +2,9 @@
 
 const DB_NAME = "voiceforge_db";
 const STORE_NAME = "profiles";
-const AUDIO_STORE_NAME = "audio_cache";
+const TRANSCRIPT_STORE = "transcripts";
+const SESSION_STORE = "sessions";
+const COLLECTION_STORE = "collections";
 const DB_VERSION = 2;
 
 let dbPromise = null;
@@ -12,7 +14,9 @@ function getDB() {
 
   dbPromise = new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !window.indexedDB) {
-      reject(new Error("IndexedDB is not supported in this browser environment."));
+      reject(
+        new Error("IndexedDB is not supported in this browser environment."),
+      );
       return;
     }
 
@@ -21,12 +25,21 @@ function getDB() {
 
       request.onerror = (event) => {
         dbPromise = null; // reset so next call retries
-        reject(new Error("Failed to open database: " + (event.target.error?.message || "Unknown error")));
+        reject(
+          new Error(
+            "Failed to open database: " +
+              (event.target.error?.message || "Unknown error"),
+          ),
+        );
       };
 
       request.onblocked = () => {
         dbPromise = null; // reset so next call retries
-        reject(new Error("Database access is blocked. Please close other open tabs."));
+        reject(
+          new Error(
+            "Database access is blocked. Please close other open tabs.",
+          ),
+        );
       };
 
       request.onsuccess = (event) => {
@@ -38,13 +51,23 @@ function getDB() {
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME, { keyPath: "voice_id" });
         }
-        if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
-          db.createObjectStore(AUDIO_STORE_NAME, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(TRANSCRIPT_STORE)) {
+          db.createObjectStore(TRANSCRIPT_STORE, { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains(SESSION_STORE)) {
+          db.createObjectStore(SESSION_STORE, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(COLLECTION_STORE)) {
+          db.createObjectStore(COLLECTION_STORE, { keyPath: "id" });
         }
       };
     } catch (err) {
       dbPromise = null;
-      reject(new Error("Failed to initialize IndexedDB: " + (err?.message || String(err))));
+      reject(
+        new Error(
+          "Failed to initialize IndexedDB: " + (err?.message || String(err)),
+        ),
+      );
     }
   });
 
@@ -67,115 +90,69 @@ export async function getAllProfiles() {
     };
 
     request.onerror = (event) => {
-      reject(new Error("Failed to retrieve profiles: " + (event.target.error?.message || "Unknown error")));
+      reject(
+        new Error(
+          "Failed to retrieve profiles: " +
+            (event.target.error?.message || "Unknown error"),
+        ),
+      );
     };
   });
 }
 
 export async function getProfile(voiceId) {
   if (!voiceId) return null;
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(voiceId);
-
-    request.onsuccess = () => {
-      resolve(request.result || null);
-    };
-
-    request.onerror = (event) => {
-      reject(new Error("Failed to retrieve profile: " + (event.target.error?.message || "Unknown error")));
-    };
-  });
-}
-
-let writeQueue = Promise.resolve();
-
-function enqueueWrite(operation) {
-  const result = writeQueue.then(operation);
-  writeQueue = result.catch(() => {});
-  return result;
+  const profiles = await getAllProfiles();
+  return profiles.find(p => p.voice_id === voiceId) || null;
 }
 
 export async function saveProfile(profile) {
-  return enqueueWrite(async () => {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(profile);
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(profile);
 
-      request.onsuccess = () => {
-        resolve(profile);
-      };
+    request.onsuccess = () => {
+      resolve(profile);
+    };
 
-      request.onerror = (event) => {
-        reject(new Error("Failed to save profile: " + (event.target.error?.message || "Unknown error")));
-      };
-    });
+    request.onerror = (event) => {
+      reject(new Error("Failed to save profile: " + (event.target.error?.message || "Unknown error")));
+    };
   });
 }
 
 export async function deleteProfile(voiceId) {
-  return enqueueWrite(async () => {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(voiceId);
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.delete(voiceId);
 
-      request.onsuccess = () => {
-        resolve(true);
-      };
+    request.onsuccess = () => {
+      resolve(true);
+    };
 
-      request.onerror = (event) => {
-        reject(new Error("Failed to delete profile: " + (event.target.error?.message || "Unknown error")));
-      };
-    });
+    request.onerror = (event) => {
+      reject(new Error("Failed to delete profile: " + (event.target.error?.message || "Unknown error")));
+    };
   });
 }
 
 export async function clearStorage() {
-  return enqueueWrite(async () => {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.clear();
-
-      request.onsuccess = () => {
-        resolve(true);
-      };
-
-      request.onerror = (event) => {
-        reject(new Error("Failed to clear storage: " + (event.target.error?.message || "Unknown error")));
-      };
-    });
-  });
-}
-
-export async function saveAudioBlob(id, blob) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(AUDIO_STORE_NAME, "readwrite");
-    const store = transaction.objectStore(AUDIO_STORE_NAME);
-    const request = store.put({ id, blob, timestamp: Date.now() });
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.clear();
 
-    request.onsuccess = () => resolve(true);
-    request.onerror = (event) => reject(new Error("Failed to save audio blob: " + event.target.error?.message));
-  });
-}
+    request.onsuccess = () => {
+      resolve(true);
+    };
 
-export async function getAudioBlob(id) {
-  if (!id) return null;
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(AUDIO_STORE_NAME, "readonly");
-    const store = transaction.objectStore(AUDIO_STORE_NAME);
-    const request = store.get(id);
-
-    request.onsuccess = () => resolve(request.result?.blob || null);
-    request.onerror = (event) => reject(new Error("Failed to get audio blob: " + event.target.error?.message));
+    request.onerror = (event) => {
+      reject(new Error("Failed to clear storage: " + (event.target.error?.message || "Unknown error")));
+    };
   });
 }

@@ -1,4 +1,5 @@
 <!-- Documents the VoiceForge local development workflow, browser constraints, and MVP roadmap. -->
+
 # VoiceForge
 
 VoiceForge is a browser-based assistive video tool that lets a user type during calls and output cloned speech with a lip-synced face preview.
@@ -18,6 +19,7 @@ VoiceForge is a browser-based assistive video tool that lets a user type during 
 - [API](#api)
 - [Roadmap](#roadmap)
 - [License](#license)
+- [About](#about)
 
 ---
 
@@ -71,7 +73,7 @@ npm install
 cp .env.example .env
 ```
 
-4. *(Optional)* Open `.env` and review the settings. The defaults run in offline mock mode, so no API key or internet access is needed. See [Environment Variables](#environment-variables) for the full reference.
+4. _(Optional)_ Open `.env` and review the settings. The defaults run in offline mock mode, so no API key or internet access is needed. See [Environment Variables](#environment-variables) for the full reference.
 5. Start the client and server together:
 
 ```bash
@@ -80,61 +82,15 @@ npm run dev
 
 6. Open `http://localhost:5173` in Chrome or Edge.
 
-For more details on how to develop locally, including Docker instructions and our mock architecture, see the [Development Workflow & Local-First Architecture Guide](docs/development-workflow.md).
-
 ---
 
 ## Environment Variables
 
-All variables live in your local `.env` file (copy from `.env.example`). **None of them require a paid account or API key.**
-
-| Variable | Default | Description |
+| Variable | Required | Description |
 | --- | --- | --- |
-| `VOICE_ENGINE_SPACE` | *(commented out)* | The Hugging Face Gradio space used for voice synthesis. See the dual-mode setup below. |
-| `MOCK_CHATTERBOX` | `true` | Controls whether the live AI or an offline test stub is used. See below. |
-| `PORT` | `3001` | Express API port. |
-| `CLIENT_URL` | `http://localhost:5173` | Allowed CORS origin for the Vite dev server. |
-| `STREAM_SECRET` | *(auto-generated)* | AES-256-GCM signing key for speech stream tokens. Set a fixed value to survive server restarts. |
-
-### Dual-Mode Voice Engine Setup
-
-VoiceForge ships with two engine routing modes that you control entirely from `.env`:
-
-#### Offline mock mode - local default
-
-The checked-in `.env.example` uses mock mode by default:
-
-```bash
-MOCK_CHATTERBOX=true
-```
-
-This skips all Hugging Face network calls. The server returns a fixture `voice_id` instantly on clone and streams a short silent audio file on speak. This is ideal for contributors working on UI changes, automated CI pipelines, or offline environments.
-
-> **Safety:** `MOCK_CHATTERBOX=true` has **no effect** when `NODE_ENV=production`. The server logs a yellow warning at startup whenever mock mode is active so it can never be silently enabled.
-
-#### Live AI mode - official production engine
-
-Leave `VOICE_ENGINE_SPACE` commented out with a `#`. The server will automatically route all synthesis requests to the official, lightning-fast production space:
-
-```bash
-# VOICE_ENGINE_SPACE=ResembleAI/Chatterbox-Multilingual-TTS
-MOCK_CHATTERBOX=false
-```
-
-This is the recommended setting for end-users and deployed environments.
-
-#### Live AI mode - independent backup mirror
-
-If the official space is temporarily busy or you prefer to route through an independent mirror, uncomment the line and point it at the community-maintained backup:
-
-```bash
-VOICE_ENGINE_SPACE=itzzavdheshh/voiceforge-engine
-MOCK_CHATTERBOX=false
-```
-
-This mirror runs the same Chatterbox Multilingual model. Useful when the primary space is under heavy load or during extended development sessions.
-
----
+| `ELEVENLABS_API_KEY` | Yes | Server-side API key used for voice cloning and TTS requests. |
+| `PORT` | No | Express API port. Defaults to `3001`. |
+| `CLIENT_URL` | No | Trusted frontend origin for the CORS policy. In production, set this to your deployed frontend URL (e.g. `https://voice-forge-client.vercel.app`). Defaults to `http://localhost:5173`. Requests from any other origin will be rejected. |
 
 ## Using VoiceForge In A Call
 
@@ -183,15 +139,13 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 ## API
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/api/voice/clone` | Upload reference audio. Stores it server-side and returns a `voice_id`. No external API call in mock mode. |
-| `POST` | `/api/voice/speak` | Send text, `voice_id`, and optional voice settings. Returns a signed `speechId` and streaming `audioUrl`. |
-| `GET` | `/api/voice/speak/stream?t=<speechId>` | Stream the Chatterbox-generated audio for a pending signed speech token (`t`). Proxied from the Hugging Face Space. |
-| `GET` | `/api/voice/status` | Returns current engine mode (`isMock`, `space`) for debugging. |
-| `GET` | `/api/health` | Returns local API health status. |
-
-
+| Method | Endpoint                               | Description                                                                                                         |
+| ------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/api/voice/clone`                     | Upload reference audio. Stores it server-side and returns a `voice_id`. No external API call in mock mode.          |
+| `POST` | `/api/voice/speak`                     | Send text, `voice_id`, and optional voice settings. Returns a signed `speechId` and streaming `audioUrl`.           |
+| `GET`  | `/api/voice/speak/stream?t=<speechId>` | Stream the Chatterbox-generated audio for a pending signed speech token (`t`). Proxied from the Hugging Face Space. |
+| `GET`  | `/api/voice/status`                    | Returns current engine mode (`isMock`, `space`) for debugging.                                                      |
+| `GET`  | `/api/health`                          | Returns local API health status.                                                                                    |
 
 ## Roadmap
 
@@ -202,7 +156,7 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 - In progress: The MVP virtual camera uses canvas capture; full WebRTC Insertable Streams frame replacement remains future work.
 - TODO: Replace the placeholder `models/wav2lip.onnx` with a real lightweight browser Wav2Lip ONNX model.
 - TODO: Implement real ONNX Runtime Web Wav2Lip inference.
-- Done: Replace the fallback mouth animation with model-driven mouth movement.
+- TODO: Replace the fallback mouth animation with model-driven mouth movement.
 - Done: Add richer virtual camera documentation for OBS and each call provider.
 - TODO: Add automated browser tests for camera and microphone permission flows.
 - Done: Persist voice profiles across server restarts (local filesystem).
@@ -210,6 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-
-
-<!-- GSSoC Contribution: Resolves #760 -->
+# TODO: feat: add an "interrupt / stop speech" button (#448)

@@ -1,200 +1,125 @@
+// Sends typed text to the local backend and returns playable cloned speech audio.
 import React from "react";
+import { getApiKey } from "../utils/apiKeyStorage.js";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
-import { getSavedProfiles, saveVoiceProfile } from "./useVoiceClone.js";
+import { API_BASE_URL } from "../utils/apiConfig.js";
 
-/**
- * React hook that manages Text-to-Speech (TTS) generation state.
- * Interfaces with the local VoiceForge backend for Chatterbox synthesis,
- * and falls back to browser SpeechSynthesis if the server is offline or fails.
- *
- * @returns {object} The TTS state and the speak action function.
- */
 export default function useTTS() {
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
   const [audioUrl, setAudioUrl] = React.useState("");
-  const [engine, setEngine] = React.useState("chatterbox");
-  const abortControllerRef = React.useRef(null);
-
-  const updateAudioUrl = React.useCallback((nextUrl) => {
-    setAudioUrl((prevUrl) => {
-      if (prevUrl && prevUrl.startsWith("blob:")) {
-        try {
-          URL.revokeObjectURL(prevUrl);
-        } catch {
-          // ignore
-        }
-      }
-      return nextUrl;
-    });
-  }, []);
-
-  React.useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      setAudioUrl((prevUrl) => {
-        if (prevUrl && prevUrl.startsWith("blob:")) {
-          try {
-            URL.revokeObjectURL(prevUrl);
-          } catch {
-            // ignore
-          }
-        }
-        return "";
-      });
-    };
-  }, []);
-
-  /**
-   * Triggers local browser SpeechSynthesis as a fallback engine.
-   *
-   * @param {string} text The text to read.
-   * @param {string} languageCode BCP-47 language tag to use.
-   * @returns {Promise<void>} Resolves when speech completes.
-   */
-  function browserSpeak(text, languageCode) {
-    return new Promise((resolve, reject) => {
-      if (!("speechSynthesis" in window)) {
-        reject(new Error("Speech synthesis not supported"));
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      if (languageCode) {
-        utterance.lang = languageCode;
-      }
-
-      const voiceSettings = loadVoiceSettings();
-      if (voiceSettings.pitchShift !== undefined) {
-        // Map semitone transposition [-12, +12] to SpeechSynthesisUtterance pitch range [0.5, 2.0]
-        utterance.pitch = Math.min(2, Math.max(0.5, 1 + (voiceSettings.pitchShift / 12)));
-      }
-
-      utterance.onend = resolve;
-      utterance.onerror = reject;
-
-      window.speechSynthesis.speak(utterance);
-    });
-  }
-
-  /**
-   * Resolves the owner_token that authorizes use of a given voice_id, by
-   * looking up the locally saved voice profile that matches voiceId.
-   *
-   * @param {string} voiceId The voice_id to resolve an owner_token for.
-   * @returns {Promise<object|null>} The matching saved profile, or null.
-   */
-  async function findProfileByVoiceId(voiceId) {
-    if (!voiceId) {
-      return null;
-    }
-    const profiles = await getSavedProfiles();
-    return profiles.find((profile) => profile.voice_id === voiceId) || null;
-  }
-
-  /**
-   * Generates cloned speech for the given text using the selected voice profile.
-   * Automatically attempts browser SpeechSynthesis fallback if the server request fails.
-   *
-   * @param {object} params Parameter payload.
-   * @param {string} params.text The text to synthesize.
-   * @param {string} params.voiceId The ID of the cloned voice profile.
-   * @param {string} [params.language_code] Chatterbox/BCP-47 language code.
-   * @param {string} [params.ownerToken] Owner token for voiceId. If omitted,
-   *   it is looked up from the locally saved profile matching voiceId.
-   * @returns {Promise<{audioUrl: string, engine: string}|{fallback: boolean, engine: string}>} Result of speech synthesis.
-   */
-  async function speak({ text, voiceId, language_code, ownerToken, voice_settings_override }) {
-    // Cancel any in-flight request before starting a new one.
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+  const prevBlobRef = React.useRef("");
+  const mountedRef = React.useRef(true);
 
     setError("");
-    setStatus("speaking");
+    setStatus("speaking"); 
 
     try {
-      const voiceSettings = voice_settings_override || loadVoiceSettings();
+      const voiceSettings = loadVoiceSettings();
 
-      // Fix (Broken Voice Synthesis): the server now requires owner_token to
-      // authorize use of voice_id (403 otherwise). Use the explicitly
-      // passed token if given, else resolve it from the saved profile.
-      let activeVoiceId = voiceId;
-      let resolvedOwnerToken = ownerToken || (await findProfileByVoiceId(voiceId))?.ownerToken || null;
-
-      let response = await fetch("/api/voice/speak", {
+      const modelId = localStorage.getItem("voiceforge:selectedModelId") || "eleven_multilingual_v2";
+      const apiKey = localStorage.getItem("voiceforge:elevenlabsApiKey") || "";
+      const response = await fetch("/api/voice/speak", {
         method: "POST",
-        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
+          "X-ElevenLabs-Api-Key": apiKey,
         },
         body: JSON.stringify({
           text,
-          voice_id: activeVoiceId,
-          owner_token: resolvedOwnerToken,
-          language_code,
+          voice_id: voiceId,
           voice_settings: voiceSettings,
-        }),
+          model_id: modelId
+        })
       });
+
+      if (controller.signal.aborted) {
+        return { aborted: true };
+      }
 
       if (response.status === 404) {
         // Self-healing fallback:
         // 1. Look up the voice profile in IndexedDB
         const profile = await getProfile(voiceId);
         if (profile && profile.audioBlob) {
+          if (controller.signal.aborted) {
+            return { aborted: true };
+          }
           // 2. Quietly re-clone (POST /api/voice/clone)
           const formData = new FormData();
-          formData.append("audio", profile.audioBlob, "voiceforge-reference.webm");
+          formData.append(
+            "audio",
+            profile.audioBlob,
+            "voiceforge-reference.webm",
+          );
           formData.append("name", profile.name);
           formData.append("voice_id", voiceId);
 
-          const cloneResponse = await fetch("/api/voice/clone", {
+          const cloneResponse = await authFetch("/api/voice/clone", {
             method: "POST",
-            signal: controller.signal,
             body: formData,
+            signal: controller.signal,
           });
+
+          if (controller.signal.aborted) {
+            return { aborted: true };
+          }
 
           if (cloneResponse.ok) {
             // 3. Retry the speak request
-            response = await fetch("/api/voice/speak", {
+            response = await authFetch("/api/voice/speak", {
               method: "POST",
-              signal: controller.signal,
               headers: {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
                 text,
                 voice_id: voiceId,
+                owner_token: resolvedOwnerToken,
                 language_code,
                 voice_settings: voiceSettings,
               }),
+              signal: controller.signal,
             });
           }
         }
       }
 
+      if (controller.signal.aborted) {
+        return { aborted: true };
+      }
+
       if (!response.ok) {
+        // Safely parse the error body — it may not be JSON if the server is
+        // misbehaving, so fall back gracefully.
         const payload = await response.json().catch(() => ({}));
         // If voice profile is missing on the backend (404), trigger auto-reclone from IndexedDB
-        if (response.status === 404 && (payload.error || "").includes("Voice profile not found")) {
+        if (
+          response.status === 404 &&
+          (payload.error || "").includes("Voice profile not found")
+        ) {
           const profile = await findProfileByVoiceId(voiceId);
           if (profile && profile.audioBlob) {
+            if (controller.signal.aborted) {
+              return { aborted: true };
+            }
             const formData = new FormData();
-            formData.append("audio", profile.audioBlob, "voiceforge-reference.webm");
+            formData.append(
+              "audio",
+              profile.audioBlob,
+              "voiceforge-reference.webm",
+            );
             formData.append("name", profile.name);
 
-            const cloneResponse = await fetch("/api/voice/clone", {
+            const cloneResponse = await authFetch("/api/voice/clone", {
               method: "POST",
-              signal: controller.signal,
               body: formData,
+              signal: controller.signal,
             });
+
+            if (controller.signal.aborted) {
+              return { aborted: true };
+            }
 
             if (cloneResponse.ok) {
               const clonePayload = await cloneResponse.json();
@@ -212,16 +137,19 @@ export default function useTTS() {
                   owner_token: clonePayload.owner_token,
                   name: clonePayload.name || profile.name,
                 },
-                profile.audioBlob
+                profile.audioBlob,
               );
 
               activeVoiceId = updatedProfile.voice_id;
               resolvedOwnerToken = updatedProfile.ownerToken;
 
+              if (controller.signal.aborted) {
+                return { aborted: true };
+              }
+
               // Retry the speak request after silent re-cloning succeeds
-              response = await fetch("/api/voice/speak", {
+              response = await authFetch("/api/voice/speak", {
                 method: "POST",
-                signal: controller.signal,
                 headers: {
                   "Content-Type": "application/json",
                 },
@@ -232,70 +160,93 @@ export default function useTTS() {
                   language_code,
                   voice_settings: voiceSettings,
                 }),
+                signal: controller.signal,
               });
             }
           }
         }
       }
 
+      if (controller.signal.aborted) {
+        return { aborted: true };
+      }
+
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
+        if (payload.status === "waking_up") {
+          const err = new Error("Waking up AI Engine... this may take a minute.");
+          err.isColdStart = true;
+          throw err;
+        }
         throw new Error(payload.error || "Speech generation failed.");
       }
 
       const payload = await response.json();
       const nextAudioUrl = payload.audioUrl;
 
-      if (controller.signal.aborted) {
-        return;
+        if (!nextAudioUrl) {
+          throw new Error("Audio URL missing from server response.");
+        }
+
+        let blobUrl = "";
+        try {
+        const audioResponse = await fetch(nextAudioUrl);
+        if (audioResponse.ok) {
+          const blob = await audioResponse.blob();
+          const created = URL.createObjectURL(blob);
+          if (!mountedRef.current) {
+            URL.revokeObjectURL(created);   // fix: revoke before bailing
+            return { audioUrl: "", blobUrl: "" };
+          }
+          blobUrl = created;
+        }
+      } catch {
+        // Blob capture failed — download button won't appear.
       }
 
-      setEngine("chatterbox");
-      updateAudioUrl(nextAudioUrl);
-      setStatus("ready");
+      if (!mountedRef.current) return { audioUrl: "", blobUrl: "" };
 
-      return {
-        audioUrl: localUrl,
-        blob,
-        engine: "chatterbox",
-      };
+
+      if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current);
+      prevBlobRef.current = blobUrl;
+      setAudioUrl(blobUrl || nextAudioUrl);
+      setStatus("ready");
+      return { audioUrl: blobUrl || nextAudioUrl, blobUrl };
     } catch (ttsError) {
       // A cancelled request is not an error — a newer speak() call took over.
-      if (ttsError?.name === "AbortError" || controller.signal.aborted) {
+      if (ttsError?.name === "AbortError") {
         return;
       }
 
       try {
+        if (onSpeakingChange) onSpeakingChange(true);
         await browserSpeak(text, language_code);
-
-        if (controller.signal.aborted) {
-          return;
-        }
+        if (onSpeakingChange) onSpeakingChange(false);
 
         setEngine("browser");
-        updateAudioUrl("");
+        setAudioUrl("");
         setStatus("ready");
 
         return {
           fallback: true,
           engine: "browser",
         };
-      } catch (fallbackError) {
-        if (fallbackError?.name === "AbortError" || controller.signal.aborted) {
-          return;
-        }
+      } catch (browserError) {
+        if (onSpeakingChange) onSpeakingChange(false);
         setError(ttsError?.message || String(ttsError));
         setStatus("error");
         throw ttsError;
       }
     }
   }
-
-  return {
-    speak,
-    status,
-    error,
-    audioUrl,
-    engine,
-  };
+    React.useEffect(() => {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+        if (prevBlobRef.current) {
+          URL.revokeObjectURL(prevBlobRef.current);
+        }
+      };
+    }, []);
+  return { speak, status, error, audioUrl };
 }

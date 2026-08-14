@@ -1,38 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { Plus, X, Check, Pencil, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import React from "react";
 
-const DEFAULT_CATEGORIES = ["General", "Social", "Needs", "Urgent"];
-const CATEGORIES_KEY = "vf_quick_reply_categories";
-
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-const DEFAULT_QUICK_REPLIES = [
-  { id: generateId(), label: "Hello", phrase: "Hello", category: "Social", hotkey: "1" },
-  { id: generateId(), label: "Thank you", phrase: "Thank you", category: "Social", hotkey: "2" },
-  { id: generateId(), label: "Please wait", phrase: "Please wait", category: "Urgent", hotkey: "3" },
-  { id: generateId(), label: "I need help", phrase: "I need help", category: "Urgent", hotkey: "4" },
-  { id: generateId(), label: "Can you repeat that?", phrase: "Can you repeat that?", category: "Needs", hotkey: "5" },
-  { id: generateId(), label: "Yes, I understand", phrase: "Yes, I understand", category: "Social", hotkey: "6" },
-  { id: generateId(), label: "No, thank you", phrase: "No, thank you", category: "Needs", hotkey: "7" },
+const QUICK_REPLIES = [
+  { label: "Hello", phrase: "Hello" },
+  { label: "Thank you", phrase: "Thank you" },
+  { label: "Please wait", phrase: "Please wait" },
+  { label: "I need help", phrase: "I need help" },
+  { label: "Repeat that?", phrase: "Can you repeat that?" },
+  { label: "Yes", phrase: "Yes, I understand" },
+  { label: "No thanks", phrase: "No, thank you" },
 ];
 
 const STORAGE_KEY = "vf_quick_replies";
 
 export function QuickReplies({ onSelect, showToast }) {
-  const [categories, setCategories] = useState(() => {
-    try {
-      const saved = localStorage.getItem(CATEGORIES_KEY);
-      if (saved === null) return DEFAULT_CATEGORIES;
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.every((c) => typeof c === "string")) {
-        return parsed;
-      }
-      return DEFAULT_CATEGORIES;
-    } catch {
-      return DEFAULT_CATEGORIES;
-    }
-  });
-
   const [replies, setReplies] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -40,21 +20,17 @@ export function QuickReplies({ onSelect, showToast }) {
       const parsed = JSON.parse(saved);
       if (
         Array.isArray(parsed) &&
-        parsed.every((item) => item && typeof item.phrase === "string" && typeof item.label === "string")
+        parsed.every(
+          (item) =>
+            item &&
+            typeof item.phrase === "string" &&
+            typeof item.label === "string",
+        )
       ) {
-        // Load initial categories to validate
-        let cats = DEFAULT_CATEGORIES;
-        try {
-          const savedCats = localStorage.getItem(CATEGORIES_KEY);
-          if (savedCats) {
-            const parsedCats = JSON.parse(savedCats);
-            if (Array.isArray(parsedCats)) cats = parsedCats;
-          }
-        } catch {}
         return parsed.map((item) => ({
           ...item,
           id: item.id || generateId(),
-          category: item.category && cats.includes(item.category) ? item.category : "General",
+          category: item.category && CATEGORIES.includes(item.category) ? item.category : "General",
         }));
       }
       return DEFAULT_QUICK_REPLIES;
@@ -68,27 +44,18 @@ export function QuickReplies({ onSelect, showToast }) {
   const [editingReplyId, setEditingReplyId] = useState(null);
   const [editingReplyData, setEditingReplyData] = useState(null);
   const [newPhrase, setNewPhrase] = useState("");
+  const [editingPhrase, setEditingPhrase] = useState(null);
+  const [editedValue, setEditedValue] = useState("");
   const [selectedCategoryTab, setSelectedCategoryTab] = useState("All");
   const [newCategory, setNewCategory] = useState("General");
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryInput, setNewCategoryInput] = useState("");
-  const tablistRef = React.useRef(null);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(replies));
     } catch {
-      console.error('Failed to persist quick replies to localStorage');
+      console.error("Failed to persist quick replies to localStorage");
     }
   }, [replies]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
-    } catch {
-      console.error('Failed to persist categories to localStorage');
-    }
-  }, [categories]);
 
   useEffect(() => {
     function handleSync() {
@@ -103,91 +70,26 @@ export function QuickReplies({ onSelect, showToast }) {
       } catch (err) {
         console.error("Failed to sync quick replies:", err);
       }
-
-      try {
-        const savedCategories = localStorage.getItem(CATEGORIES_KEY);
-        if (savedCategories) {
-          const parsed = JSON.parse(savedCategories);
-          if (Array.isArray(parsed)) {
-            setCategories(parsed);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to sync categories:", err);
-      }
     }
 
     window.addEventListener("storage", handleSync);
     window.addEventListener("voiceforge:quickRepliesChanged", handleSync);
-    window.addEventListener("voiceforge:quickReplyCategoriesChanged", handleSync);
 
     return () => {
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("voiceforge:quickRepliesChanged", handleSync);
-      window.removeEventListener("voiceforge:quickReplyCategoriesChanged", handleSync);
     };
   }, []);
-
-  const handleAddCategory = (e) => {
-    e.preventDefault();
-    const cleanCat = newCategoryInput.trim();
-
-    if (!cleanCat) {
-      showToast("Category name cannot be empty", "error");
-      return;
-    }
-
-    if (cleanCat.length > 20) {
-      showToast("Category name is too long (max 20 characters)", "error");
-      return;
-    }
-
-    const isDuplicate = categories.some(
-      (c) => c.toLowerCase() === cleanCat.toLowerCase()
-    );
-
-    if (isDuplicate || cleanCat.toLowerCase() === "all") {
-      showToast("Category already exists", "error");
-      return;
-    }
-
-    const nextCats = [...categories, cleanCat];
-    setCategories(nextCats);
-    setNewCategoryInput("");
-    setIsAddingCategory(false);
-    showToast("Category added", "success");
-    window.dispatchEvent(new Event("voiceforge:quickReplyCategoriesChanged"));
-  };
-
-  const handleDeleteCategory = (catToDelete) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete the category "${catToDelete}"? Existing replies in this category will be moved to "General".`
-    );
-    if (!confirmDelete) return;
-
-    const nextCats = categories.filter((c) => c !== catToDelete);
-    setCategories(nextCats);
-
-    setReplies((prev) =>
-      prev.map((r) => {
-        if (r.category === catToDelete) {
-          return { ...r, category: "General" };
-        }
-        return r;
-      })
-    );
-
-    if (selectedCategoryTab === catToDelete) {
-      setSelectedCategoryTab("All");
-    }
-
-    showToast("Category deleted and phrases moved to General", "success");
-    window.dispatchEvent(new Event("voiceforge:quickReplyCategoriesChanged"));
-  };
 
   const handleAdd = (e) => {
     e.preventDefault();
     const cleanPhrase = newPhrase.trim();
+    
+
+    if (cleanPhrase.length > 120) {
+      showToast("Phrase is too long (max 120 characters)", "error");
+      return;
+    }
 
     if (cleanPhrase.length > 120) {
       showToast("Phrase is too long (max 120 characters)", "error");
@@ -200,7 +102,7 @@ export function QuickReplies({ onSelect, showToast }) {
     }
 
     const isDuplicate = replies.some(
-      (r) => r.phrase.toLowerCase() === cleanPhrase.toLowerCase()
+      (r) => r.phrase.toLowerCase() === cleanPhrase.toLowerCase(),
     );
 
     if (isDuplicate) {
@@ -208,7 +110,12 @@ export function QuickReplies({ onSelect, showToast }) {
       return;
     }
 
-    const newReply = { id: generateId(), label: cleanPhrase, phrase: cleanPhrase, category: newCategory };
+    const newReply = {
+      id: generateId(),
+      label: cleanPhrase,
+      phrase: cleanPhrase,
+      category: newCategory,
+    };
     setReplies((prev) => [...prev, newReply]);
     setNewPhrase("");
     setNewCategory("General");
@@ -220,11 +127,83 @@ export function QuickReplies({ onSelect, showToast }) {
     setReplies((prev) => prev.filter((r) => r.id !== idToDelete));
     showToast("Quick reply deleted", "success");
   };
+  const handleEdit = (oldPhrase) => {
+  const cleanPhrase = editedValue.trim();
+  const normalizedOldPhrase = oldPhrase.toLowerCase();
+  const isDuplicate = replies.some(
+    (reply) =>
+      reply.phrase.toLowerCase() === cleanPhrase.toLowerCase() &&
+    reply.phrase.toLowerCase() !== normalizedOldPhrase
+  );
+
+
+
+  if (!cleanPhrase) {
+    showToast("Phrase cannot be empty", "error");
+    return;
+  }
+  if (cleanPhrase.length > 120) {
+    showToast("Phrase is too long (max 120 characters)", "error");
+    return;
+  }
+  if (isDuplicate) {
+    showToast("This quick reply already exists", "error");
+    return;
+  }
+
+  setReplies((prev) =>
+    prev.map((reply) =>
+      reply.phrase === oldPhrase
+        ? {
+            ...reply,
+            phrase: cleanPhrase,
+            label: cleanPhrase,
+          }
+        : reply
+    )
+  );
+
+  setEditingPhrase(null);
+  setEditedValue("");
+  showToast("Quick reply updated", "success");
+};
+const handleEditKeyDown = (e, oldPhrase) => {
+  if (e.key === "Enter") {
+    handleEdit(oldPhrase);
+  }
+
+  if (e.key === "Escape") {
+    setEditingPhrase(null);
+    setEditedValue("");
+  }
+};
 
   const handleEditStart = (id, reply) => {
     setIsAdding(false);
     setEditingReplyId(id);
-    setEditingReplyData({ phrase: reply.phrase, category: reply.category || "General" });
+    setEditingReplyData({
+      phrase: reply.phrase,
+      category: reply.category || "General",
+    });
+  };
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault();
+    if (draggedItem === null) return;
+    const oldIndex = replies.findIndex((r) => r.id === draggedItem);
+    const newIndex = replies.findIndex((r) => r.id === targetId);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newReplies = [...replies];
+      const [removed] = newReplies.splice(oldIndex, 1);
+      newReplies.splice(newIndex, 0, removed);
+      setReplies(newReplies);
+    }
+    setDraggedItem(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
   };
 
   const handleDrop = (e, targetId) => {
@@ -261,7 +240,9 @@ export function QuickReplies({ onSelect, showToast }) {
     }
 
     const isDuplicate = replies.some(
-      (r) => r.id !== editingReplyId && r.phrase.toLowerCase() === cleanPhrase.toLowerCase()
+      (r) =>
+        r.id !== editingReplyId &&
+        r.phrase.toLowerCase() === cleanPhrase.toLowerCase(),
     );
 
     if (isDuplicate) {
@@ -269,12 +250,19 @@ export function QuickReplies({ onSelect, showToast }) {
       return;
     }
 
-    setReplies((prev) => prev.map(r => {
-      if (r.id === editingReplyId) {
-        return { ...r, label: cleanPhrase, phrase: cleanPhrase, category: editingReplyData.category };
-      }
-      return r;
-    }));
+    setReplies((prev) =>
+      prev.map((r) => {
+        if (r.id === editingReplyId) {
+          return {
+            ...r,
+            label: cleanPhrase,
+            phrase: cleanPhrase,
+            category: editingReplyData.category,
+          };
+        }
+        return r;
+      }),
+    );
 
     setEditingReplyId(null);
     setEditingReplyData(null);
@@ -312,40 +300,30 @@ export function QuickReplies({ onSelect, showToast }) {
   return (
     <section
       aria-labelledby="qr-heading"
-      className="flex-shrink-0 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-background"
+      className="flex-shrink-0 border-b border-neutral-200 px-4 py-3 dark:border-border dark:bg-black"
     >
-      <div className="mb-2 flex items-center justify-between">
-        <h3
-          id="qr-heading"
-          className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500"
-        >
-          Quick replies
-        </h3>
-        <div className="flex items-center gap-3">
-          {isEditing && (
-            <button
-              onClick={() => {
-                setEditingReplyId(null);
-                setEditingReplyData(null);
-                setIsAdding(true);
-              }}
-              className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-              aria-label="Add new quick reply"
-            >
-              <Plus size={12} aria-hidden="true" />
-              Add
-            </button>
-          )}
+      <h3
+        id="qr-heading"
+        className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500"
+      >
+        Quick replies
+      </h3>
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Quick reply phrases">
+        {QUICK_REPLIES.map(({ label, phrase }) => (
           <button
-            onClick={() => {
-              setIsEditing(!isEditing);
-              setIsAdding(false);
-              setEditingReplyId(null);
-              setEditingReplyData(null);
-              setNewPhrase("");
-            }}
-            className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 transition-colors"
-            aria-label={isEditing ? "Done customizing quick replies" : "Customize quick replies"}
+            key={phrase}
+            onClick={() => onSelect(phrase)}
+            className={[
+              "rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5",
+              "text-sm text-neutral-700 transition-all duration-150",
+              "hover:-translate-y-px hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700",
+              "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1",
+              "active:translate-y-0 active:scale-95",
+              "dark:border-border dark:bg-surface dark:text-neutral-300",
+              "dark:hover:border-blue-500 dark:hover:bg-blue-500/15 dark:hover:text-blue-300 dark:focus:ring-offset-black",
+            ].join(" ")}
+            aria-label={`Quick reply: ${phrase}`}
           >
             {isEditing ? "Done" : "Customize"}
           </button>
@@ -354,94 +332,30 @@ export function QuickReplies({ onSelect, showToast }) {
 
       {/* Category Tabs */}
       <div
-        ref={tablistRef}
-        className="mb-3 flex overflow-x-auto gap-1.5 pb-1 no-scrollbar items-center"
+        className="mb-3 flex overflow-x-auto gap-1.5 pb-1 no-scrollbar"
         role="tablist"
         aria-label="Quick replies categories"
-        onKeyDown={handleTabKeyDown}
       >
-        {["All", ...categories].map((cat) => {
-          const isDefault = DEFAULT_CATEGORIES.includes(cat);
-          return (
-            <div key={cat} className="flex items-center gap-0.5 shrink-0">
-              <button
-                role="tab"
-                aria-selected={selectedCategoryTab === cat}
-                aria-controls={`tabpanel-${cat}`}
-                tabIndex={selectedCategoryTab === cat ? 0 : -1}
-                onClick={() => setSelectedCategoryTab(cat)}
-                className={[
-                  "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-150 shrink-0",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-black",
-                  selectedCategoryTab === cat
-                    ? "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300"
-                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-surface dark:hover:text-neutral-300",
-                ].join(" ")}
-              >
-                {cat}
-              </button>
-              {isEditing && !isDefault && cat !== "All" && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteCategory(cat)}
-                  aria-label={`Delete category ${cat}`}
-                  className="p-0.5 text-neutral-400 hover:text-red-500 transition-colors"
-                >
-                  <X size={10} aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {isEditing && (
-          <div className="flex items-center gap-1 shrink-0 ml-1">
-            {isAddingCategory ? (
-              <form onSubmit={handleAddCategory} className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={newCategoryInput}
-                  onChange={(e) => setNewCategoryInput(e.target.value)}
-                  placeholder="Category..."
-                  maxLength={20}
-                  className="rounded-md border border-blue-400 bg-white px-2 py-0.5 text-[11px] text-neutral-800 focus:outline-none dark:border-blue-500 dark:bg-black dark:text-neutral-100"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  aria-label="Save category"
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
-                >
-                  <Check size={10} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddingCategory(false);
-                    setNewCategoryInput("");
-                  }}
-                  aria-label="Cancel"
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200 transition-colors"
-                >
-                  <X size={10} aria-hidden="true" />
-                </button>
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAddingCategory(true)}
-                className="flex items-center gap-0.5 rounded-md border border-dashed border-neutral-300 px-2 py-0.5 text-[11px] font-semibold text-neutral-500 hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:text-neutral-300 transition-colors"
-              >
-                <Plus size={10} aria-hidden="true" />
-                <span>Category</span>
-              </button>
-            )}
-          </div>
-        )}
+        {["All", ...CATEGORIES].map((cat) => (
+          <button
+            key={cat}
+            role="tab"
+            aria-selected={selectedCategoryTab === cat}
+            onClick={() => setSelectedCategoryTab(cat)}
+            className={[
+              "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-150 shrink-0",
+              selectedCategoryTab === cat
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300"
+                : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-surface dark:hover:text-neutral-300",
+            ].join(" ")}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Quick reply phrases">
-        {filteredReplies.map(({ id, label, phrase, category, hotkey }) => {
+        {filteredReplies.map(({ id, label, phrase, category }) => {
           const isCurrentlyEditing = editingReplyId === id;
 
           if (isEditing) {
@@ -455,18 +369,28 @@ export function QuickReplies({ onSelect, showToast }) {
                   <input
                     type="text"
                     value={editingReplyData.phrase}
-                    onChange={(e) => setEditingReplyData({ ...editingReplyData, phrase: e.target.value })}
+                    onChange={(e) =>
+                      setEditingReplyData({
+                        ...editingReplyData,
+                        phrase: e.target.value,
+                      })
+                    }
                     maxLength={120}
                     autoFocus
                     className="flex-1 min-w-[5rem] max-w-[10rem] bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
                   />
                   <select
                     value={editingReplyData.category}
-                    onChange={(e) => setEditingReplyData({ ...editingReplyData, category: e.target.value })}
+                    onChange={(e) =>
+                      setEditingReplyData({
+                        ...editingReplyData,
+                        category: e.target.value,
+                      })
+                    }
                     aria-label="Category"
                     className="bg-transparent text-xs text-neutral-500 dark:text-neutral-400 focus:outline-none border-l border-neutral-200 dark:border-neutral-700 pl-1.5 mr-1 cursor-pointer"
                   >
-                    {categories.map((cat) => (
+                    {CATEGORIES.map((cat) => (
                       <option key={cat} value={cat} className="dark:bg-neutral-900 dark:text-neutral-100">
                         {cat}
                       </option>
@@ -497,48 +421,59 @@ export function QuickReplies({ onSelect, showToast }) {
             return (
               <div
                 key={`view-${id}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, id)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, id)}
                 className={[
-                  "flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 pl-2 pr-2 py-1.5 cursor-grab active:cursor-grabbing transition-all",
-                  draggedId === id ? "opacity-40 border-blue-400" : "",
+                  "flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 pl-3 pr-2 py-1.5",
                   "text-sm text-neutral-700 dark:border-border dark:bg-surface dark:text-neutral-300",
                 ].join(" ")}
               >
-                <GripVertical size={14} className="text-neutral-400" aria-hidden="true" />
-                <span className="truncate max-w-[150px]">{label}</span>
-                <button
-                  type="button"
-                  onClick={() => handleMove(id, "left")}
-                  aria-label={`Move ${phrase} left`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200 transition-colors"
-                >
-                  <ChevronLeft size={12} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMove(id, "right")}
-                  aria-label={`Move ${phrase} right`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200 transition-colors"
-                >
-                  <ChevronRight size={12} aria-hidden="true" />
-                </button>
-                <button
-                  onClick={() => handleEditStart(id, { phrase, category })}
-                  aria-label={`Edit quick reply: ${phrase}`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-200 hover:text-blue-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-blue-400 transition-colors"
-                >
-                  <Pencil size={12} aria-hidden="true" />
-                </button>
-                <button
-                  onClick={() => handleDelete(id)}
-                  aria-label={`Delete quick reply: ${phrase}`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-200 hover:text-red-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-red-400 transition-colors"
-                >
-                  <X size={12} aria-hidden="true" />
-                </button>
+              {editingPhrase === phrase ? (
+  <>
+    <input
+      value={editedValue}
+      onChange={(e) => setEditedValue(e.target.value)}
+      onKeyDown={(e) => handleEditKeyDown(e, phrase)}
+      className="bg-transparent text-sm outline-none"
+      autoFocus
+    />
+
+    <button
+      onClick={() => handleEdit(phrase)}
+      aria-label="Save quick reply"
+    >
+      <Check size={12} />
+    </button>
+    <button
+  onClick={() => {
+    setEditingPhrase(null);
+    setEditedValue("");
+  }}
+  aria-label="Cancel edit"
+>
+  <X size={12} />
+</button>
+  </>
+) : (
+  <>
+    <span className="truncate max-w-[150px]">{label}</span>
+
+    <button
+      onClick={() => {
+        setEditingPhrase(phrase);
+        setEditedValue(label);
+      }}
+      aria-label="Edit quick reply"
+    >
+      <Pencil size={12} />
+    </button>
+
+    <button
+      onClick={() => handleDelete(phrase)}
+      aria-label={`Delete quick reply: ${phrase}`}
+    >
+      <X size={12} />
+    </button>
+  </>
+)}
               </div>
             );
           }
@@ -546,13 +481,9 @@ export function QuickReplies({ onSelect, showToast }) {
           return (
             <button
               key={id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, id)}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, id)}
               onClick={() => onSelect(phrase)}
               className={[
-                "rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 cursor-pointer",
+                "rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5",
                 "text-sm text-neutral-700 transition-all duration-150",
                 "hover:-translate-y-px hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700",
                 "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1",
@@ -560,14 +491,9 @@ export function QuickReplies({ onSelect, showToast }) {
                 "dark:border-border dark:bg-surface dark:text-neutral-300",
                 "dark:hover:border-blue-500 dark:hover:bg-blue-500/15 dark:hover:text-blue-300 dark:focus:ring-offset-black",
               ].join(" ")}
-              aria-label={`Quick reply: ${phrase} (Hotkey: ${hotkey || "None"})`}
+              aria-label={`Quick reply: ${phrase}`}
             >
-              <span>{label}</span>
-              {hotkey && (
-                <span className="rounded bg-neutral-200/80 px-1 py-0.5 font-mono text-[10px] font-bold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-                  {hotkey}
-                </span>
-              )}
+              {label}
             </button>
           );
         })}
@@ -583,7 +509,6 @@ export function QuickReplies({ onSelect, showToast }) {
               onChange={(e) => setNewPhrase(e.target.value)}
               maxLength={120}
               placeholder="New reply..."
-              aria-label="New quick reply phrase"
               autoFocus
               className="flex-1 min-w-[5rem] max-w-[10rem] bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
@@ -593,7 +518,7 @@ export function QuickReplies({ onSelect, showToast }) {
               aria-label="Category"
               className="bg-transparent text-xs text-neutral-500 dark:text-neutral-400 focus:outline-none border-l border-neutral-200 dark:border-neutral-700 pl-1.5 mr-1 cursor-pointer"
             >
-              {categories.map((cat) => (
+              {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat} className="dark:bg-neutral-900 dark:text-neutral-100">
                   {cat}
                 </option>
@@ -624,11 +549,10 @@ export function QuickReplies({ onSelect, showToast }) {
           <p className="text-xs text-neutral-400 dark:text-neutral-500 italic">
             {isEditing
               ? `No quick replies in this category. Click "Add" to create one.`
-              : 'No quick replies in this category.'}
+              : "No quick replies in this category."}
           </p>
         )}
       </div>
     </section>
   );
 }
-

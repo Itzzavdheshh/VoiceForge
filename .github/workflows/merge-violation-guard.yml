@@ -46,13 +46,12 @@ jobs:
               'Anushreebasics',
               'itsdakshjain',
               'snehkris',
+              '1754riya',
               'Mrigakshi-Rathore',
               'joyprakashk',
               'rushi-k12',
               'itzzavdheshh',
-              'Nitya-003',
-              '4f4d',
-              'lovestaco'
+              'Nitya-003'
             ];
             const ADMINS = ['itzzavdhesh'];
             // ─────────────────────────────────────────────────────────────

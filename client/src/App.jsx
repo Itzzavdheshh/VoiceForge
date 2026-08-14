@@ -1,47 +1,33 @@
 // Coordinates top-level navigation, saved voice state, and page rendering for VoiceForge.
 import React from "react";
-import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu, X, Users, Info, BarChart2 } from "lucide-react";
+import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu, X, Info } from "lucide-react";
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
-import Analytics from "./pages/Analytics.jsx";
-import VoiceForge from "./components/VoiceForge.jsx";
+import VoiceForge from "./components/VoiceForge";
 import { useTheme } from "./components/ThemeContext.jsx";
 import Footer from './components/Footer.jsx';
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
-import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
-import Contributors from "./pages/Contributors.jsx";
-import About from "./pages/About.jsx";
-import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
+import About from "./pages/About";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import NotFound from "./pages/NotFound.jsx";
 
 const tabs = [
-  { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
-  { id: "call",         label: "Call",          icon: Camera },
-  { id: "compose",      label: "Compose",       icon: MessageSquare },
-  { id: "analytics",    label: "Analytics",     icon: BarChart2 },
-  { id: "settings",     label: "Settings",      icon: SettingsIcon },
-  { id: "contributors", label: "Contributors",  icon: Users },
-  { id: "voice-profiles", label: "Voice Profiles", icon: Mic2,},
+  { id: "onboarding", label: "Onboarding", icon: Mic2 },
+  { id: "call",       label: "Call",         icon: Camera },
+  { id: "compose",    label: "Compose",     icon: MessageSquare },
   { id: "about", label: "About", icon: Info },
+  { id: "settings",   label: "Settings",    icon: SettingsIcon },
 ];
 
-const DEFAULT_TAB = "onboarding";
+const DEFAULT_TAB = "landing";
 const tabIds = new Set(tabs.map((tab) => tab.id));
 
-// We intentionally use sessionStorage (not localStorage) here so that the
-// active tab is only remembered for the lifetime of the current browser tab.
-// This keeps in-session navigation (e.g. refreshing while on Compose) smooth,
-// while making it much more likely that a fresh visit (a new tab/window
-// opened independently, or reopening after the browser was fully closed)
-// lands back on Onboarding. Note: this isn't an absolute guarantee in every
-// browser/scenario (e.g. sessionStorage is inherited when a tab is opened
-// via window.open from an existing VoiceForge tab, and some browsers'
-// session-restore features can preserve it across restarts), but it's a
-// meaningful improvement over localStorage, which persisted indefinitely.
 function getSavedTab() {
   try {
     const saved = sessionStorage.getItem("voiceforge:activeTab");
+    if (saved === "landing") return saved;
     return tabIds.has(saved) ? saved : DEFAULT_TAB;
   } catch {
     return DEFAULT_TAB;
@@ -50,37 +36,90 @@ function getSavedTab() {
 
 function saveActiveTab(tab) {
   try {
-    sessionStorage.setItem("voiceforge:activeTab", tab);
+    localStorage.setItem("voiceforge:activeTab", tab);
   } catch {
     // Storage can be unavailable in private or restricted browser contexts.
   }
 }
 
-export default function App() {
-  const [activeTab, setActiveTab] = React.useState(getSavedTab);
-  const { theme, toggleTheme } = useTheme();
-  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
-  const [webcamNavEnabled, setWebcamNavEnabled] = React.useState(
-    () => loadAccessibilitySettings().webcamNavigationEnabled
+// A minimal, self-contained router to avoid adding third-party dependencies.
+function Routes({ children }) {
+  const [currentPath, setCurrentPath] = React.useState(
+    typeof window !== "undefined" ? window.location.pathname : "/"
   );
 
   React.useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "voiceforge:accessibilitySettings") {
-        setWebcamNavEnabled(loadAccessibilitySettings().webcamNavigationEnabled);
-      }
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
     };
-    window.addEventListener("storage", handleStorageChange);
-    // Custom event for same-window updates since storage event doesn't fire in the same window
-    const handleCustomChange = () => {
-      setWebcamNavEnabled(loadAccessibilitySettings().webcamNavigationEnabled);
+    
+    window.addEventListener("popstate", handleLocationChange);
+    
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+    
+    window.history.pushState = function (...args) {
+      originalPushState.apply(this, args);
+      handleLocationChange();
     };
-    window.addEventListener(ACCESSIBILITY_SETTINGS_CHANGED_EVENT, handleCustomChange);
+    
+    window.history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args);
+      handleLocationChange();
+    };
+
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener(ACCESSIBILITY_SETTINGS_CHANGED_EVENT, handleCustomChange);
+      window.removeEventListener("popstate", handleLocationChange);
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
     };
   }, []);
+
+  let match = null;
+  let fallback = null;
+
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return;
+    const isMainPath = (child.props.path === "/" && (currentPath === "/" || currentPath === "/index.html"));
+    
+    if (child.props.path === "*") {
+      fallback = child;
+    } else if (child.props.path === currentPath || isMainPath) {
+      match = child;
+    }
+  });
+
+  return match || fallback || null;
+}
+
+function Route({ element }) {
+  return element;
+}
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState(getSavedTab);
+  const { theme, toggleTheme } = useTheme();
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await clearStorage();
+    } catch (e) {
+      console.error("Failed to clear local IndexedDB on logout:", e);
+    }
+    const keysToClear = [
+      "vf_history",
+      "vf_favorites",
+      "vf_transcript",
+      "vf_analytics_history",
+      "voiceforge:activeVoiceId",
+      "voiceforge:useClonedVoice",
+      "voiceforge:onboardingStep",
+      "voiceforge:maxUnlockedStep"
+    ];
+    keysToClear.forEach(key => localStorage.removeItem(key));
+    logout();
+  };
 
   // Keyboard shortcut to open shortcuts modal
   React.useEffect(() => {
@@ -101,75 +140,88 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [shortcutsOpen]);
 
+
+
   function selectTab(tab) {
     if (!tabIds.has(tab)) return;
+
     saveActiveTab(tab);
     setActiveTab(tab);
-  }
-
-  // Arrow key navigation for desktop nav tabs (WAI-ARIA Tabs pattern)
-  function handleNavKeyDown(event) {
-    const tabArray = tabs.map((t) => t.id);
-    const currentIndex = tabArray.indexOf(activeTab);
-    let nextIndex = -1;
-
-    if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % tabArray.length;
-    } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + tabArray.length) % tabArray.length;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = tabArray.length - 1;
-    }
-
-    if (nextIndex >= 0) {
-      event.preventDefault();
-      selectTab(tabArray[nextIndex]);
-      // Focus the newly selected tab button
-      const navEl = desktopNavRef.current;
-      if (navEl) {
-        const buttons = navEl.querySelectorAll('[role="tab"]');
-        buttons[nextIndex]?.focus();
-      }
+    if (window.location.pathname !== "/" && window.location.pathname !== "/index.html") {
+      window.history.pushState({}, "", "/");
     }
   }
 
   // Support navigation to non-tab routes such as the privacy policy.
   function navigateTo(route) {
     if (route === "privacy-policy") {
-      setActiveTab("privacy-policy");
+      window.history.pushState({}, "", "/privacy-policy");
       return;
     }
+
     selectTab(route);
   }
 
-  // On initial load, honor direct links to /privacy-policy
+  // Sync tab state with current location path (initial load, browser navigation, or history updates)
   React.useEffect(() => {
-    try {
-      if (typeof window !== "undefined" && window.location?.pathname === "/privacy-policy") {
+    const handleSync = () => {
+      const path = window.location.pathname;
+      if (path === "/privacy-policy") {
         setActiveTab("privacy-policy");
+      } else if (path === "/" || path === "/index.html") {
+        const saved = getSavedTab();
+        setActiveTab(saved);
+      } else {
+        setActiveTab("not-found");
       }
-    } catch {
-      // ignore
-    }
+    };
+    
+    handleSync();
+    
+    window.addEventListener("popstate", handleSync);
+    
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+    
+    window.history.pushState = function (...args) {
+      originalPushState.apply(this, args);
+      handleSync();
+    };
+    window.history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args);
+      handleSync();
+    };
+    
+    return () => {
+      window.removeEventListener("popstate", handleSync);
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    };
   }, []);
 
   return (
-    <div className="min-h-screen bg-cloud text-ink dark:bg-night dark:text-neutral-100">
-      <OnboardingTour activeTab={activeTab} onSelectTab={selectTab} />
-      <header className="border-b border-ink/10 bg-white dark:border-border dark:bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-center gap-4">
-            <img
-              src="/models/logo5.png"
-              alt="VoiceForge Logo"
-              className="h-14 w-14 object-contain"
-            />
-
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow">
-               Open source assistive video
+    <div className="min-h-screen flex flex-col bg-cloud text-ink dark:bg-night dark:text-neutral-100">
+      
+      {/* Global Header */}
+      <header className="sticky top-0 z-40 border-b border-ink/10 bg-white/70 backdrop-blur-md dark:border-border dark:bg-surface/70">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          {/* Logo + Title */}
+            <div
+              className="flex items-center gap-3 min-w-0 cursor-pointer"
+              onClick={() => selectTab("onboarding")}
+              role="button"
+              tabIndex={0}
+              aria-label="Go to home"
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectTab("onboarding")}
+            >
+              <img
+                src="/models/logo5.png"
+                alt="VoiceForge Logo"
+                className="h-10 w-10 flex-shrink-0 object-contain sm:h-12 sm:w-12"
+              />
+            <div className="min-w-0">
+              <p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-moss dark:text-glow sm:block">
+                Open source assistive video
               </p>
               <h1 className="text-xl font-bold tracking-normal text-ink dark:text-neutral-50 sm:text-2xl lg:text-3xl">
                 VoiceForge
@@ -182,21 +234,21 @@ export default function App() {
             type="button"
             onClick={toggleTheme}
             aria-pressed={theme === "dark"}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-ink/15 bg-white text-ink transition hover:border-moss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:focus-visible:ring-glow sm:hidden"
           >
-            {theme === "dark" ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
+            {theme === "dark" ? (
+              <Sun size={17} aria-hidden="true" />
+            ) : (
+              <Moon size={17} aria-hidden="true" />
+            )}
           </button>
 
           {/* Desktop nav + theme toggle */}
           <div className="hidden items-center gap-2 sm:flex">
-            <nav
-              ref={desktopNavRef}
-              className="flex gap-2"
-              role="tablist"
-              aria-label="VoiceForge pages"
-              onKeyDown={handleNavKeyDown}
-            >
+            <nav className="flex gap-2" aria-label="VoiceForge pages">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const selected = activeTab === tab.id;
@@ -204,10 +256,6 @@ export default function App() {
                   <button
                     key={tab.id}
                     type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    aria-controls={`tabpanel-${tab.id}`}
-                    tabIndex={selected ? 0 : -1}
                     onClick={() => selectTab(tab.id)}
                     className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:focus-visible:ring-glow ${
                       selected
@@ -225,78 +273,59 @@ export default function App() {
               type="button"
               onClick={toggleTheme}
               aria-pressed={theme === "dark"}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
               title={theme === "dark" ? "Light mode" : "Dark mode"}
               className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-ink/15 bg-white text-ink transition hover:border-moss hover:text-moss focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:border-border dark:bg-black dark:text-neutral-200 dark:hover:border-glow dark:hover:text-glow dark:focus-visible:ring-glow"
             >
-              {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+              {theme === "dark" ? (
+                <Sun size={18} aria-hidden="true" />
+              ) : (
+                <Moon size={18} aria-hidden="true" />
+              )}
             </button>
           </div>
-
         </div>
-
       </header>
 
       {/* Main Content Area */}
-      <main id="main-content" className="flex-grow" role="main">
-        {activeTab === "compose" && (
-          <div id="tabpanel-compose" role="tabpanel" aria-label="Compose panel">
-            <VoiceForge />
-          </div>
-        )}
-
-        {activeTab !== "compose" && (
-          <div id={`tabpanel-${activeTab}`} role="tabpanel" aria-label={`${activeTab} panel`} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
-            {activeTab === "call"       && <Call />}
-            {activeTab === "settings"   && <Settings />}
-            {activeTab === "analytics"  && <Analytics />}
-            {activeTab === "voice-profiles" && <VoiceProfiles />}
-            {activeTab === "contributors" && <Contributors />}
-            {activeTab === "about" && <About onNavigate={selectTab} />}
-            {activeTab === "privacy-policy" && (<PrivacyPolicy
-              onBackHome={() => selectTab("onboarding")}
-             />
-            )}
-          </div>
-        )}
+      <main className="flex-grow">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              activeTab === "compose" ? (
+                <VoiceForge />
+              ) : (
+                <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                  {activeTab === "onboarding" && <Onboarding onReady={() => selectTab("call")} />}
+                  {activeTab === "call"       && <Call />}
+                  {activeTab === "settings"   && <Settings />}
+                  {activeTab === "contributors" && <Contributors />}
+                  {activeTab === "about"       && <About onNavigate={selectTab} />}
+                </div>
+              )
+            }
+          />
+          <Route
+            path="/privacy-policy"
+            element={
+              <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <PrivacyPolicy onBackHome={() => selectTab("onboarding")} />
+              </div>
+            }
+          />
+          <Route
+            path="*"
+            element={<NotFound onBackHome={() => selectTab("onboarding")} />}
+          />
+        </Routes>
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-ink/10 bg-white pb-safe sm:hidden dark:border-border dark:bg-surface"
-        aria-label="VoiceForge mobile navigation"
-      >
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const selected = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => selectTab(tab.id)}
-              aria-current={selected ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 px-2 py-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss dark:focus-visible:ring-glow ${
-                selected
-                  ? "text-moss dark:text-glow"
-                  : "text-ink/50 hover:text-ink dark:text-neutral-500 dark:hover:text-neutral-200"
-              }`}
-            >
-              <Icon size={22} aria-hidden="true" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Bottom padding so content isn't hidden behind bottom nav on mobile */}
-      <div className="h-16 sm:hidden" aria-hidden="true" />
-      
-      <KeyboardShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <ScrollToBottomButton activeTab={activeTab} />
-      <ScrollToTopButton activeTab={activeTab} />
-      <Footer onNavigate={navigateTo} tabs={tabs} onOpenShortcuts={() => setShortcutsOpen(true)} />
-      <WebcamNavigation enabled={webcamNavEnabled} />
-    </div>
+      <Footer />
+    </main>
   );
 }

@@ -23,7 +23,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
-  statuses: write   # needed to post commit statuses
+  statuses: write # needed to post commit statuses
 
 concurrency:
   group: mentor-eligibility-${{ github.event.pull_request.number }}
@@ -57,13 +57,12 @@ jobs:
               'Anushreebasics',
               'itsdakshjain',
               'snehkris',
+              '1754riya',
               'Mrigakshi-Rathore',
               'joyprakashk',
               'rushi-k12',
               'itzzavdheshh',
-              'Nitya-003',
-              '4f4d',
-              'lovestaco'
+              'Nitya-003'
             ];
             const ADMINS = ['itzzavdhesh'];
 
@@ -151,4 +150,3 @@ jobs:
           name: pr_number
           path: pr/
           retention-days: 1
-

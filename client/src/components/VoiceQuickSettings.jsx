@@ -9,7 +9,7 @@ import {
 /**
  * A single labelled range slider row.
  */
-function SliderRow({ id, label, description, value, formattedValue, min = 0, max = 1, step = 0.01, onChange }) {
+function SliderRow({ id, label, description, value, onChange, min = 0, max = 1, step = 0.01 }) {
   return (
     <div className="space-y-1">
       <label
@@ -18,11 +18,11 @@ function SliderRow({ id, label, description, value, formattedValue, min = 0, max
       >
         <span>{label}</span>
         <span
-          className="tabular-nums text-neutral-500 dark:text-neutral-400 font-mono text-[11px]"
+          className="tabular-nums text-neutral-500 dark:text-neutral-400"
           aria-live="polite"
-          aria-label={`${label} value: ${formattedValue !== undefined ? formattedValue : value}`}
+          aria-label={`${label} value: ${value}`}
         >
-          {formattedValue !== undefined ? formattedValue : value}
+          {value}
         </span>
       </label>
       <input
@@ -32,10 +32,22 @@ function SliderRow({ id, label, description, value, formattedValue, min = 0, max
         max={max}
         step={step}
         value={value}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (["ArrowRight", "ArrowUp"].includes(e.key)) {
+            e.preventDefault();
+            const nextVal = Math.min(Number(value) + Number(step), Number(max));
+            onChange({ target: { value: nextVal } });
+          } else if (["ArrowLeft", "ArrowDown"].includes(e.key)) {
+            e.preventDefault();
+            const nextVal = Math.max(Number(value) - Number(step), Number(min));
+            onChange({ target: { value: nextVal } });
+          }
+        }}
         onChange={onChange}
         aria-label={label}
         aria-describedby={`${id}-desc`}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-blue-500 dark:bg-neutral-700 dark:accent-blue-400"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-neutral-700 dark:accent-blue-400"
       />
       <p
         id={`${id}-desc`}
@@ -63,7 +75,10 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
   // Keep in sync when settings change
   useEffect(() => {
     function handleStorage(event) {
-      if (event.key === VOICE_SETTINGS_KEY || event.type === "voiceforge:settingsChanged") {
+      if (
+        event.key === VOICE_SETTINGS_KEY ||
+        event.type === "voiceforge:settingsChanged"
+      ) {
         setSettings(loadVoiceSettings());
       }
     }
@@ -85,8 +100,16 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
         return next;
       });
     },
-    []
+    [],
   );
+
+  const toggleSpeakerBoost = useCallback(() => {
+    setSettings((prev) => {
+      const next = { ...prev, use_speaker_boost: !prev.use_speaker_boost };
+      persistVoiceSettings(next);
+      return next;
+    });
+  }, []);
 
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
@@ -120,28 +143,6 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
           className="space-y-4 border-t border-neutral-200 px-4 py-4 dark:border-border"
         >
           <SliderRow
-            id="vqs-pitch"
-            label="Pitch Transposition"
-            description="Transposes synthesized pitch up or down (-12 to +12 semitones)."
-            value={settings.pitchShift !== undefined ? settings.pitchShift : 0}
-            formattedValue={`${settings.pitchShift > 0 ? "+" : ""}${settings.pitchShift || 0} st`}
-            min={-12}
-            max={12}
-            step={1}
-            onChange={updateSetting("pitchShift")}
-          />
-          <SliderRow
-            id="vqs-tone"
-            label="DSP Tone Clarity"
-            description="Boosts high-frequency speech definition and acoustic presence."
-            value={settings.toneEq !== undefined ? settings.toneEq : 0.5}
-            formattedValue={((settings.toneEq !== undefined ? settings.toneEq : 0.5) * 100).toFixed(0) + "%"}
-            min={0}
-            max={1}
-            step={0.01}
-            onChange={updateSetting("toneEq")}
-          />
-          <SliderRow
             id="vqs-stability"
             label="Stability"
             description="Lower → more expressive. Higher → more consistent."
@@ -154,6 +155,8 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             description="Lower → steadier output. Higher → more variation."
             value={settings.temperature}
             onChange={updateSetting("temperature")}
+            min={0.05}
+            max={5}
           />
           <SliderRow
             id="vqs-style"
@@ -161,6 +164,27 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             description="Higher → more stylised delivery from the reference audio."
             value={settings.style}
             onChange={updateSetting("style")}
+            max={2}
+          />
+          <SliderRow
+            id="vqs-speed"
+            label="Playback Speed"
+            description="Lower → slower delivery. Higher → faster delivery."
+            value={settings.speed ?? 1.0}
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            onChange={updateSetting("speed")}
+          />
+          <SliderRow
+            id="vqs-pitch"
+            label="Simulated Pitch Shift"
+            description="Adjust the synthesized voice pitch tones."
+            value={settings.pitch ?? 0.5}
+            min={0.0}
+            max={1.0}
+            step={0.05}
+            onChange={updateSetting("pitch")}
           />
           <SliderRow
             id="vqs-pitch"
@@ -182,12 +206,36 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             max={2.0}
             step={0.05}
           />
+          <SliderRow
+            id="vqs-speed"
+            label="Playback Speed"
+            description="Lower → slower delivery. Higher → faster delivery."
+            value={settings.speed ?? 1.0}
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            onChange={updateSetting("speed")}
+          />
+          <SliderRow
+            id="vqs-pitch"
+            label="Simulated Pitch Shift"
+            description="Adjust the synthesized voice pitch tones."
+            value={settings.pitch ?? 0.5}
+            min={0.0}
+            max={1.0}
+            step={0.05}
+            onChange={updateSetting("pitch")}
+          />
 
           <details className="group border-t border-neutral-100 pt-3 dark:border-neutral-800">
             <summary className="flex cursor-pointer items-center justify-between text-xs font-bold text-neutral-600 dark:text-neutral-400 focus:outline-none">
               <span>Graphic Equalizer (EQ)</span>
-              <span className="text-[10px] text-neutral-400 group-open:hidden">Show</span>
-              <span className="text-[10px] text-neutral-400 hidden group-open:inline">Hide</span>
+              <span className="text-[10px] text-neutral-400 group-open:hidden">
+                Show
+              </span>
+              <span className="text-[10px] text-neutral-400 hidden group-open:inline">
+                Hide
+              </span>
             </summary>
             <div className="space-y-4 mt-3 pl-1">
               <SliderRow
