@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-<!-- fix: docs: Add OBS Virtual Camera Setup Screenshots to README (#412) -->
+# TODO: fix for #398: [BUG] speak() always saves to history, even on failed speech synthesis or silent
