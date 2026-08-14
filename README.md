@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: add test - feat: Add GitHub Actions for Automated Playwright Testing (#445)
+# TODO: fix for #432: [BUG] : Missing Auto-Recloning Recovery on Backend Session Expiry
