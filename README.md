@@ -205,7 +205,7 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 - Done: Replace the fallback mouth animation with model-driven mouth movement.
 - Done: Add richer virtual camera documentation for OBS and each call provider.
 - TODO: Add automated browser tests for camera and microphone permission flows.
-- TODO: Persist voice profiles across server restarts (database or object-store backend).
+- Done: Persist voice profiles across server restarts (local filesystem).
 
 ## License
 

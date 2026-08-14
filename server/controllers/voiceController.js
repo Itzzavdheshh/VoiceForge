@@ -5,12 +5,15 @@ import { env } from "../config/env.js";
 import { getIsMock } from "../utils/mock.js";
 import { isValidLanguageCode, toChatterboxLanguageCode } from "../utils/languages.js";
 import { logger } from "../utils/logger.js";
+import { FileVoiceStore } from "../utils/FileVoiceStore.js";
 
 // ---------------------------------------------------------------------------
-// In-memory voice store: maps voice_id to { name, audioBuffer, mimeType, expiresAt }
-// In production you would persist this to a database or object store.
+// Disk-backed voice store: persists voice profiles to local filesystem
 // ---------------------------------------------------------------------------
-export const voiceStore = new Map();
+export const voiceStore = new FileVoiceStore(
+  process.env.VOICE_DATA_DIR,
+  env.VOICE_STORE_MAX
+);
 
 const getMaxStoredVoices = () => env.VOICE_STORE_MAX;
 const getVoiceStoreTtlMs = () => env.VOICE_STORE_TTL_MS;
@@ -231,18 +234,8 @@ function clampNumber(value, min, max, fallback) {
  *
  * @param {number} [now] The current timestamp in milliseconds.
  */
-function pruneVoiceStore(now = Date.now()) {
-  for (const [voiceId, entry] of voiceStore) {
-    if (entry.expiresAt <= now) {
-      voiceStore.delete(voiceId);
-    }
-  }
-
-  while (voiceStore.size >= getMaxStoredVoices()) {
-    const oldestVoiceId = voiceStore.keys().next().value;
-    if (!oldestVoiceId) break;
-    voiceStore.delete(oldestVoiceId);
-  }
+async function pruneVoiceStore(now = Date.now()) {
+  await voiceStore.prune(now);
 }
 
 // ---------------------------------------------------------------------------
@@ -292,7 +285,7 @@ export async function cloneVoice(request, response, next) {
     }
 
     // Store the audio buffer server-side so it can be used during speak/stream.
-    pruneVoiceStore();
+    await pruneVoiceStore();
     const voiceId = crypto.randomUUID();
 
     // Fix (IDOR): voice_id alone used to be sufficient to use someone else's
@@ -304,7 +297,7 @@ export async function cloneVoice(request, response, next) {
     const ownerToken = crypto.randomBytes(24).toString("base64url");
     const ownerTokenHash = crypto.createHash("sha256").update(ownerToken).digest("hex");
 
-    voiceStore.set(voiceId, {
+    await voiceStore.set(voiceId, {
       name: request.body.name || "VoiceForge Voice",
       audioBuffer: audioFile.buffer,
       mimeType: audioFile.mimetype,
@@ -385,8 +378,8 @@ export async function speak(request, response, next) {
       response.status(400).json({ error: "voice_id is required and must not be blank." });
       return;
     }
-    pruneVoiceStore();
-    if (!getIsMock() && !voiceStore.has(trimmedVoiceId)) {
+    await pruneVoiceStore();
+    if (!getIsMock() && !(await voiceStore.has(trimmedVoiceId))) {
       response.status(404).json({ error: "Voice profile not found. Please re-clone your voice." });
       return;
     }
@@ -405,8 +398,8 @@ export async function speak(request, response, next) {
     // queuing any synthesis work. Skipped in mock mode since cloneVoice
     // never persists a real voiceStore entry (or owner token) there.
     if (!getIsMock()) {
-      pruneVoiceStore();
-      const voiceEntry = voiceStore.get(trimmedVoiceId);
+      await pruneVoiceStore();
+      const voiceEntry = await voiceStore.get(trimmedVoiceId);
       if (!voiceEntry) {
         response.status(404).json({ error: "Voice profile not found. Please re-clone your voice." });
         return;
@@ -547,8 +540,8 @@ export async function streamSpeech(request, response, next) {
     }
 
     // Resolve the stored reference audio for this voice profile.
-    pruneVoiceStore();
-    const voiceEntry = voiceStore.get(voiceId);
+    await pruneVoiceStore();
+    const voiceEntry = await voiceStore.get(voiceId);
     if (!voiceEntry) {
       response.status(404).json({ error: "Voice profile not found. Please re-clone your voice." });
       return;
