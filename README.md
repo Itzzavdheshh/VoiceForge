@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #336: [Phase 10] Healthcare Governance Mode - Caregiver PIN lock for preset protection
+# TODO: fix for #524: feat:
