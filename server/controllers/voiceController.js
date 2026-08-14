@@ -51,6 +51,12 @@ const MAX_VOICE_UPLOAD_BYTES = parseBoundedNumber(
 );
 const ALLOWED_AUDIO_MIME_PREFIX = "audio/";
 
+// In-memory store to prevent duplicate voice clone requests during network latency.
+// Maps session/user IDs to their active clone request state.
+// This prevents duplicate API calls when users retry or interact multiple times
+// before the UI reflects the cloning state (e.g., in slow network conditions).
+const activeCloneRequests = new Map();
+
 const MOCK_AUDIO_MP3 = Buffer.from(
   "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA" +
     "//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8A" +
@@ -296,38 +302,41 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, numeric));
 }
 
-/**
- * Evicts expired voice entries and enforces the maximum limit on cached voices in memory.
- *
- * @param {number} [now] The current timestamp in milliseconds.
- */
-function pruneVoiceStore(now = Date.now()) {
-  for (const [voiceId, entry] of voiceStore) {
-    if (entry.expiresAt <= now) {
-      voiceStore.delete(voiceId);
+// Generate a stable identifier used to deduplicate clone requests.
+// Authenticated flows should pass a per-user ID via a real session/auth middleware;
+// without session middleware wired up we fall back to the client IP.
+function getRequestLockId(request) {
+  const ip = request.ip || request.socket?.remoteAddress || "unknown";
+  return `ip:${ip}`;
+}
+
+// Atomically check and acquire the lock for a clone request.
+// Returns true if the lock was acquired (no request was in-flight),
+// false if a request is already in progress (duplicate - reject with 429).
+function tryAcquireCloneLock(lockId) {
+  const lockData = activeCloneRequests.get(lockId);
+
+  if (lockData) {
+    // Clean up expired locks (older than 5 minutes) and allow the request.
+    if (Date.now() - lockData.timestamp > 300000) {
+      activeCloneRequests.delete(lockId);
+    } else {
+      return false;
     }
   }
 
-  while (voiceStore.size >= MAX_STORED_VOICES) {
-    const oldestVoiceId = voiceStore.keys().next().value;
-    if (!oldestVoiceId) break;
-    voiceStore.delete(oldestVoiceId);
-  }
+  activeCloneRequests.set(lockId, { timestamp: Date.now() });
+  return true;
 }
 
-// ---------------------------------------------------------------------------
-// Route handlers
-// ---------------------------------------------------------------------------
+// Release a lock for a clone request.
+function releaseCloneLock(lockId) {
+  activeCloneRequests.delete(lockId);
+}
 
-/**
- * Express handler to clone a reference voice profile from an uploaded audio file.
- * Caches the reference audio in memory under an ephemeral UUID.
- *
- * @param {object} request Express request object.
- * @param {object} response Express response object.
- * @param {function} next Express next middleware callback.
- */
 export async function cloneVoice(request, response, next) {
+  const lockId = getRequestLockId(request);
+
   try {
     const audioFile = request.file;
 
@@ -336,8 +345,21 @@ export async function cloneVoice(request, response, next) {
       return;
     }
 
+    // Prevent duplicate clone requests during slow network conditions.
+    // tryAcquireCloneLock atomically checks and acquires the lock so there is
+    // no window between the check and the acquire where a concurrent request
+    // could slip through.
+    if (!tryAcquireCloneLock(lockId)) {
+      response.status(429).json({
+        error: "A voice clone request is already in progress. Please wait for it to complete before requesting another clone."
+      });
+      return;
+    }
+
+    // --- mock mode: return a deterministic fixture voice_id ---
     if (getIsMock()) {
-      console.warn("[VoiceForge] MOCK_CHATTERBOX: skipping real voice clone, returning fixture.");
+      console.warn("[VoiceForge] MOCK_ELEVENLABS: skipping real voice clone, returning fixture.");
+      releaseCloneLock(lockId);
       response.json({
         voice_id: request.body.voice_id || "mock-voice-id-00000000",
         name: request.body.name || "VoiceForge Voice (mock)",
@@ -368,12 +390,21 @@ export async function cloneVoice(request, response, next) {
       expiresAt: Date.now() + VOICE_STORE_TTL_MS
     });
 
+    if (!elevenResponse.ok) {
+      const error = new Error(await readElevenLabsError(elevenResponse));
+      error.status = elevenResponse.status;
+      throw error;
+    }
+
+    const payload = await elevenResponse.json();
+    releaseCloneLock(lockId);
     response.json({
       voice_id: voiceId,
       owner_token: ownerToken,
       name: request.body.name || "VoiceForge Voice",
     });
   } catch (error) {
+    releaseCloneLock(lockId);
     next(error);
   }
 }
