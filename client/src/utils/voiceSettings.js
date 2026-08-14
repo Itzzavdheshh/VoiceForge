@@ -22,11 +22,11 @@ export const DEFAULT_VOICE_SETTINGS = {
  * regardless of what was previously written to (or injected into) storage.
  */
 export function loadVoiceSettings() {
+  let parsed = {};
   try {
     const saved = localStorage.getItem('voiceforge_voice_settings');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      return { ...DEFAULT_VOICE_SETTINGS, ...parsed };
+      parsed = JSON.parse(saved) || {};
     }
   } catch (error) {
     console.warn('Failed to load voice settings:', error);
