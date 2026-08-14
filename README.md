@@ -209,4 +209,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: fix for #432: [BUG] : Missing Auto-Recloning Recovery on Backend Session Expiry
+# TODO: fix for #422: feat:[perf]: Throttle face detection and audio state updates to reduce main-thre
