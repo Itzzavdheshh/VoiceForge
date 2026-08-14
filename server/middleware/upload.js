@@ -43,22 +43,21 @@ const upload = multer({
     fields: 5,
     parts: 6,
   },
-  fileFilter: async (_request, file, callback) => {
-    if (!file.mimetype.startsWith("audio/")) {
+  fileFilter: (_request, file, callback) => {
+    const isAudioMime = file.mimetype.startsWith("audio/") || file.mimetype === "video/webm" || file.mimetype === "application/octet-stream";
+    if (!isAudioMime) {
       callback(new Error("Please upload an audio recording."));
       return;
     }
 
-    try {
-      const detectedType = await fileTypeFromBuffer(file.buffer);
-      if (!detectedType || !detectedType.mime.startsWith("audio/")) {
+    if (file.buffer) {
+      if (!isValidAudioBuffer(file.buffer)) {
         callback(new Error("Uploaded file is not a valid audio recording. The file contents do not match an audio format."));
         return;
       }
-      callback(null, true);
-    } catch (error) {
-      callback(new Error("Failed to validate file type: " + error.message));
     }
+
+    callback(null, true);
   }
 });
 
