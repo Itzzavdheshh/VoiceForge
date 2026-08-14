@@ -23,6 +23,8 @@ function getStoredTheme() {
 function storeTheme(theme) {
   try {
     localStorage.setItem("voiceforge:theme", theme);
+    // Dispatch a custom event so all open tabs can react immediately
+    window.dispatchEvent(new CustomEvent("voiceforge:themeChanged", { detail: { theme } }));
   } catch {
     // Theme still works for the current session when persistence is unavailable.
   }
@@ -48,9 +50,20 @@ export function ThemeProvider({ children }) {
       }
     }
 
+    function handleCustomEvent(event) {
+      const newTheme = event.detail?.theme;
+      if (newTheme === "dark" || newTheme === "light") {
+        setTheme(newTheme);
+      }
+    }
+
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleStorage);
-      return () => window.removeEventListener("storage", handleStorage);
+      window.addEventListener("voiceforge:themeChanged", handleCustomEvent);
+      return () => {
+        window.removeEventListener("storage", handleStorage);
+        window.removeEventListener("voiceforge:themeChanged", handleCustomEvent);
+      };
     }
   }, []);
 
