@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] parseboundednumber missing upper bound allows dangerously large environment values (#514)
+# TODO: [bug] incorrect native language names for non-latin scripts in languageselector data (#515)
