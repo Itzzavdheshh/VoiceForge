@@ -139,4 +139,4 @@ textarea {
   animation: fade-in-up 0.2s ease-out;
 }
 
-/* fix: [BUG] : `VoiceForge.jsx` uses `window.speechSynthesis` direc (#387) */
+/* fix: Bug: Unreadable text in dialogue box due to low color (#525) */
