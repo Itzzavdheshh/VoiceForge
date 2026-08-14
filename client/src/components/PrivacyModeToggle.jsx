@@ -2,7 +2,7 @@
 import React from "react";
 import { ShieldCheck, ImagePlus, Trash2, Upload } from "lucide-react";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const STORAGE_KEY_MODE = "voiceforge:privacyMode";
 const STORAGE_KEY_AVATAR = "voiceforge:privacyAvatar";
@@ -250,7 +250,7 @@ export default function PrivacyModeToggle({
                     : "Drag & drop or click to upload"}
                 </p>
                 <p className="mt-1 text-xs text-ink/50 dark:text-muted">
-                  PNG, JPEG, or WebP · Max 2 MB
+                  PNG, JPEG, or WebP · Max 5 MB
                 </p>
               </div>
             </div>
