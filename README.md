@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [bug] mediastream track memory leak (#450)
+# TODO: [bug] missing canvas audio waveform visualizer (#453)
