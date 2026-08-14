@@ -57,10 +57,10 @@ export function encodeWAV(audioBuffer, startOffset = 0, endOffset = null) {
 
   let offset = 44;
   for (let i = 0; i < numSamples; i++) {
-    for (let c = 0; c < numChannels; c++) {
-      const sample = channelData[c][startSample + i];
+      const rawSample = channelData[c][startSample + i];
+      const safeSample = isNaN(rawSample) ? 0 : rawSample;
       // Clamp sample to [-1, 1]
-      const clamped = Math.max(-1, Math.min(1, sample));
+      const clamped = Math.max(-1, Math.min(1, safeSample));
       // Convert to 16-bit PCM integer
       const pcmSample = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
       view.setInt16(offset, pcmSample, true);
