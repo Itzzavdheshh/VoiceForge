@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 5] analytics workspace - usage metrics, cost estimator and voice frequency chart (#331)
+# TODO: [phase 8] emergency phrase presets - one-tap accessibility communication (#334)
