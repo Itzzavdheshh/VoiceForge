@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 8] emergency phrase presets - one-tap accessibility communication (#334)
+# TODO: [phase 9] aac symbol board - augmentative and alternative communication tile grid (#335)
