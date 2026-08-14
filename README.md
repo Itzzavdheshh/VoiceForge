@@ -208,3 +208,5 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
+
+# TODO: fix for #334: [Phase 8] Emergency Phrase Presets - One-tap accessibility communication
