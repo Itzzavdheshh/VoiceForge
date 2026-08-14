@@ -1,17 +1,18 @@
-// Coordinates top-level navigation, saved voice state, and page rendering for VoiceForge.
-import React from "react";
+import React, { useState } from "react";
 import { Camera, Mic2, Settings as SettingsIcon, MessageSquare, Sun, Moon, Menu, X, Info } from "lucide-react";
 import Onboarding from "./pages/Onboarding.jsx";
 import Call from "./pages/Call.jsx";
 import Settings from "./pages/Settings.jsx";
 import VoiceForge from "./components/VoiceForge";
 import { useTheme } from "./components/ThemeContext.jsx";
-import Footer from './components/Footer.jsx';
+import Footer from './components/footer.jsx';
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 import About from "./pages/About";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound.jsx";
+import Contributors from "./pages/Contributors.jsx";
+import { clearTokens as clearStorage, logout } from "./utils/auth.js";
 
 const tabs = [
   { id: "onboarding", label: "Onboarding", icon: Mic2 },
