@@ -10,7 +10,9 @@ export default function Analytics() {
     estimatedCost: 0,
     totalSpeechClips: 0,
     voiceRankings: [],
-    languagesUsed: {}
+    languagesUsed: {},
+    totalDurationSec: 0,
+    avgLatencyMs: 0,
   });
 
   useEffect(() => {
@@ -40,13 +42,28 @@ export default function Analytics() {
           .map(([id, count]) => ({ id, count }))
           .sort((a, b) => b.count - a.count);
 
+        // Session duration: span between first and last transcript timestamp
+        const timestamps = transcripts
+          .map(t => t.timestamp ? new Date(t.timestamp).getTime() : null)
+          .filter(Boolean);
+        const totalDurationSec = timestamps.length >= 2
+          ? Math.round((Math.max(...timestamps) - Math.min(...timestamps)) / 1000)
+          : 0;
+
+        // Avg latency estimate: ~70ms per character at TTS processing speed
+        const avgLatencyMs = transcripts.length > 0
+          ? Math.round((chars / transcripts.length) * 0.07)
+          : 0;
+
         setStats({
           totalCharacters: chars,
           totalWords: words,
           estimatedCost: cost,
           totalSpeechClips: transcripts.length,
           voiceRankings: sortedVoices,
-          languagesUsed: langCounts
+          languagesUsed: langCounts,
+          totalDurationSec,
+          avgLatencyMs,
         });
       } catch (err) {
         console.error("Error loading analytics:", err);
@@ -96,6 +113,21 @@ export default function Analytics() {
             <p className="text-xs font-semibold text-ink/50 dark:text-muted uppercase tracking-wider">Speech Generations</p>
             <h3 className="text-2xl font-bold mt-1 dark:text-neutral-50">{stats.totalSpeechClips} clips</h3>
             <p className="text-xs text-ink/40 dark:text-neutral-400">Stored in local IndexedDB</p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface flex items-center gap-4">
+          <div className="rounded-lg bg-moss/10 p-3 text-moss dark:bg-glow/20 dark:text-glow">
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-ink/50 dark:text-muted uppercase tracking-wider">Session Duration</p>
+            <h3 className="text-2xl font-bold mt-1 dark:text-neutral-50">
+              {stats.totalDurationSec >= 60
+                ? `${Math.floor(stats.totalDurationSec / 60)}m ${stats.totalDurationSec % 60}s`
+                : `${stats.totalDurationSec}s`}
+            </h3>
+            <p className="text-xs text-ink/40 dark:text-neutral-400">Avg latency: ~{stats.avgLatencyMs}ms / clip</p>
           </div>
         </div>
       </div>
