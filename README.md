@@ -165,4 +165,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: add test - feat: Wav2Lip ONNX Web Inference Integration (#648)
+# TODO: fix for #649: [BUG] : Voice Session Loss Auto-Recovery (Self-healing re-cloning)
