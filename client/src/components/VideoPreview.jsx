@@ -294,7 +294,8 @@ export default React.forwardRef(function VideoPreview({
       ctx.restore();
     }
 
-    function draw(timestamp) {
+    function draw(now, metadata) {
+      const timestamp = now;
       context.fillStyle = bgColor;
       context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -474,11 +475,28 @@ export default React.forwardRef(function VideoPreview({
         });
       }
 
+      if (video && video.requestVideoFrameCallback && !avatarImage) {
+        animationRef.current = video.requestVideoFrameCallback(draw);
+      } else {
+        animationRef.current = requestAnimationFrame(draw);
+      }
+    }
+
+    const videoElement = videoRef.current;
+    if (videoElement && videoElement.requestVideoFrameCallback && !avatarImage) {
+      animationRef.current = videoElement.requestVideoFrameCallback(draw);
+    } else {
       animationRef.current = requestAnimationFrame(draw);
     }
 
-    animationRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animationRef.current);
+    return () => {
+      const vid = videoRef.current;
+      if (vid && vid.cancelVideoFrameCallback && !avatarImage) {
+        vid.cancelVideoFrameCallback(animationRef.current);
+      } else {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [ref, isSpeaking, theme, avatarImage]);
 
   return (
