@@ -165,4 +165,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 
 MIT
 
-# TODO: issue #514
+# TODO: fix for #645: feat: Cloned Voice support for the Compose Tab
