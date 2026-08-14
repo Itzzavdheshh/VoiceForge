@@ -133,4 +133,27 @@ export class PitchShifter {
     this.delay1.delayTime.value = this.delayTime / 2;
     this.delay2.delayTime.value = this.delayTime / 2;
   }
+
+  dispose() {
+    try {
+      this.osc1.stop();
+      this.osc2.stop();
+      if (this.fadeOsc1) this.fadeOsc1.stop();
+      if (this.fadeOsc2) this.fadeOsc2.stop();
+      if (this.constSource) this.constSource.stop();
+
+      this.input.disconnect();
+      this.output.disconnect();
+      this.delay1.disconnect();
+      this.delay2.disconnect();
+      this.gain1.disconnect();
+      this.gain2.disconnect();
+      this.osc1.disconnect();
+      this.osc2.disconnect();
+      this.oscGain1.disconnect();
+      this.oscGain2.disconnect();
+    } catch (err) {
+      console.warn("Error disposing PitchShifter nodes:", err);
+    }
+  }
 }
