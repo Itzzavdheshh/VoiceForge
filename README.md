@@ -164,4 +164,4 @@ Go to Settings > Devices > Camera and select **OBS Virtual Camera**.
 ## License
 
 MIT
-# TODO: [phase 3] navigation and ui extensions - analytics, library and healthcare workspace tabs (#329)
+# TODO: [phase 4] voice settings - pitch and speed controls with localstorage persistence (#330)
