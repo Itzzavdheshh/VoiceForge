@@ -8,7 +8,7 @@ import VoiceForge from "./components/VoiceForge";
 import Analytics from "./pages/Analytics.jsx";
 import VoiceForge from "./components/VoiceForge.jsx";
 import { useTheme } from "./components/ThemeContext.jsx";
-import Footer from "./components/Footer";
+import Footer from "./components/footer";
 
 const tabs = [
   { id: "onboarding",   label: "Onboarding",   icon: Mic2 },
