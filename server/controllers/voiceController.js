@@ -2,10 +2,42 @@
 // Uses the Hugging Face Gradio client to call ResembleAI/Chatterbox-Multilingual-TTS.
 import crypto from "crypto";
 import { getIsMock } from "../utils/mock.js";
+import { isValidLanguageCode, toChatterboxLanguageCode } from "../utils/languages.js";
+import { logger } from "../utils/logger.js";
+import { FileVoiceStore } from "../utils/FileVoiceStore.js";
 
-// Maximum characters allowed per TTS request. ElevenLabs bills by character
-// count, so a hard cap prevents a single request from draining the monthly quota.
-const SPEAK_TEXT_MAX_LENGTH = 2000;
+// ---------------------------------------------------------------------------
+// Disk-backed voice store: persists voice profiles to local filesystem
+// ---------------------------------------------------------------------------
+export const voiceStore = new FileVoiceStore(
+  process.env.VOICE_DATA_DIR,
+  env.VOICE_STORE_MAX
+);
+
+const getMaxStoredVoices = () => env.VOICE_STORE_MAX;
+const getVoiceStoreTtlMs = () => env.VOICE_STORE_TTL_MS;
+const getPendingStreamsMax = () => env.PENDING_STREAMS_MAX;
+const getPendingStreamTtlMs = () => env.PENDING_STREAM_TTL_MS;
+const getMaxVoiceUploadBytes = () => env.MAX_VOICE_UPLOAD_BYTES;
+const ALLOWED_AUDIO_MIME_PREFIX = "audio/";
+
+const MOCK_AUDIO_MP3 = Buffer.from(
+  "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA" +
+  "//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8A" +
+  "AAABAAAB/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "base64"
+);
+
+const STREAM_SECRET = process.env.STREAM_SECRET ?? (() => {
+  logger.warn(
+    "STREAM_SECRET not set - using ephemeral key. " +
+    "All speech tokens will be invalidated on server restart. " +
+    "Set STREAM_SECRET in .env for stability."
+  );
+  return crypto.randomBytes(32).toString("hex");
+})();
 
 export function parseBoundedNumber(rawValue, fallback, min) {
   const numeric = Number(rawValue);
@@ -226,34 +258,13 @@ export function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, numeric));
 }
 
-// Generate a stable identifier used to deduplicate clone requests.
-// Authenticated flows should pass a per-user ID via a real session/auth middleware;
-// without session middleware wired up we fall back to the client IP.
-function getRequestLockId(request) {
-  const ip = request.ip || request.socket?.remoteAddress || "unknown";
-  return `ip:${ip}`;
-}
-
-// Atomically check and acquire the lock for a clone request.
-// Returns true if the lock was acquired (no request was in-flight),
-// false if a request is already in progress (duplicate - reject with 429).
-function tryAcquireCloneLock(lockId) {
-  const lockData = activeCloneRequests.get(lockId);
-
-  if (lockData) {
-    // Clean up expired locks (older than 5 minutes) and allow the request.
-    if (Date.now() - lockData.timestamp > 300000) {
-      activeCloneRequests.delete(lockId);
-    } else {
-      return false;
-    }
-  }
-
-  while (voiceStore.size > MAX_STORED_VOICES) {
-    const oldestVoiceId = voiceStore.keys().next().value;
-    if (!oldestVoiceId) break;
-    voiceStore.delete(oldestVoiceId);
-  }
+/**
+ * Evicts expired voice entries and enforces the maximum limit on cached voices in memory.
+ *
+ * @param {number} [now] The current timestamp in milliseconds.
+ */
+async function pruneVoiceStore(now = Date.now()) {
+  await voiceStore.prune(now);
 }
 
 // Test-only hook: exposes store size so tests can assert on eviction/TTL
@@ -304,7 +315,7 @@ export async function cloneVoice(request, response, next) {
     }
 
     // Store the audio buffer server-side so it can be used during speak/stream.
-    
+    await pruneVoiceStore();
     const voiceId = crypto.randomUUID();
 
     // Fix (IDOR): voice_id alone used to be sufficient to use someone else's
@@ -319,7 +330,7 @@ export async function cloneVoice(request, response, next) {
       .update(ownerToken)
       .digest("hex");
 
-    voiceStore.set(voiceId, {
+    await voiceStore.set(voiceId, {
       name: request.body.name || "VoiceForge Voice",
       audioBuffer: audioFile.buffer,
       mimeType: audioFile.mimetype,
@@ -398,11 +409,9 @@ export async function speak(request, response, next) {
         .json({ error: "voice_id is required and must not be blank." });
       return;
     }
-    pruneVoiceStore();
-    if (!getIsMock() && !voiceStore.has(trimmedVoiceId)) {
-      response.status(404).json({
-        error: "Voice profile not found. Please re-clone your voice.",
-      });
+    await pruneVoiceStore();
+    if (!getIsMock() && !(await voiceStore.has(trimmedVoiceId))) {
+      response.status(404).json({ error: "Voice profile not found. Please re-clone your voice." });
       return;
     }
     if (trimmedText.length > 300) {
@@ -416,6 +425,30 @@ export async function speak(request, response, next) {
         error: `Unsupported language code "${language_code}". See Chatterbox Multilingual docs for supported codes.`,
       });
       return;
+    }
+
+    // Fix (IDOR): verify the caller actually owns this voice_id before
+    // queuing any synthesis work. Skipped in mock mode since cloneVoice
+    // never persists a real voiceStore entry (or owner token) there.
+    if (!getIsMock()) {
+      await pruneVoiceStore();
+      const voiceEntry = await voiceStore.get(trimmedVoiceId);
+      if (!voiceEntry) {
+        response.status(404).json({ error: "Voice profile not found. Please re-clone your voice." });
+        return;
+      }
+      const trimmedOwnerToken = typeof ownerToken === "string" ? ownerToken.trim() : "";
+      const providedHash = trimmedOwnerToken
+        ? crypto.createHash("sha256").update(trimmedOwnerToken).digest("hex")
+        : null;
+      const isAuthorized =
+        !!providedHash &&
+        providedHash.length === voiceEntry.ownerTokenHash.length &&
+        crypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(voiceEntry.ownerTokenHash));
+      if (!isAuthorized) {
+        response.status(403).json({ error: "Invalid or missing owner_token for this voice_id." });
+        return;
+      }
     }
 
     const defaultVoiceSettings = {
@@ -674,8 +707,8 @@ export async function streamSpeech(request, response, next) {
     pendingStreams.delete(speechId);
 
     // Resolve the stored reference audio for this voice profile.
-    const db = await getDb();
-    const voiceEntry = await db.get('SELECT * FROM voice_profiles WHERE voice_id = ?', [voiceId]);
+    await pruneVoiceStore();
+    const voiceEntry = await voiceStore.get(voiceId);
     if (!voiceEntry) {
       response.status(404).json({
         error: "Voice profile not found. Please re-clone your voice.",

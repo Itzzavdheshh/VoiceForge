@@ -18,7 +18,6 @@ export function QuickReplies({ onSelect, showToast }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved === null) return DEFAULT_QUICK_REPLIES;
       const parsed = JSON.parse(saved);
-<<<<<<< HEAD
       if (
         Array.isArray(parsed) &&
         parsed.every(
@@ -35,16 +34,6 @@ export function QuickReplies({ onSelect, showToast }) {
         }));
       }
       return DEFAULT_QUICK_REPLIES;
-=======
-      return Array.isArray(parsed) && parsed.every(
-        (item) =>
-          item &&
-          typeof item.label === "string" &&
-          typeof item.phrase === "string"
-      )
-        ? parsed
-        : DEFAULT_QUICK_REPLIES;
->>>>>>> 89f8c2c (Update client/src/components/QuickReplies.jsx)
     } catch {
       return DEFAULT_QUICK_REPLIES;
     }
@@ -217,6 +206,25 @@ const handleEditKeyDown = (e, oldPhrase) => {
     e.preventDefault();
   };
 
+  const handleDrop = (e, targetId) => {
+    e.preventDefault();
+    if (draggedItem === null) return;
+    const oldIndex = replies.findIndex((r) => r.id === draggedItem);
+    const newIndex = replies.findIndex((r) => r.id === targetId);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newReplies = [...replies];
+      const [removed] = newReplies.splice(oldIndex, 1);
+      newReplies.splice(newIndex, 0, removed);
+      setReplies(newReplies);
+    }
+    setDraggedItem(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
   const handleEditSave = (e) => {
     e.preventDefault();
     if (!editingReplyId || !editingReplyData) return;
@@ -265,6 +273,29 @@ const handleEditKeyDown = (e, oldPhrase) => {
     if (selectedCategoryTab === "All") return true;
     return reply.category === selectedCategoryTab;
   });
+  const allCats = ["All", ...categories];
+
+  const handleTabKeyDown = (e) => {
+    const currentIndex = allCats.indexOf(selectedCategoryTab);
+    let nextIndex = -1;
+
+    if (e.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % allCats.length;
+    } else if (e.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + allCats.length) % allCats.length;
+    } else if (e.key === "Home") {
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      nextIndex = allCats.length - 1;
+    }
+
+    if (nextIndex >= 0) {
+      e.preventDefault();
+      setSelectedCategoryTab(allCats[nextIndex]);
+      const buttons = tablistRef.current?.querySelectorAll('[role="tab"]');
+      buttons?.[nextIndex]?.focus();
+    }
+  };
 
   return (
     <section

@@ -50,9 +50,30 @@ export class AudioProcessor {
     if (audioElement._audioSourceNode) {
       this.source = audioElement._audioSourceNode;
       try {
-        this.source.connect(this.audioContext.destination);
-      } catch (e) {
-        // Safe fallback if already connected
+        this.analyzer = Meyda.createMeydaAnalyzer({
+          audioContext: this.audioContext,
+          source: this.source,
+          bufferSize: 512,
+          featureExtractors: ["melSpectrogram", "rms"],
+          callback: (features) => {
+            if (features) {
+              if (features.melSpectrogram) {
+                this.currentMelSpectrogram = features.melSpectrogram;
+                if (!this.melHistory) this.melHistory = [];
+                this.melHistory.push(features.melSpectrogram);
+                if (this.melHistory.length > 16) {
+                  this.melHistory.shift();
+                }
+              }
+              if (features.rms !== undefined) {
+                this.currentVolume = features.rms;
+              }
+            }
+          },
+        });
+        this.analyzer.start();
+      } catch {
+        // Meyda initialization fallback
       }
     } else {
       this.source = this.audioContext.createMediaElementSource(audioElement);

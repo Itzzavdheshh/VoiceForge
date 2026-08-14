@@ -11,9 +11,136 @@ export default React.forwardRef(function VideoPreview(
 ) {
   const videoRef = React.useRef(null);
   const animationRef = React.useRef(null);
+  const audioRef = useRef(null);   
+  const audioProcessorRef = useRef(null);
+  const faceProcessorRef = useRef(null);
+  const subtitlesEnabledRef = React.useRef(subtitlesEnabled);
+  const subtitleTextRef = React.useRef(activeText);
+  const subtitleFontSizeRef = React.useRef(subtitleFontSize);
+  const subtitleBgOpacityRef = React.useRef(Number(subtitleBgOpacity));
+  const ortSessionRef = useRef(null);
+  const ortRef = useRef(null);
+  const isInferencingRef = useRef(false);
+  const tempCanvasRef = useRef(null);
+  const lastInferenceRef = useRef(null);
+  const waveRef = useRef(null);
   const [modelStatus, setModelStatus] = React.useState(
     "Fallback animation ready",
   );
+  const { theme } = useTheme();
+
+  const calibrationRef = React.useRef(calibration);
+  const isCalibratingRef = React.useRef(isCalibrating);
+  const activeTextRef = React.useRef(activeText);
+
+  const pipVideoRef = React.useRef(null);
+  const isPiPSupported = typeof document !== "undefined" && document.pictureInPictureEnabled;
+
+  const togglePiP = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else {
+        if (!pipVideoRef.current.srcObject) {
+          const stream = ref.current.captureStream(30);
+          pipVideoRef.current.srcObject = stream;
+          await pipVideoRef.current.play();
+        }
+        await pipVideoRef.current.requestPictureInPicture();
+      }
+    } catch (error) {
+      console.error("PiP error:", error);
+    }
+  };
+  const [blurEnabled, setBlurEnabled] = React.useState(false);
+  const segmenterRef = React.useRef(null);
+  const isSegmentingRef = React.useRef(false);
+  const maskCanvasRef = React.useRef(null);
+
+  React.useEffect(() => { subtitlesEnabledRef.current = subtitlesEnabled; }, [subtitlesEnabled]);
+  React.useEffect(() => { subtitleFontSizeRef.current = subtitleFontSize; }, [subtitleFontSize]);
+  React.useEffect(() => { subtitleBgOpacityRef.current = subtitleBgOpacity; }, [subtitleBgOpacity]);
+  React.useEffect(() => { activeTextRef.current = activeText; }, [activeText]);
+
+  React.useEffect(() => {
+    async function initSegmenter() {
+      try {
+        const { SelfieSegmentation } = await import("@mediapipe/selfie_segmentation");
+        const segmenter = new SelfieSegmentation({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
+        });
+        segmenter.setOptions({
+          modelSelection: 1,
+        });
+        segmenter.onResults((results) => {
+          if (!maskCanvasRef.current) {
+            maskCanvasRef.current = document.createElement("canvas");
+          }
+          const mCanvas = maskCanvasRef.current;
+          mCanvas.width = results.image.width;
+          mCanvas.height = results.image.height;
+          const mCtx = mCanvas.getContext("2d");
+          
+          mCtx.save();
+          mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
+          
+          mCtx.drawImage(results.segmentationMask, 0, 0, mCanvas.width, mCanvas.height);
+          
+          mCtx.globalCompositeOperation = "source-in";
+          mCtx.drawImage(results.image, 0, 0, mCanvas.width, mCanvas.height);
+          
+          mCtx.globalCompositeOperation = "destination-over";
+          mCtx.filter = "blur(12px)";
+          mCtx.drawImage(results.image, 0, 0, mCanvas.width, mCanvas.height);
+          
+          mCtx.restore();
+          
+          isSegmentingRef.current = false;
+        });
+        
+        // Pre-initialize
+        await segmenter.initialize();
+        segmenterRef.current = segmenter;
+      } catch (err) {
+        console.error("Failed to load MediaPipe segmenter", err);
+      }
+    }
+    initSegmenter();
+  }, []);
+
+  React.useEffect(() => {
+    if (!tempCanvasRef.current && typeof document !== "undefined") {
+      tempCanvasRef.current = document.createElement("canvas");
+      tempCanvasRef.current.width = 96;
+      tempCanvasRef.current.height = 96;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    calibrationRef.current = calibration;
+  }, [calibration]);
+
+  React.useEffect(() => {
+    isCalibratingRef.current = isCalibrating;
+  }, [isCalibrating]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      onSpeakingChange?.(false);
+    };
+  }, [onSpeakingChange]);
+
+  // Initialize AudioProcessor when audio element is ready
+  useEffect(() => {
+    if (audioUrl && audioRef.current && audioProcessorRef.current && !audioRef.current.dataset.audioProcessorInitialized) {
+      audioProcessorRef.current.initialize(audioRef.current);
+      audioRef.current.dataset.audioProcessorInitialized = "true";
+    }
+  }, [audioUrl]);
 
   React.useEffect(() => {
     async function loadModel() {
@@ -174,13 +301,82 @@ export default React.forwardRef(function VideoPreview(
 
       const drawMouth = isSpeaking || isCalibratingRef.current;
       if (drawMouth) {
-        let amplitude = 0;
-        if (analyserRef.current && isSpeaking) {
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
+        let inferenceSucceeded = false;
+        const useONNX = isSpeaking && ortSessionRef.current && audioProcessorRef.current && faceProcessorRef.current && ortRef.current;
+
+        // Try ONNX Inference first
+        if (isSpeaking && ortSessionRef.current && audioProcessorRef.current && faceProcessorRef.current && ortRef.current) {
+          if (!isInferencingRef.current) {
+            isInferencingRef.current = true;
+            (async () => {
+              try {
+                const melFeatures = audioProcessorRef.current.getLatestFeatures();
+                let syncTimestamp = timestamp;
+                const audioTime = audioProcessorRef.current.getAudioTime() * 1000;
+                if (audioTime > 0) {
+                  if (audioTimeOffset === null) {
+                     audioTimeOffset = timestamp - audioTime;
+                  }
+                  const targetSyncTime = audioTime + audioTimeOffset;
+                  syncTimestamp = targetSyncTime <= lastSyncTime ? lastSyncTime + 1 : targetSyncTime;
+                  lastSyncTime = syncTimestamp;
+                }
+
+                const landmarks = faceProcessorRef.current.detectFace(video, syncTimestamp);
+                
+                if (melFeatures && landmarks && tempCanvasRef.current) {
+                  const ort = ortRef.current;
+                  const audioTensor = new ort.Tensor('float32', melFeatures, [1, 1, 80, 16]);
+                  
+                  const cropResult = faceProcessorRef.current.cropMouthRegion(canvas, landmarks, tempCanvasRef.current);
+                  if (cropResult) {
+                    const { imageData, coords } = cropResult;
+                    const float32Data = new Float32Array(1 * 6 * 96 * 96);
+                    for (let i = 0; i < 96 * 96; i++) {
+                      const r = imageData.data[i * 4 + 0] / 255.0;
+                      const g = imageData.data[i * 4 + 1] / 255.0;
+                      const b = imageData.data[i * 4 + 2] / 255.0;
+                      float32Data[i] = r;
+                      float32Data[96 * 96 + i] = g;
+                      float32Data[2 * 96 * 96 + i] = b;
+                      float32Data[3 * 96 * 96 + i] = r;
+                      float32Data[4 * 96 * 96 + i] = g;
+                      float32Data[5 * 96 * 96 + i] = b;
+                    }
+                    const videoTensor = new ort.Tensor('float32', float32Data, [1, 6, 96, 96]);
+                    
+                    const results = await ortSessionRef.current.run({ audio: audioTensor, video: videoTensor });
+                    const outTensor = results[Object.keys(results)[0]];
+                    
+                    const outData = outTensor.data;
+                    const newImageData = new ImageData(96, 96);
+                    for (let i = 0; i < 96 * 96; i++) {
+                      newImageData.data[i * 4 + 0] = Math.max(0, Math.min(255, outData[i] * 255));
+                      newImageData.data[i * 4 + 1] = Math.max(0, Math.min(255, outData[96 * 96 + i] * 255));
+                      newImageData.data[i * 4 + 2] = Math.max(0, Math.min(255, outData[2 * 96 * 96 + i] * 255));
+                      newImageData.data[i * 4 + 3] = 255;
+                    }
+                    
+                    lastInferenceRef.current = {
+                      imageData: newImageData,
+                      coords: coords
+                    };
+                  }
+                }
+              } catch (e) {
+                console.error("ONNX Inference Error", e);
+              } finally {
+                isInferencingRef.current = false;
+              }
+            })();
+          }
+
+          if (lastInferenceRef.current && tempCanvasRef.current) {
+            const { imageData, coords } = lastInferenceRef.current;
+            const tempCtx = tempCanvasRef.current.getContext("2d");
+            tempCtx.putImageData(imageData, 0, 0);
+            context.drawImage(tempCanvasRef.current, 0, 0, 96, 96, coords.x, coords.y, coords.w, coords.h);
+            inferenceSucceeded = true;
           }
           amplitude = sum / dataArray.length;
         }
