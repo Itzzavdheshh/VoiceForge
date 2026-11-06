@@ -1,3 +1,6 @@
+// client/src/utils/pitchShifter.test.js
+// Verifies PitchShifter oscillator lifecycles, crossfade LFO initialization, and node disposal.
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PitchShifter } from "./pitchShifter.js";
 
