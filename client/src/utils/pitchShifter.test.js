@@ -82,7 +82,9 @@ describe("PitchShifter", () => {
     });
 
     it("handles contexts without createConstantSource gracefully", () => {
-      const fallbackContext = createMockAudioContext({ supportConstantSource: false });
+      const fallbackContext = createMockAudioContext({
+        supportConstantSource: false,
+      });
       const shifter = new PitchShifter(fallbackContext);
 
       expect(shifter.constSource).toBeNull();
@@ -104,7 +106,7 @@ describe("PitchShifter", () => {
       expect(() => shifter.dispose()).not.toThrow();
       expect(warnSpy).toHaveBeenCalledWith(
         "Error disposing PitchShifter nodes:",
-        expect.any(Error)
+        expect.any(Error),
       );
       warnSpy.mockRestore();
     });
