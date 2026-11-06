@@ -103,6 +103,8 @@ export class PitchShifter {
     // Start LFO oscillators
     this.osc1.start();
     this.osc2.start();
+    this.fadeOsc1.start();
+    this.fadeOsc2.start();
 
     this.setPitch(1.0);
   }
@@ -152,6 +154,8 @@ export class PitchShifter {
       this.osc2.disconnect();
       this.oscGain1.disconnect();
       this.oscGain2.disconnect();
+      if (this.fadeOsc1) this.fadeOsc1.disconnect();
+      if (this.fadeOsc2) this.fadeOsc2.disconnect();
     } catch (err) {
       console.warn("Error disposing PitchShifter nodes:", err);
     }
