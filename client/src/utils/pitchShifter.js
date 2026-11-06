@@ -103,6 +103,8 @@ export class PitchShifter {
     // Start LFO oscillators
     this.osc1.start();
     this.osc2.start();
+    this.fadeOsc1.start();
+    this.fadeOsc2.start();
 
     this.setPitch(1.0);
   }
