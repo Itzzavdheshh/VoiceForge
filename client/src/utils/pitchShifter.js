@@ -154,6 +154,8 @@ export class PitchShifter {
       this.osc2.disconnect();
       this.oscGain1.disconnect();
       this.oscGain2.disconnect();
+      if (this.fadeOsc1) this.fadeOsc1.disconnect();
+      if (this.fadeOsc2) this.fadeOsc2.disconnect();
     } catch (err) {
       console.warn("Error disposing PitchShifter nodes:", err);
     }
