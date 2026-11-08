@@ -175,9 +175,13 @@ describe("audioContext utility", () => {
       expect(removeSpy).toHaveBeenCalledWith("click", expect.any(Function), {
         capture: true,
       });
-      expect(removeSpy).toHaveBeenCalledWith("touchstart", expect.any(Function), {
-        capture: true,
-      });
+      expect(removeSpy).toHaveBeenCalledWith(
+        "touchstart",
+        expect.any(Function),
+        {
+          capture: true,
+        },
+      );
     });
 
     it("cleans up listeners when calling returned cleanup function", () => {

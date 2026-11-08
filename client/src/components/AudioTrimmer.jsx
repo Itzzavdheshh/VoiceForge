@@ -2,7 +2,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Play, Square, Scissors, RotateCcw } from "lucide-react";
 import { encodeWAV } from "../utils/wavEncoder.js";
-import { getAudioContext, unlockAudioContext, setupAudioUnlock } from "../utils/audioContext.js";
+import {
+  getAudioContext,
+  unlockAudioContext,
+  setupAudioUnlock,
+} from "../utils/audioContext.js";
 
 export function AudioTrimmer({ audioBlob, onTrimComplete }) {
   const [audioBuffer, setAudioBuffer] = useState(null);
@@ -31,7 +35,9 @@ export function AudioTrimmer({ audioBlob, onTrimComplete }) {
       return;
     }
 
-    const audioCtx = getAudioContext() || new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx =
+      getAudioContext() ||
+      new (window.AudioContext || window.webkitAudioContext)();
     audioCtxRef.current = audioCtx;
     setupAudioUnlock(audioCtx);
 
