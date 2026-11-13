@@ -19,7 +19,7 @@ import Settings from "./pages/Settings.jsx";
 import Landing from "./pages/Landing.jsx";
 import VoiceForge from "./components/VoiceForge";
 import { useTheme } from "./components/ThemeContext.jsx";
-import Footer from "./components/footer.jsx";
+import Footer from "./components/Footer.jsx";
 import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal.jsx";
 import ScrollToBottomButton from "./components/ScrollToBottomButton.jsx";
 import About from "./pages/About";
@@ -376,8 +376,8 @@ export default function App() {
           </div>
         )}
         <motion.div
-      aria-hidden="true"
-      className="
+          aria-hidden="true"
+          className="
         fixed left-0 right-0 top-0 z-[9999]
         h-0.5 origin-left
         bg-[#008bfd]
@@ -385,8 +385,8 @@ export default function App() {
         dark:bg-[#4ADE80]
         dark:shadow-[0_0_10px_rgba(74,222,128,0.65)]
       "
-      style={{ scaleX }}
-    />
+          style={{ scaleX }}
+        />
       </header>
 
       {/* Main Content Area */}

@@ -8,7 +8,19 @@ import {
   Share2,
   Download,
   Upload,
+  Cpu,
+  Cloud,
+  TestTube2,
+  CheckCircle2,
+  HardDriveDownload,
 } from "lucide-react";
+import {
+  loadTTSEngine,
+  persistTTSEngine,
+  TTS_ENGINES,
+  isEdgeModelCached,
+  preloadEdgeModel,
+} from "../utils/edgeTTS.js";
 import {
   deleteVoiceProfile,
   getSavedProfiles,
@@ -38,6 +50,37 @@ export default function Settings() {
   );
   const [profiles, setProfiles] = React.useState([]);
   const [dbError, setDbError] = React.useState("");
+  const [ttsEngine, setTtsEngine] = React.useState(loadTTSEngine);
+  const [isEdgeCached, setIsEdgeCached] = React.useState(false);
+  const [isPreloading, setIsPreloading] = React.useState(false);
+
+  React.useEffect(() => {
+    isEdgeModelCached()
+      .then(setIsEdgeCached)
+      .catch(() => {});
+  }, []);
+
+  function handleSelectTTSEngine(newEngine) {
+    setTtsEngine(newEngine);
+    persistTTSEngine(newEngine);
+    showToast(`Switched TTS engine to ${newEngine.toUpperCase()}`, "info");
+  }
+
+  async function handlePreloadModel() {
+    setIsPreloading(true);
+    try {
+      await preloadEdgeModel();
+      setIsEdgeCached(true);
+      showToast(
+        "In-browser Edge TTS model preloaded and cached successfully!",
+        "success",
+      );
+    } catch (err) {
+      showToast(err.message || "Failed to preload Edge TTS model", "error");
+    } finally {
+      setIsPreloading(false);
+    }
+  }
 
   React.useEffect(() => {
     let mounted = true;
@@ -704,6 +747,123 @@ export default function Settings() {
           The backend reads `.env` first. This local key is available for future
           client-only experiments.
         </p>
+      </section>
+
+      {/* ── TTS Engine & Offline Edge Mode (Issue #1418) ── */}
+      <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Cpu className="text-blue-500" size={20} aria-hidden="true" />
+              TTS Engine Pipeline
+            </h2>
+            <p className="mt-1 text-sm text-ink/65 dark:text-muted">
+              Choose between 100% in-browser Edge AI, cloud Hugging Face
+              synthesis, or offline mock mode.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+            {isEdgeCached ? (
+              <>
+                <CheckCircle2 size={13} className="text-emerald-500" />
+                Weights Cached (Offline Ready)
+              </>
+            ) : (
+              "Cache on Demand"
+            )}
+          </span>
+        </div>
+
+        <div
+          className="grid gap-3 sm:grid-cols-3 mb-4"
+          role="radiogroup"
+          aria-label="Default TTS Engine"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={ttsEngine === TTS_ENGINES.EDGE}
+            onClick={() => handleSelectTTSEngine(TTS_ENGINES.EDGE)}
+            className={`flex flex-col items-start p-4 rounded-lg border text-left transition ${
+              ttsEngine === TTS_ENGINES.EDGE
+                ? "border-blue-500 bg-blue-50/50 dark:border-blue-400 dark:bg-blue-950/20 ring-2 ring-blue-500/20"
+                : "border-ink/10 hover:border-ink/20 dark:border-border dark:hover:border-neutral-700"
+            }`}
+          >
+            <div className="flex items-center gap-2 font-bold text-sm mb-1">
+              <Cpu size={16} className="text-blue-500" />
+              <span>In-Browser Edge AI</span>
+            </div>
+            <p className="text-xs text-ink/60 dark:text-muted">
+              Runs in a dedicated Web Worker via WASM. Zero latency, no server
+              needed, 100% offline.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            role="radio"
+            aria-checked={ttsEngine === TTS_ENGINES.CLOUD}
+            onClick={() => handleSelectTTSEngine(TTS_ENGINES.CLOUD)}
+            className={`flex flex-col items-start p-4 rounded-lg border text-left transition ${
+              ttsEngine === TTS_ENGINES.CLOUD
+                ? "border-blue-500 bg-blue-50/50 dark:border-blue-400 dark:bg-blue-950/20 ring-2 ring-blue-500/20"
+                : "border-ink/10 hover:border-ink/20 dark:border-border dark:hover:border-neutral-700"
+            }`}
+          >
+            <div className="flex items-center gap-2 font-bold text-sm mb-1">
+              <Cloud size={16} className="text-amber-500" />
+              <span>Cloud AI (Hugging Face)</span>
+            </div>
+            <p className="text-xs text-ink/60 dark:text-muted">
+              Proxies synthesis to Chatterbox Hugging Face Space for
+              high-fidelity cloud voice cloning.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            role="radio"
+            aria-checked={ttsEngine === TTS_ENGINES.MOCK}
+            onClick={() => handleSelectTTSEngine(TTS_ENGINES.MOCK)}
+            className={`flex flex-col items-start p-4 rounded-lg border text-left transition ${
+              ttsEngine === TTS_ENGINES.MOCK
+                ? "border-blue-500 bg-blue-50/50 dark:border-blue-400 dark:bg-blue-950/20 ring-2 ring-blue-500/20"
+                : "border-ink/10 hover:border-ink/20 dark:border-border dark:hover:border-neutral-700"
+            }`}
+          >
+            <div className="flex items-center gap-2 font-bold text-sm mb-1">
+              <TestTube2 size={16} className="text-emerald-500" />
+              <span>Offline Mock</span>
+            </div>
+            <p className="text-xs text-ink/60 dark:text-muted">
+              Deterministic local stub for testing UI without network or neural
+              model downloads.
+            </p>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-ink/10 dark:border-border">
+          <p className="text-xs text-ink/60 dark:text-muted">
+            Model weights are stored in browser Cache API / IndexedDB
+            (~30MB–80MB).
+          </p>
+          <button
+            type="button"
+            onClick={handlePreloadModel}
+            disabled={isPreloading}
+            className="inline-flex items-center gap-2 rounded-md border border-ink/15 px-3 py-1.5 text-xs font-semibold text-ink hover:bg-neutral-50 dark:border-border dark:text-neutral-200 dark:hover:bg-neutral-800 disabled:opacity-50"
+          >
+            <HardDriveDownload size={14} aria-hidden="true" />
+            <span>
+              {isPreloading
+                ? "Preloading & Caching..."
+                : isEdgeCached
+                  ? "Re-cache Model Weights"
+                  : "Preload Model for Offline Use"}
+            </span>
+          </button>
+        </div>
       </section>
 
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">

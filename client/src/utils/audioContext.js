@@ -35,8 +35,7 @@ export function getAudioContext() {
     return null;
   }
 
-  const AudioContextClass =
-    window.AudioContext || window.webkitAudioContext;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) {
     return null;
   }
@@ -199,7 +198,10 @@ export function resetAudioContextForTesting() {
   }
   trackedContexts.clear();
   if (sharedAudioContext) {
-    if (typeof sharedAudioContext.close === "function" && sharedAudioContext.state !== "closed") {
+    if (
+      typeof sharedAudioContext.close === "function" &&
+      sharedAudioContext.state !== "closed"
+    ) {
       try {
         sharedAudioContext.close();
       } catch {
