@@ -1,16 +1,8 @@
 import React from "react";
-import { SendHorizontal, Eraser, Loader2 } from "lucide-react";
+import { SendHorizontal, Eraser, Loader2, Square } from "lucide-react";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
 
-/**
- * Emotion presets define prompt engineering text and voice_settings overrides
- * that are merged on top of the user's saved voice settings at speak-time.
- *
- * - promptPrefix: Injected before user text so ElevenLabs interprets tone.
- * - settingsOverride: Partial voice_settings merged over user defaults.
- *     • stability ↓  = more expressive / varied delivery
- *     • style ↑       = stronger stylistic emphasis
- */
+
 const EMOTION_PRESETS = [
   {
     id: "neutral",
@@ -69,6 +61,8 @@ export default function TextToSpeech({
   onSpeak,
   disabled = false,
   status = "idle",
+  isSpeechActive = false,
+  onInterrupt = null,
   onTextChange = () => {},
   onSpoken = () => {},
 }) {
@@ -92,11 +86,20 @@ export default function TextToSpeech({
   }
   async function submit() {
     if (!trimmedText || disabled) return;
-    await onSpeak(trimmedText);
+    const result = await onSpeak(trimmedText);
+    // Interrupted before it finished: keep the text so it can be edited/resent.
+    if (result?.aborted) return;
     setText("");
     onTextChange?.("");
     onSpoken?.();
   }
+  function handleInterrupt() {
+    setAnnouncement("Speech stopped.");
+    onInterrupt?.();
+  }
+  React.useEffect(() => {
+    if (isSpeechActive) setAnnouncement("");
+  }, [isSpeechActive]);
   function handleKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -119,7 +122,8 @@ export default function TextToSpeech({
         aria-atomic="true"
         className="sr-only"
       >
-        {status === "speaking" && "Synthesizing and playing speech audio..."}
+        {announcement ||
+          (status === "speaking" && "Synthesizing and playing speech audio...")}
         {status === "error" && "Speech synthesis encountered an error."}
       </div>
 
@@ -182,6 +186,22 @@ export default function TextToSpeech({
           </>
         )}
       </button>
+      {onInterrupt && isSpeechActive && (
+        <button
+          type="button"
+          onClick={handleInterrupt}
+          title="Stop speech (Esc)"
+          aria-label="Stop speech"
+          aria-keyshortcuts="Escape"
+          className="mt-2 inline-flex items-center justify-center gap-2 rounded-md border border-coral px-5 py-3 font-bold text-coral transition hover:bg-coral/10 focus:outline-none focus:ring-4 focus:ring-coral/30"
+        >
+          <Square size={16} fill="currentColor" aria-hidden="true" />
+          Stop speech
+          <kbd className="rounded border border-coral/40 px-1.5 text-xs font-semibold">
+            Esc
+          </kbd>
+        </button>
+      )}
     </section>
   );
 }
