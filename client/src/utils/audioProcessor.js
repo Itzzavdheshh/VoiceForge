@@ -7,24 +7,10 @@ import {
   isSharedAudioContext,
 } from "./audioContext.js";
 
-/**
- * Remembers which MediaElementAudioSourceNode belongs to which media element,
- * together with the AudioContext that created it.
- *
- * The Web Audio spec allows only one source node per media element, and that
- * node is permanently bound to its context. Keeping the binding in a WeakMap
- * rather than as a property on the DOM node means two AudioProcessor instances
- * can no longer clobber each other's state, and the entry disappears on its own
- * once the element is garbage collected.
- *
- * @type {WeakMap<HTMLMediaElement, { context: AudioContext, node: MediaElementAudioSourceNode }>}
- */
+
 const mediaElementSources = new WeakMap();
 
-/**
- * Extracts Mel-spectrogram features from an HTMLMediaElement using the Web Audio API.
- * Tracks a history of mel-spectrograms for Wav2Lip ONNX real-time inference.
- */
+
 export class AudioProcessor {
   constructor(audioContext = null) {
     this.audioContext = audioContext;
@@ -55,9 +41,6 @@ export class AudioProcessor {
     const existingBinding = mediaElementSources.get(audioElement);
 
     if (existingBinding) {
-      // This element is already bound to a context for the lifetime of the page.
-      // Adopt that context instead of opening a second one — mixing nodes across
-      // contexts is what corrupted state when the component remounted.
       this.audioContext = existingBinding.context;
     } else if (!this.audioContext) {
       // Must be created after a user gesture
@@ -94,9 +77,6 @@ export class AudioProcessor {
       });
     }
 
-    // Always (re)connect to the destination. A reused node was disconnected by an
-    // earlier initialize() or dispose(), which is what silenced playback on the
-    // second mount. Reconnecting an already-connected pair is a no-op.
     this.source.connect(this.audioContext.destination);
     this.mediaElement = audioElement;
 
@@ -153,18 +133,11 @@ export class AudioProcessor {
     return bars;
   }
 
-  /**
-   * Returns the most recently extracted mel-spectrogram.
-   * Format expected by Wav2Lip ONNX is usually [1, 1, 80, 16]
-   * which flattens to a Float32Array of length 1280.
-   * @returns {Float32Array|null}
-   */
   getLatestFeatures() {
     const history = this.melHistory || [];
     const flat = new Float32Array(80 * 16);
 
-    // Fill the flat array in shape [1, 1, 80, 16] where time step changes fastest.
-    // Flat index = b * 16 + t
+
     const missing = 16 - history.length;
     for (let b = 0; b < 80; b++) {
       for (let t = 0; t < 16; t++) {
@@ -195,6 +168,13 @@ export class AudioProcessor {
     return this.audioContext ? this.audioContext.currentTime : 0;
   }
 
+  
+  reset() {
+    this.melHistory = [];
+    this.currentMelSpectrogram = null;
+    this.currentVolume = 0;
+  }
+
   /**
    * Cleans up audio context and analyzer.
    */
@@ -211,10 +191,7 @@ export class AudioProcessor {
       }
       this.source = null;
     }
-    // A media element can never be bound to a second source node, so closing the
-    // context that owns its binding would silence that element permanently. Keep
-    // such a context alive — the WeakMap entry, and with it the context, is
-    // released once the element itself is garbage collected.
+
     const ownsMediaBinding =
       this.mediaElement &&
       mediaElementSources.get(this.mediaElement)?.context === this.audioContext;

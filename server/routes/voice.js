@@ -1,7 +1,12 @@
 // Defines VoiceForge voice cloning and speech generation API routes.
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { cloneVoice, speak } from "../controllers/voiceController.js";
+import {
+  cloneVoice,
+  speak,
+  streamSpeech,
+  cancelSpeech,
+} from "../controllers/voiceController.js";
 import upload from "../middleware/upload.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -43,7 +48,20 @@ const speakRateLimit = rateLimit({
   message: { error: "Too many speech requests. Please slow down." },
 });
 
+// Cancelling is cheap (no upstream billing) but still bounded per IP.
+const cancelRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many cancel requests. Please slow down." },
+});
+
 router.post("/clone", cloneRateLimit, upload.single("audio"), cloneVoice);
 router.post("/speak", speakRateLimit, speak);
+// Streams are single-use, token-gated and already counted by /speak, so they
+// are not rate-limited a second time here.
+router.get("/speak/stream", streamSpeech);
+router.post("/speak/cancel", cancelRateLimit, cancelSpeech);
 
 export default router;
