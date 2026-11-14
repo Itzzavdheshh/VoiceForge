@@ -12,6 +12,7 @@ export default React.forwardRef(function VideoPreview(
     audioUrl,
     isSpeaking,
     onSpeakingChange,
+    interruptCount = 0,
     calibration = { xOffset: 0, yOffset: 0, scale: 1.0 },
     isCalibrating = false,
     avatarImage = null,
@@ -38,6 +39,9 @@ export default React.forwardRef(function VideoPreview(
   const tempCanvasRef = useRef(null);
   const lastInferenceRef = useRef(null);
   const waveRef = useRef(null);
+  // Bumped on every interrupt so in-flight ONNX inferences started before the
+  // interrupt can detect they are stale and discard their output.
+  const interruptGenRef = useRef(0);
   const [modelStatus, setModelStatus] = React.useState(
     "Fallback animation ready",
   );
@@ -186,6 +190,31 @@ export default React.forwardRef(function VideoPreview(
     };
   }, [onSpeakingChange]);
 
+  // Interrupt: hard-stop playback and lip-sync state the moment the parent
+  // bumps interruptCount (Stop button / Escape).
+  useEffect(() => {
+    if (!interruptCount) return;
+    interruptGenRef.current += 1;
+
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      try {
+        audio.currentTime = 0;
+      } catch {
+        /* element has no loaded media yet */
+      }
+      audio.removeAttribute("src");
+      audio.load(); // flushes any buffered audio data
+    }
+
+    audioProcessorRef.current?.reset?.();
+    isInferencingRef.current = false;
+    lastInferenceRef.current = null; // never redraw the last Wav2Lip mouth frame
+    onSpeakingChange?.(false); // draw loop falls back to the neutral mouth
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interruptCount]);
+
   // Initialize AudioProcessor when audio element is ready
   useEffect(() => {
     if (
@@ -264,6 +293,9 @@ export default React.forwardRef(function VideoPreview(
     const canvas = ref.current;
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return undefined;
+
+    // Never carry the previous utterance's Wav2Lip mouth frame into idle/next.
+    if (!isSpeaking) lastInferenceRef.current = null;
 
     // Derive canvas colors from the active theme
     const isDark = theme === "dark";
@@ -415,6 +447,7 @@ export default React.forwardRef(function VideoPreview(
         ) {
           if (!isInferencingRef.current) {
             isInferencingRef.current = true;
+            const inferenceGen = interruptGenRef.current;
             (async () => {
               try {
                 const melFeatures =
@@ -496,16 +529,21 @@ export default React.forwardRef(function VideoPreview(
                       newImageData.data[i * 4 + 3] = 255;
                     }
 
-                    lastInferenceRef.current = {
-                      imageData: newImageData,
-                      coords: coords,
-                    };
+                    // Discard results from before an interrupt.
+                    if (inferenceGen === interruptGenRef.current) {
+                      lastInferenceRef.current = {
+                        imageData: newImageData,
+                        coords: coords,
+                      };
+                    }
                   }
                 }
               } catch (e) {
                 console.error("ONNX Inference Error", e);
               } finally {
-                isInferencingRef.current = false;
+                if (inferenceGen === interruptGenRef.current) {
+                  isInferencingRef.current = false;
+                }
               }
             })();
           }
@@ -707,16 +745,7 @@ export default React.forwardRef(function VideoPreview(
         )}
       </div>
       {audioUrl && (
-        <audio
-          ref={audioRef}
-          className="mt-4 w-full"
-          controls
-          src={audioUrl}
-          autoPlay
-          onPlay={() => onSpeakingChange?.(true)}
-          onEnded={() => onSpeakingChange?.(false)}
-          onPause={() => onSpeakingChange?.(false)}
-        >
+        <audio ref={audioRef} className="mt-4 w-full" controls src={audioUrl} autoPlay onPlay={() => onSpeakingChange?.(true)} onEnded={() => onSpeakingChange?.(false)} onPause={() => onSpeakingChange?.(false)}>
           <track kind="captions" />
         </audio>
       )}
