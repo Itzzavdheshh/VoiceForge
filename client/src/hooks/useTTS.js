@@ -1,64 +1,89 @@
-// client/src/hooks/useTTS.js
-// Multi-tier text-to-speech synthesis pipeline:
-// Tier 1: 100% In-Browser Edge AI (Transformers.js / Kokoro / Piper-TTS architecture via Web Worker)
-// Tier 2: Cloud Hugging Face Space backend (/api/voice/speak)
-// Tier 3: Offline Mock Engine stub for zero-latency local fallback
+// Sends typed text to the local backend and returns playable cloned speech audio.
+// Supports interruption: stop() aborts every in-flight request, tells the server
+// to drop the synthesis job, and resets playback state so a new phrase can be
+// submitted immediately.
 import React from "react";
 import { loadVoiceSettings } from "../utils/voiceSettings.js";
 import { API_BASE_URL } from "../utils/apiConfig.js";
 import { unlockAudioContext } from "../utils/audioContext.js";
-import {
-  synthesizeEdgeTTS,
-  generateMockWAV,
-  loadTTSEngine,
-  persistTTSEngine,
-  TTS_ENGINES,
-} from "../utils/edgeTTS.js";
 
-function safeRevokeObjectURL(url) {
-  if (
-    url &&
-    typeof url === "string" &&
-    url.startsWith("blob:") &&
-    typeof URL !== "undefined" &&
-    typeof URL.revokeObjectURL === "function"
-  ) {
-    try {
-      URL.revokeObjectURL(url);
-    } catch {
-      // Ignore in test or restricted environments
-    }
-  }
+function resolveApiUrl(url) {
+  return typeof url === "string" && url.startsWith("/")
+    ? `${API_BASE_URL}${url}`
+    : url;
 }
 
 export default function useTTS() {
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
   const [audioUrl, setAudioUrl] = React.useState("");
-  const [engine, setEngine] = React.useState(() => loadTTSEngine());
-  const [activeEngine, setActiveEngine] = React.useState(() => loadTTSEngine());
   const prevBlobRef = React.useRef("");
   const mountedRef = React.useRef(true);
 
-  // Sync engine preference across components/tabs
-  React.useEffect(() => {
-    function handleEngineChange(event) {
-      const nextEngine = event.detail?.engine || loadTTSEngine();
-      setEngine(nextEngine);
+  // Interruption bookkeeping. Every speak() call gets a monotonically
+  // increasing id; anything that resolves for a stale id is discarded.
+  const requestIdRef = React.useRef(0);
+  const controllerRef = React.useRef(null);
+  const speechTokenRef = React.useRef("");
+  const speakingCallbackRef = React.useRef(null);
+
+  // Aborts the in-flight network work and releases the server-side job.
+  // Does not touch React state, so speak() can use it to supersede a request.
+  const abortInFlight = React.useCallback(() => {
+    const controller = controllerRef.current;
+    const token = speechTokenRef.current;
+    controllerRef.current = null;
+    speechTokenRef.current = "";
+    requestIdRef.current += 1;
+
+    if (controller) controller.abort();
+
+    if (token) {
+      // Fire-and-forget: frees the pending token / Gradio job even when the
+      // browser has not opened the stream connection yet. keepalive lets it
+      // survive page navigation.
+      let apiKey = "";
+      try {
+        apiKey = localStorage.getItem("voiceforge:elevenlabsApiKey") || "";
+      } catch {
+        /* storage unavailable */
+      }
+      fetch(`${API_BASE_URL}/api/voice/speak/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-ElevenLabs-Api-Key": apiKey,
+        },
+        body: JSON.stringify({ speechId: token }),
+        keepalive: true,
+      }).catch(() => {});
     }
-    window.addEventListener("voiceforge:ttsEngineChanged", handleEngineChange);
-    return () => {
-      window.removeEventListener(
-        "voiceforge:ttsEngineChanged",
-        handleEngineChange,
-      );
-    };
+    return Boolean(controller);
   }, []);
 
-  const setTTSEngine = React.useCallback((nextEngine) => {
-    setEngine(nextEngine);
-    persistTTSEngine(nextEngine);
-  }, []);
+  /**
+   * Immediately stops generation and playback.
+   * @returns {boolean} true when a request was actually in flight.
+   */
+  const stop = React.useCallback(() => {
+    const hadInFlight = abortInFlight();
+
+    if (prevBlobRef.current) {
+      URL.revokeObjectURL(prevBlobRef.current);
+      prevBlobRef.current = "";
+    }
+
+    const notifySpeaking = speakingCallbackRef.current;
+    speakingCallbackRef.current = null;
+    if (typeof notifySpeaking === "function") notifySpeaking(false);
+
+    if (mountedRef.current) {
+      setAudioUrl(""); // unmounts the <audio> element, dropping buffered data
+      setError("");
+      setStatus("idle");
+    }
+    return hadInFlight;
+  }, [abortInFlight]);
 
   const speak = React.useCallback(
     async (textOrOptions, voiceIdParam, languageCodeParam = "en") => {
@@ -66,7 +91,6 @@ export default function useTTS() {
       let voiceId = "";
       let languageCode = "en";
       let onSpeakingChange = null;
-      let requestedEngine = null;
 
       if (typeof textOrOptions === "object" && textOrOptions !== null) {
         text = textOrOptions.text || "";
@@ -74,51 +98,43 @@ export default function useTTS() {
         languageCode =
           textOrOptions.language_code || textOrOptions.languageCode || "en";
         onSpeakingChange = textOrOptions.onSpeakingChange;
-        requestedEngine = textOrOptions.engine || null;
       } else {
         text = textOrOptions || "";
         voiceId = voiceIdParam || "";
         languageCode = languageCodeParam || "en";
       }
 
-      // Synchronously unlock AudioContext within the user gesture event loop before async calls
+      // Synchronously unlock AudioContext within the user gesture event loop before async fetch
       unlockAudioContext();
 
+      // A new request supersedes any older one that is still in flight.
+      abortInFlight();
       const controller = new AbortController();
+      controllerRef.current = controller;
+      const requestId = requestIdRef.current;
+      const isCurrent = () =>
+        requestIdRef.current === requestId && !controller.signal.aborted;
+      const finishSpeaking = () => {
+        if (!isCurrent()) return; // stop() already notified the caller
+        if (speakingCallbackRef.current === onSpeakingChange) {
+          speakingCallbackRef.current = null;
+        }
+        if (typeof onSpeakingChange === "function") onSpeakingChange(false);
+      };
+      const clearActive = () => {
+        if (controllerRef.current === controller) {
+          controllerRef.current = null;
+          speechTokenRef.current = "";
+        }
+      };
+
+      speakingCallbackRef.current = onSpeakingChange;
       setError("");
       setStatus("speaking");
       if (typeof onSpeakingChange === "function") onSpeakingChange(true);
 
-      const targetEngine = requestedEngine || loadTTSEngine();
-      const voiceSettings = loadVoiceSettings();
-
-      // ── Helper to update active audio URL safely ────────────────
-      const commitAudio = (blobUrl, resolvedEngine) => {
-        if (!mountedRef.current) {
-          safeRevokeObjectURL(blobUrl);
-          if (typeof onSpeakingChange === "function") onSpeakingChange(false);
-          return { audioUrl: "", blobUrl: "", engine: resolvedEngine };
-        }
-
-        safeRevokeObjectURL(prevBlobRef.current);
-        prevBlobRef.current = blobUrl;
-        setAudioUrl(blobUrl);
-        setActiveEngine(resolvedEngine);
-        setStatus("ready");
-        if (typeof onSpeakingChange === "function") onSpeakingChange(false);
-        return { audioUrl: blobUrl, blobUrl, engine: resolvedEngine };
-      };
-
-      // ── TIER 1: In-Browser Edge AI Synthesis ────────────────────
-      const tryTier1Edge = async () => {
-        const result = await synthesizeEdgeTTS(text, voiceSettings, {
-          languageCode,
-        });
-        return commitAudio(result.audioUrl || result.blobUrl, TTS_ENGINES.EDGE);
-      };
-
-      // ── TIER 2: Cloud Hugging Face Space backend ────────────────
-      const tryTier2Cloud = async () => {
+      try {
+        const voiceSettings = loadVoiceSettings();
         const modelId =
           localStorage.getItem("voiceforge:selectedModelId") ||
           "eleven_multilingual_v2";
@@ -141,10 +157,7 @@ export default function useTTS() {
           signal: controller.signal,
         });
 
-        if (controller.signal.aborted) {
-          if (typeof onSpeakingChange === "function") onSpeakingChange(false);
-          return { aborted: true };
-        }
+        if (!isCurrent()) return { aborted: true };
 
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
@@ -155,117 +168,91 @@ export default function useTTS() {
             err.isColdStart = true;
             throw err;
           }
-          throw new Error(payload.error || "Cloud speech generation failed.");
+          throw new Error(payload.error || "Speech generation failed.");
         }
 
         const payload = await response.json();
+        if (!isCurrent()) return { aborted: true };
+
         const nextAudioUrl = payload.audioUrl;
 
         if (!nextAudioUrl) {
           throw new Error("Audio URL missing from server response.");
         }
 
+        // Remember the token so stop() can cancel the server job even before
+        // the stream connection is open.
+        speechTokenRef.current = payload.speechId || "";
+
         let blobUrl = "";
         try {
-          const audioResponse = await fetch(nextAudioUrl);
+          const audioResponse = await fetch(resolveApiUrl(nextAudioUrl), {
+            headers: { "X-ElevenLabs-Api-Key": apiKey },
+            signal: controller.signal,
+          });
           if (audioResponse.ok) {
             const blob = await audioResponse.blob();
-            if (
-              typeof URL !== "undefined" &&
-              typeof URL.createObjectURL === "function"
-            ) {
-              blobUrl = URL.createObjectURL(blob);
+            if (!isCurrent()) return { aborted: true };
+            const created = URL.createObjectURL(blob);
+            if (!mountedRef.current) {
+              URL.revokeObjectURL(created);
+              finishSpeaking();
+              return { audioUrl: "", blobUrl: "" };
             }
+            blobUrl = created;
           }
-        } catch {
-          // Fallback to direct nextAudioUrl if blob fetch fails
-        }
-
-        return commitAudio(blobUrl || nextAudioUrl, TTS_ENGINES.CLOUD);
-      };
-
-      // ── TIER 3: Offline Mock Engine stub ────────────────────────
-      const tryTier3Mock = () => {
-        const mockResult = generateMockWAV(text);
-        return commitAudio(
-          mockResult.audioUrl || mockResult.blobUrl,
-          TTS_ENGINES.MOCK,
-        );
-      };
-
-      try {
-        // Multi-tier routing execution:
-        if (targetEngine === TTS_ENGINES.MOCK) {
-          return tryTier3Mock();
-        }
-
-        if (targetEngine === TTS_ENGINES.CLOUD) {
-          try {
-            return await tryTier2Cloud();
-          } catch (cloudErr) {
-            console.warn(
-              "[useTTS] Cloud synthesis failed, falling back to In-Browser Edge TTS (Tier 1):",
-              cloudErr,
-            );
-            try {
-              return await tryTier1Edge();
-            } catch (edgeErr) {
-              console.warn(
-                "[useTTS] Edge synthesis failed, falling back to Offline Mock (Tier 3):",
-                edgeErr,
-              );
-              return tryTier3Mock();
-            }
+        } catch (blobError) {
+          // An abort must never fall through to the direct-URL fallback below,
+          // otherwise the interrupted audio would start playing anyway.
+          if (blobError?.name === "AbortError" || !isCurrent()) {
+            return { aborted: true };
           }
+          // Blob capture failed — fallback to direct URL
         }
 
-        // Default: Tier 1 (In-Browser Edge AI)
-        try {
-          return await tryTier1Edge();
-        } catch (edgeErr) {
-          console.warn(
-            "[useTTS] In-Browser Edge TTS failed, falling back to Cloud AI (Tier 2):",
-            edgeErr,
-          );
-          try {
-            return await tryTier2Cloud();
-          } catch (cloudErr) {
-            console.warn(
-              "[useTTS] Cloud AI failed, falling back to Offline Mock (Tier 3):",
-              cloudErr,
-            );
-            return tryTier3Mock();
-          }
-        }
-      } catch (ttsError) {
-        if (typeof onSpeakingChange === "function") onSpeakingChange(false);
-        if (ttsError?.name === "AbortError") {
+        if (!isCurrent()) {
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
           return { aborted: true };
         }
+
+        if (!mountedRef.current) {
+          finishSpeaking();
+          return { audioUrl: "", blobUrl: "" };
+        }
+
+        // The stream has been consumed; there is nothing left to cancel.
+        clearActive();
+        if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current);
+        prevBlobRef.current = blobUrl;
+        setAudioUrl(blobUrl || nextAudioUrl);
+        setStatus("ready");
+        finishSpeaking();
+        return { audioUrl: blobUrl || nextAudioUrl, blobUrl };
+      } catch (ttsError) {
+        if (ttsError?.name === "AbortError" || !isCurrent()) {
+          // Interrupted (or superseded): stop() has already reset the UI state.
+          return { aborted: true };
+        }
+        clearActive();
+        finishSpeaking();
         setError(ttsError?.message || String(ttsError));
         setStatus("error");
         throw ttsError;
       }
     },
-    [],
+    [abortInFlight],
   );
 
   React.useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      safeRevokeObjectURL(prevBlobRef.current);
+      abortInFlight();
+      if (prevBlobRef.current) {
+        URL.revokeObjectURL(prevBlobRef.current);
+      }
     };
-  }, []);
+  }, [abortInFlight]);
 
-  return {
-    speak,
-    status,
-    error,
-    audioUrl,
-    engine: activeEngine,
-    ttsEngine: engine,
-    setEngine: setTTSEngine,
-    isEdgeReady: true,
-  };
+  return { speak, stop, status, error, audioUrl };
 }

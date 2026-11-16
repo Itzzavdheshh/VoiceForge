@@ -11,6 +11,7 @@ import {
   Play,
   MessageSquare,
   Trash2,
+  Square,
 } from "lucide-react";
 import TextToSpeech from "../components/TextToSpeech.jsx";
 import VideoPreview from "../components/VideoPreview.jsx";
@@ -18,6 +19,7 @@ import VirtualCamera from "../components/VirtualCamera.jsx";
 import LiveTranscription from "../components/LiveTranscription.jsx";
 import { LanguageSelector } from "../components/LanguageSelector.jsx";
 import useTTS from "../hooks/useTTS.js";
+import { shouldInterruptOnEscape } from "../utils/interruptHotkey.js";
 import useVirtualCamera from "../hooks/useVirtualCamera.js";
 import { getActiveVoiceProfile } from "../hooks/useVoiceClone.js";
 import { useSpeechHistory } from "../hooks/useSpeechHistory.js";
@@ -124,7 +126,9 @@ export default function Call() {
   const [privacyMode, setPrivacyMode] = React.useState(false);
   const [avatarImage, setAvatarImage] = React.useState(null);
 
-  const { speak, status, error, audioUrl, engine } = useTTS();
+  const { speak, stop, status, error, audioUrl, engine } = useTTS();
+  // Bumped on every interrupt; VideoPreview resets playback/lip-sync on change.
+  const [interruptCount, setInterruptCount] = React.useState(0);
   const virtualCamera = useVirtualCamera(canvasRef);
   const [modelId, setModelId] = React.useState(() => {
     try {
@@ -329,6 +333,7 @@ export default function Call() {
       if (result?.fallback) {
         showToast("Using browser voice fallback", "info");
       }
+      return result;
     } catch (err) {
       console.error("TTS streaming error:", err);
       showToast(err?.message || "Speech generation failed", "error");
@@ -336,6 +341,26 @@ export default function Call() {
   }
 
   const isSpeechActive = status === "speaking" || isSpeaking;
+
+  // Stops generation + playback + lip-sync immediately (Stop button / Escape).
+  const handleInterrupt = React.useCallback(() => {
+    stop(); // abort fetches, cancel server job, clear audio/status
+    setInterruptCount((count) => count + 1); // VideoPreview: pause, reset canvas
+    setIsSpeaking(false);
+    setActiveText(""); // drop the subtitle of the aborted phrase
+  }, [stop]);
+
+  // Escape interrupts only while speech is active and nothing else owns the key.
+  React.useEffect(() => {
+    if (!isSpeechActive) return undefined;
+    function onKeyDown(event) {
+      if (!shouldInterruptOnEscape(event, true)) return;
+      event.preventDefault();
+      handleInterrupt();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isSpeechActive, handleInterrupt]);
 
   return (
     <div className="space-y-5">
@@ -716,6 +741,8 @@ export default function Call() {
             onSpeak={handleSpeak}
             disabled={!activeProfile}
             status={status}
+            isSpeechActive={isSpeechActive}
+            onInterrupt={handleInterrupt}
           />
 
           <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft dark:border-border dark:bg-surface dark:text-neutral-100 dark:shadow-soft-dk">
@@ -889,6 +916,7 @@ export default function Call() {
           audioUrl={audioUrl}
           isSpeaking={isSpeaking}
           onSpeakingChange={setIsSpeaking}
+          interruptCount={interruptCount}
           calibration={calibration}
           isCalibrating={isCalibrationOpen}
           avatarImage={avatarImage}
