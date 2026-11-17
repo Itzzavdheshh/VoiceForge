@@ -1,10 +1,24 @@
+// client/src/components/VoiceQuickSettings.jsx
+// Collapsible quick settings panel for voice attributes and TTS synthesis engine selection.
 import React, { useCallback, useEffect, useState } from "react";
-import { Settings2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Settings2,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Cloud,
+  TestTube2,
+} from "lucide-react";
 import {
   VOICE_SETTINGS_KEY,
   loadVoiceSettings,
   persistVoiceSettings,
 } from "../utils/voiceSettings.js";
+import {
+  loadTTSEngine,
+  persistTTSEngine,
+  TTS_ENGINES,
+} from "../utils/edgeTTS.js";
 
 /**
  * A single labelled range slider row.
@@ -75,7 +89,7 @@ function SliderRow({
 }
 
 /**
- * VoiceQuickSettings — collapsible panel for inline voice parameter control.
+ * VoiceQuickSettings — collapsible panel for inline voice parameter control and TTS engine switching.
  *
  * Reads from and writes to the same localStorage key ("voiceforge:voiceSettings")
  * used by the Settings page, so both views stay in sync automatically.
@@ -86,6 +100,7 @@ function SliderRow({
 export function VoiceQuickSettings({ defaultOpen = false }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [settings, setSettings] = useState(loadVoiceSettings);
+  const [ttsEngine, setTtsEngine] = useState(loadTTSEngine);
 
   // Keep in sync when settings change
   useEffect(() => {
@@ -97,12 +112,27 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
         setSettings(loadVoiceSettings());
       }
     }
+    function handleEngineChange(event) {
+      setTtsEngine(event.detail?.engine || loadTTSEngine());
+    }
+
     window.addEventListener("storage", handleStorage);
     window.addEventListener("voiceforge:settingsChanged", handleStorage);
+    window.addEventListener("voiceforge:ttsEngineChanged", handleEngineChange);
+
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("voiceforge:settingsChanged", handleStorage);
+      window.removeEventListener(
+        "voiceforge:ttsEngineChanged",
+        handleEngineChange,
+      );
     };
+  }, []);
+
+  const handleSelectEngine = useCallback((newEngine) => {
+    setTtsEngine(newEngine);
+    persistTTSEngine(newEngine);
   }, []);
 
   const updateSetting = useCallback(
@@ -117,14 +147,6 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
     },
     [],
   );
-
-  const toggleSpeakerBoost = useCallback(() => {
-    setSettings((prev) => {
-      const next = { ...prev, use_speaker_boost: !prev.use_speaker_boost };
-      persistVoiceSettings(next);
-      return next;
-    });
-  }, []);
 
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
@@ -157,6 +179,78 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
           aria-label="Voice quick settings"
           className="space-y-4 border-t border-neutral-200 px-4 py-4 dark:border-border"
         >
+          {/* ── TTS Engine Selector (Issue #1418) ── */}
+          <div className="space-y-2 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+              <span className="flex items-center gap-1.5">
+                <Cpu size={14} className="text-blue-500" aria-hidden="true" />
+                TTS Engine Pipeline
+              </span>
+              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 font-bold">
+                {ttsEngine === TTS_ENGINES.EDGE
+                  ? "In-Browser Edge AI"
+                  : ttsEngine === TTS_ENGINES.CLOUD
+                    ? "Cloud HuggingFace"
+                    : "Mock Engine"}
+              </span>
+            </div>
+            <div
+              className="grid grid-cols-3 gap-1 rounded-md bg-neutral-100 p-1 dark:bg-neutral-800"
+              role="radiogroup"
+              aria-label="Speech synthesis engine"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={ttsEngine === TTS_ENGINES.EDGE}
+                onClick={() => handleSelectEngine(TTS_ENGINES.EDGE)}
+                className={`flex items-center justify-center gap-1 rounded py-1.5 px-2 text-xs font-medium transition ${
+                  ttsEngine === TTS_ENGINES.EDGE
+                    ? "bg-white text-blue-600 shadow-sm dark:bg-neutral-700 dark:text-blue-400 font-bold"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                }`}
+              >
+                <Cpu size={12} aria-hidden="true" />
+                <span>Edge AI</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={ttsEngine === TTS_ENGINES.CLOUD}
+                onClick={() => handleSelectEngine(TTS_ENGINES.CLOUD)}
+                className={`flex items-center justify-center gap-1 rounded py-1.5 px-2 text-xs font-medium transition ${
+                  ttsEngine === TTS_ENGINES.CLOUD
+                    ? "bg-white text-blue-600 shadow-sm dark:bg-neutral-700 dark:text-blue-400 font-bold"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                }`}
+              >
+                <Cloud size={12} aria-hidden="true" />
+                <span>Cloud AI</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={ttsEngine === TTS_ENGINES.MOCK}
+                onClick={() => handleSelectEngine(TTS_ENGINES.MOCK)}
+                className={`flex items-center justify-center gap-1 rounded py-1.5 px-2 text-xs font-medium transition ${
+                  ttsEngine === TTS_ENGINES.MOCK
+                    ? "bg-white text-blue-600 shadow-sm dark:bg-neutral-700 dark:text-blue-400 font-bold"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                }`}
+              >
+                <TestTube2 size={12} aria-hidden="true" />
+                <span>Mock</span>
+              </button>
+            </div>
+            <p className="text-[11px] leading-snug text-neutral-400 dark:text-neutral-500">
+              {ttsEngine === TTS_ENGINES.EDGE
+                ? "100% In-browser synthesis via Web Workers — zero latency & works completely offline."
+                : ttsEngine === TTS_ENGINES.CLOUD
+                  ? "Remote Chatterbox voice cloning via Express backend proxy."
+                  : "Local stub for testing and development without live model loading."}
+            </p>
+          </div>
+
           <SliderRow
             id="vqs-stability"
             label="Stability"
@@ -221,26 +315,6 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
             max={2.0}
             step={0.05}
           />
-          <SliderRow
-            id="vqs-api-speed"
-            label="Playback Speed"
-            description="Lower → slower delivery. Higher → faster delivery."
-            value={settings.speed ?? 1.0}
-            min={0.5}
-            max={2.0}
-            step={0.1}
-            onChange={updateSetting("speed")}
-          />
-          <SliderRow
-            id="vqs-api-pitch"
-            label="Simulated Pitch Shift"
-            description="Adjust the synthesized voice pitch tones."
-            value={settings.pitch ?? 0.5}
-            min={0.0}
-            max={1.0}
-            step={0.05}
-            onChange={updateSetting("pitch")}
-          />
 
           <SliderRow
             id="vqs-volume-gain"
@@ -298,7 +372,7 @@ export function VoiceQuickSettings({ defaultOpen = false }) {
           </details>
 
           <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-            Changes apply to Chatterbox voice synthesis.{" "}
+            Changes apply to voice synthesis.{" "}
             <span className="font-medium text-neutral-500 dark:text-neutral-400">
               Full controls in Settings →
             </span>
