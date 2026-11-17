@@ -8,6 +8,7 @@ const SHORTCUTS = [
     shortcuts: [
       { keys: ["Enter"], description: "Speak typed text" },
       { keys: ["Shift", "Enter"], description: "Add a new line" },
+      { keys: ["Esc"], description: "Stop speech while it is generating or playing" },
     ],
   },
   {
